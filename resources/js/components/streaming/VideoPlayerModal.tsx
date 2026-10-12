@@ -47,6 +47,10 @@ export default function VideoPlayerModal({
             return 'http://localhost:8000/api/stream';
         }
     });
+    const [enableDownload, setEnableDownload] = useState<boolean>(true);
+    const [testDownload, setTestDownload] = useState<boolean>(true);
+    const [threads, setThreads] = useState<number>(2);
+    const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream'>('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);
     const [apiFeedback, setApiFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -213,10 +217,21 @@ export default function VideoPlayerModal({
 
     // Target Query Parameters Calculation
     const targetTmdbId = String(currentTmdbId || (item ? getTmdbIdForMedia(item.id, item.tmdbId) : ''));
-    const targetM3u8Url = streamUrl;
+    
+    const getTargetWatchUrl = () => {
+        const domain = (typeof window !== 'undefined' && !window.location.origin.includes('localhost'))
+            ? window.location.origin
+            : 'https://cinema.zetware.id';
+        const mediaId = item.id.startsWith('tmdb-') ? item.id : `tmdb-${item.type === 'series' ? 'tv' : 'mov'}-${targetTmdbId}`;
+        const query = item.type === 'series' ? `?episode=${selectedEpisode}&season=${selectedSeason}` : '';
+        return `${domain}/watch/${mediaId}${query}`;
+    };
+
+    const targetM3u8Url = targetM3u8Type === 'watch' ? getTargetWatchUrl() : streamUrl;
+    
     const targetTitle = item.type === 'series' 
-        ? `${item.title} - S${selectedSeason}E${selectedEpisode}` 
-        : item.title;
+        ? `${item.title.toUpperCase()} - S${selectedSeason}E${selectedEpisode}` 
+        : item.title.toUpperCase();
 
     const handleBaseUrlChange = (val: string) => {
         setApiBaseUrl(val);
@@ -234,12 +249,18 @@ export default function VideoPlayerModal({
             parsed.searchParams.set('tmdb_id', targetTmdbId);
             parsed.searchParams.set('m3u8_url', targetM3u8Url);
             parsed.searchParams.set('title', targetTitle);
+            parsed.searchParams.set('enable_download', String(enableDownload));
+            parsed.searchParams.set('test_download', String(testDownload));
+            parsed.searchParams.set('threads', String(threads));
             return parsed.toString();
         } catch {
             const qs = new URLSearchParams({
                 tmdb_id: targetTmdbId,
                 m3u8_url: targetM3u8Url,
                 title: targetTitle,
+                enable_download: String(enableDownload),
+                test_download: String(testDownload),
+                threads: String(threads),
             }).toString();
             return `${trimmed}${trimmed.includes('?') ? '&' : '?'}${qs}`;
         }
@@ -732,7 +753,7 @@ export default function VideoPlayerModal({
                         {/* Parameter List Items */}
                         <div className="space-y-2 pt-1">
                             <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
-                                Parameter Query Yang Disediakan:
+                                Parameter Query Yang Disediakan (Target API):
                             </span>
 
                             {/* 1. tmdb_id */}
@@ -769,11 +790,31 @@ export default function VideoPlayerModal({
                             {/* 2. m3u8_url */}
                             <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                 <div className="min-w-0 flex-1">
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-2 flex-wrap">
                                         <code className="text-xs font-mono font-bold text-amber-400">m3u8_url *</code>
                                         <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono">string (query)</span>
+                                        <div className="flex items-center gap-1 ml-auto">
+                                            <button
+                                                type="button"
+                                                onClick={() => setTargetM3u8Type('watch')}
+                                                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                                                    targetM3u8Type === 'watch' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                }`}
+                                            >
+                                                Watch URL
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setTargetM3u8Type('stream')}
+                                                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                                                    targetM3u8Type === 'stream' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                }`}
+                                            >
+                                                Stream Embed
+                                            </button>
+                                        </div>
                                     </div>
-                                    <p className="text-[11px] text-slate-400 mt-0.5">URL halaman player / manifest target</p>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">URL manifest target</p>
                                     <p className="text-xs font-mono text-white font-semibold break-all mt-1 bg-black/40 px-2 py-1 rounded-lg max-h-16 overflow-y-auto">
                                         {targetM3u8Url}
                                     </p>
@@ -815,6 +856,129 @@ export default function VideoPlayerModal({
                                     className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1.5 self-start sm:self-center transition shrink-0 active:scale-95"
                                 >
                                     {copiedField === 'title' ? (
+                                        <>
+                                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span className="text-emerald-400">Disalin</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3.5 h-3.5" />
+                                            <span>Salin</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* 4. enable_download */}
+                            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <code className="text-xs font-mono font-bold text-cyan-400">enable_download</code>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">boolean (query)</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Unduh video?</p>
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={enableDownload}
+                                                onChange={(e) => setEnableDownload(e.target.checked)}
+                                                className="rounded bg-slate-950 border-white/20 text-red-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                                            />
+                                            <span className={`text-xs font-mono font-bold ${enableDownload ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                                {enableDownload ? 'true (Unduh Aktif)' : 'false (Unduh Mati)'}
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopy(String(enableDownload), 'enable_download')}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1.5 self-start sm:self-center transition shrink-0 active:scale-95"
+                                >
+                                    {copiedField === 'enable_download' ? (
+                                        <>
+                                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span className="text-emerald-400">Disalin</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3.5 h-3.5" />
+                                            <span>Salin</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* 5. test_download */}
+                            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <code className="text-xs font-mono font-bold text-purple-400">test_download</code>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">boolean (query)</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">True = Unduh resolusi terendah saja.</p>
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                checked={testDownload}
+                                                onChange={(e) => setTestDownload(e.target.checked)}
+                                                className="rounded bg-slate-950 border-white/20 text-red-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                                            />
+                                            <span className={`text-xs font-mono font-bold ${testDownload ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                                {testDownload ? 'true (Resolusi Terendah Saja)' : 'false (Semua Resolusi)'}
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopy(String(testDownload), 'test_download')}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1.5 self-start sm:self-center transition shrink-0 active:scale-95"
+                                >
+                                    {copiedField === 'test_download' ? (
+                                        <>
+                                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span className="text-emerald-400">Disalin</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3.5 h-3.5" />
+                                            <span>Salin</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* 6. threads */}
+                            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <code className="text-xs font-mono font-bold text-sky-400">threads</code>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono">integer (query)</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Jumlah pecahan koneksi paralel (1-10 direkomendasikan)</p>
+                                    <div className="flex items-center gap-3 mt-1.5">
+                                        <input
+                                            type="range"
+                                            min="1"
+                                            max="10"
+                                            value={threads}
+                                            onChange={(e) => setThreads(parseInt(e.target.value) || 1)}
+                                            className="w-36 accent-red-600 cursor-pointer"
+                                        />
+                                        <span className="text-xs font-mono font-bold text-white bg-black/40 px-2 py-0.5 rounded">
+                                            {threads} threads
+                                        </span>
+                                    </div>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopy(String(threads), 'threads')}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1.5 self-start sm:self-center transition shrink-0 active:scale-95"
+                                >
+                                    {copiedField === 'threads' ? (
                                         <>
                                             <Check className="w-3.5 h-3.5 text-emerald-400" />
                                             <span className="text-emerald-400">Disalin</span>

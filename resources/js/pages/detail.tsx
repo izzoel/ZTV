@@ -39,6 +39,10 @@ export default function DetailPage({ id }: DetailPageProps) {
             return 'http://localhost:8000/api/stream';
         }
     });
+    const [enableDownload, setEnableDownload] = useState<boolean>(true);
+    const [testDownload, setTestDownload] = useState<boolean>(true);
+    const [threads, setThreads] = useState<number>(2);
+    const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream'>('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);
     const [apiFeedback, setApiFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -160,13 +164,24 @@ export default function DetailPage({ id }: DetailPageProps) {
 
     // TMDB Target API calculation
     const targetTmdbId = String(media?.tmdbId || (media ? getTmdbIdForMedia(media.id) : ''));
-    const targetM3u8Url = media
-        ? getSourceUrl('vidsrc', media.type, targetTmdbId || 27205, selectedSeasonNumber, 1)
-        : '';
+    
+    const getTargetWatchUrl = () => {
+        const domain = (typeof window !== 'undefined' && !window.location.origin.includes('localhost'))
+            ? window.location.origin
+            : 'https://cinema.zetware.id';
+        const mediaId = media ? (media.id.startsWith('tmdb-') ? media.id : `tmdb-${media.type === 'series' ? 'tv' : 'mov'}-${targetTmdbId}`) : id;
+        const query = media?.type === 'series' ? `?episode=1&season=${selectedSeasonNumber}` : '';
+        return `${domain}/watch/${mediaId}${query}`;
+    };
+
+    const targetM3u8Url = targetM3u8Type === 'watch'
+        ? getTargetWatchUrl()
+        : (media ? getSourceUrl('vidsrc', media.type, targetTmdbId || 27205, selectedSeasonNumber, 1) : '');
+
     const targetTitle = media
         ? media.type === 'series'
-            ? `${media.title} - S${selectedSeasonNumber}E1`
-            : media.title
+            ? `${media.title.toUpperCase()} - S${selectedSeasonNumber}E1`
+            : media.title.toUpperCase()
         : '';
 
     const handleBaseUrlChange = (val: string) => {
@@ -185,12 +200,18 @@ export default function DetailPage({ id }: DetailPageProps) {
             parsed.searchParams.set('tmdb_id', targetTmdbId);
             parsed.searchParams.set('m3u8_url', targetM3u8Url);
             parsed.searchParams.set('title', targetTitle);
+            parsed.searchParams.set('enable_download', String(enableDownload));
+            parsed.searchParams.set('test_download', String(testDownload));
+            parsed.searchParams.set('threads', String(threads));
             return parsed.toString();
         } catch {
             const qs = new URLSearchParams({
                 tmdb_id: targetTmdbId,
                 m3u8_url: targetM3u8Url,
                 title: targetTitle,
+                enable_download: String(enableDownload),
+                test_download: String(testDownload),
+                threads: String(threads),
             }).toString();
             return `${trimmed}${trimmed.includes('?') ? '&' : '?'}${qs}`;
         }
@@ -611,10 +632,14 @@ export default function DetailPage({ id }: DetailPageProps) {
 
                             {/* Query Parameters */}
                             <div className="space-y-2">
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex items-center justify-between gap-2">
+                                {/* 1. tmdb_id */}
+                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                     <div className="min-w-0 flex-1">
-                                        <code className="text-xs font-mono font-bold text-red-400">tmdb_id *</code>
-                                        <p className="text-[11px] text-slate-400">ID TMDb media</p>
+                                        <div className="flex items-center gap-2">
+                                            <code className="text-xs font-mono font-bold text-red-400">tmdb_id *</code>
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-mono">string (query)</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">ID TMDb media</p>
                                         <p className="text-xs font-mono text-white font-semibold truncate mt-1 bg-black/40 px-2 py-1 rounded-lg">
                                             {targetTmdbId}
                                         </p>
@@ -627,35 +652,153 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     </button>
                                 </div>
 
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex items-center justify-between gap-2">
+                                {/* 2. m3u8_url */}
+                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                     <div className="min-w-0 flex-1">
-                                        <code className="text-xs font-mono font-bold text-amber-400">m3u8_url *</code>
-                                        <p className="text-[11px] text-slate-400">URL halaman player / manifest target</p>
+                                        <div className="flex items-center gap-2 flex-wrap">
+                                            <code className="text-xs font-mono font-bold text-amber-400">m3u8_url *</code>
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono">string (query)</span>
+                                            <div className="flex items-center gap-1 ml-auto">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTargetM3u8Type('watch')}
+                                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                                                        targetM3u8Type === 'watch' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                    }`}
+                                                >
+                                                    Watch URL
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setTargetM3u8Type('stream')}
+                                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                                                        targetM3u8Type === 'stream' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                    }`}
+                                                >
+                                                    Stream Embed
+                                                </button>
+                                            </div>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">URL manifest target</p>
                                         <p className="text-xs font-mono text-white font-semibold break-all mt-1 bg-black/40 px-2 py-1 rounded-lg max-h-16 overflow-y-auto">
                                             {targetM3u8Url}
                                         </p>
                                     </div>
                                     <button
                                         onClick={() => handleCopy(targetM3u8Url, 'm3u8_url')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0"
+                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
                                     >
                                         {copiedField === 'm3u8_url' ? 'Disalin' : 'Salin'}
                                     </button>
                                 </div>
 
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex items-center justify-between gap-2">
+                                {/* 3. title */}
+                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
                                     <div className="min-w-0 flex-1">
-                                        <code className="text-xs font-mono font-bold text-emerald-400">title *</code>
-                                        <p className="text-[11px] text-slate-400">Judul media / video</p>
+                                        <div className="flex items-center gap-2">
+                                            <code className="text-xs font-mono font-bold text-emerald-400">title *</code>
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">string (query)</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">Judul media / video</p>
                                         <p className="text-xs font-mono text-white font-semibold truncate mt-1 bg-black/40 px-2 py-1 rounded-lg">
                                             {targetTitle}
                                         </p>
                                     </div>
                                     <button
                                         onClick={() => handleCopy(targetTitle, 'title')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0"
+                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
                                     >
                                         {copiedField === 'title' ? 'Disalin' : 'Salin'}
+                                    </button>
+                                </div>
+
+                                {/* 4. enable_download */}
+                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <code className="text-xs font-mono font-bold text-cyan-400">enable_download</code>
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">boolean (query)</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">Unduh video?</p>
+                                        <div className="flex items-center gap-3 mt-1.5">
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={enableDownload}
+                                                    onChange={(e) => setEnableDownload(e.target.checked)}
+                                                    className="rounded bg-slate-950 border-white/20 text-red-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                                                />
+                                                <span className={`text-xs font-mono font-bold ${enableDownload ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                                    {enableDownload ? 'true (Unduh Aktif)' : 'false (Unduh Mati)'}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleCopy(String(enableDownload), 'enable_download')}
+                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                    >
+                                        {copiedField === 'enable_download' ? 'Disalin' : 'Salin'}
+                                    </button>
+                                </div>
+
+                                {/* 5. test_download */}
+                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <code className="text-xs font-mono font-bold text-purple-400">test_download</code>
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">boolean (query)</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">True = Unduh resolusi terendah saja.</p>
+                                        <div className="flex items-center gap-3 mt-1.5">
+                                            <label className="flex items-center gap-2 cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={testDownload}
+                                                    onChange={(e) => setTestDownload(e.target.checked)}
+                                                    className="rounded bg-slate-950 border-white/20 text-red-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                                                />
+                                                <span className={`text-xs font-mono font-bold ${testDownload ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                                    {testDownload ? 'true (Resolusi Terendah Saja)' : 'false (Semua Resolusi)'}
+                                                </span>
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleCopy(String(testDownload), 'test_download')}
+                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                    >
+                                        {copiedField === 'test_download' ? 'Disalin' : 'Salin'}
+                                    </button>
+                                </div>
+
+                                {/* 6. threads */}
+                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                    <div className="min-w-0 flex-1">
+                                        <div className="flex items-center gap-2">
+                                            <code className="text-xs font-mono font-bold text-sky-400">threads</code>
+                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono">integer (query)</span>
+                                        </div>
+                                        <p className="text-[11px] text-slate-400 mt-0.5">Jumlah pecahan koneksi paralel (1-10 direkomendasikan)</p>
+                                        <div className="flex items-center gap-3 mt-1.5">
+                                            <input
+                                                type="range"
+                                                min="1"
+                                                max="10"
+                                                value={threads}
+                                                onChange={(e) => setThreads(parseInt(e.target.value) || 1)}
+                                                className="w-36 accent-red-600 cursor-pointer"
+                                            />
+                                            <span className="text-xs font-mono font-bold text-white bg-black/40 px-2 py-0.5 rounded">
+                                                {threads} threads
+                                            </span>
+                                        </div>
+                                    </div>
+                                    <button
+                                        onClick={() => handleCopy(String(threads), 'threads')}
+                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                    >
+                                        {copiedField === 'threads' ? 'Disalin' : 'Salin'}
                                     </button>
                                 </div>
                             </div>
