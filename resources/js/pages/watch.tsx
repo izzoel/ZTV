@@ -2,12 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
 import { 
     Play, Pause, ArrowLeft, Server, Tv, Search, Layers, RefreshCw, AlertCircle, Film,
-    Maximize, X, ChevronRight, ChevronLeft, Share2, ExternalLink, Copy, Check, Send, Globe, Code, CheckCircle2
+    Maximize, X, ChevronRight, ChevronLeft, Share2, ExternalLink, Copy, Check, Send, Globe, Code, CheckCircle2,
+    Zap, Monitor, ChevronDown
 } from 'lucide-react';
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
 import { fetchMediaById, fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
 import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
-import { checkZetwareMediaExists } from '@/lib/zetwareStorage';
+import { checkZetwareMediaExists, ZetwareStreamOption } from '@/lib/zetwareStorage';
 import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
 import Navbar from '@/components/streaming/Navbar';
 import StreamingFooter from '@/components/streaming/StreamingFooter';
@@ -32,9 +33,11 @@ export default function WatchPage({
     const [media, setMedia] = useState<MediaItem | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
 
-    // Zetware Direct Storage State
+    // Zetware Cloud Direct Storage State
     const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(null);
+    const [zetwareStreams, setZetwareStreams] = useState<ZetwareStreamOption[]>([]);
     const [isCheckingZetware, setIsCheckingZetware] = useState<boolean>(true);
+    const [showResolutionMenu, setShowResolutionMenu] = useState<boolean>(false);
 
     // Streambert Engine State
     const [selectedSource, setSelectedSource] = useState<string>('vidsrc');
@@ -54,9 +57,13 @@ export default function WatchPage({
     const [showApiTargetModal, setShowApiTargetModal] = useState<boolean>(false);
     const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => {
         try {
-            return localStorage.getItem('ztv_api_target_base_url') || 'http://localhost:8000/api/stream';
+            const saved = localStorage.getItem('ztv_api_target_base_url');
+            if (saved && saved !== 'http://localhost:8000/api/stream') {
+                return saved;
+            }
+            return 'http://100.81.252.14:8000/extract';
         } catch {
-            return 'http://localhost:8000/api/stream';
+            return 'http://100.81.252.14:8000/extract';
         }
     });
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
@@ -143,6 +150,7 @@ export default function WatchPage({
     }, [media, currentTmdbId, selectedSeason]);
 
     // Automatic check for Zetware Storage MP4 availability
+    // Automatic check for Zetware Cloud MP4 availability
     useEffect(() => {
         let isMounted = true;
         if (!media) return;
@@ -153,9 +161,11 @@ export default function WatchPage({
             setIsCheckingZetware(false);
             if (res.exists && res.url) {
                 setZetwareDirectUrl(res.url);
-                setUseStreambertEmbed(false); // Automatically use Zetware ID direct MP4!
+                setZetwareStreams(res.streams || [{ url: res.url, resolution: 'Direct MP4', label: 'Direct MP4' }]);
+                setUseStreambertEmbed(false); // Automatically use Zetware Cloud direct MP4!
             } else {
                 setZetwareDirectUrl(null);
+                setZetwareStreams([]);
                 setUseStreambertEmbed(true); // Fallback to existing stream!
             }
         });
@@ -241,6 +251,30 @@ export default function WatchPage({
             : media.title.toUpperCase()
         : '';
 
+    const detectedResolution = zetwareDirectUrl?.match(/_(\d+x\d+|\d+p)/i)?.[1]
+        ? `${zetwareDirectUrl.match(/_(\d+x\d+|\d+p)/i)?.[1]} MP4`
+        : 'Direct MP4';
+
+    const handleSelectZetwareResolution = (newUrl: string) => {
+        const videoEl = videoRef.current;
+        const curTime = videoEl ? videoEl.currentTime : 0;
+        const isPaused = videoEl ? videoEl.paused : false;
+
+        setZetwareDirectUrl(newUrl);
+        setUseStreambertEmbed(false);
+        setShowResolutionMenu(false);
+        setShowSourceMenu(false);
+
+        setTimeout(() => {
+            if (videoRef.current) {
+                videoRef.current.currentTime = curTime;
+                if (!isPaused) {
+                    videoRef.current.play().catch(() => {});
+                }
+            }
+        }, 50);
+    };
+
     const handleBaseUrlChange = (val: string) => {
         setApiBaseUrl(val);
         try {
@@ -251,7 +285,7 @@ export default function WatchPage({
     };
 
     const getTargetFullUrl = (baseUrl: string = apiBaseUrl) => {
-        const trimmed = baseUrl.trim() || 'http://localhost:8000/api/stream';
+        const trimmed = baseUrl.trim() || 'http://100.81.252.14:8000/extract';
         try {
             const parsed = new URL(trimmed);
             parsed.searchParams.set('tmdb_id', targetTmdbId);
@@ -370,7 +404,7 @@ export default function WatchPage({
                 {/* CINEMA PLAYER CONTAINER */}
                 <div className="pt-20 sm:pt-24 max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12 space-y-4">
                     {/* PLAYER HEADER BAR */}
-                    <div className="p-3 sm:p-4 bg-slate-900/90 border border-white/10 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xl backdrop-blur-xl">
+                    <div className="relative z-30 p-3 sm:p-4 bg-slate-900/90 border border-white/10 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xl backdrop-blur-xl">
                         {/* Left: Back & Title */}
                         <div className="flex items-center gap-3 min-w-0">
                             <button
@@ -393,7 +427,7 @@ export default function WatchPage({
                                 </h1>
                                 <div className="flex items-center gap-2 text-xs text-slate-400">
                                     <span className="text-emerald-400 font-semibold">
-                                        {!useStreambertEmbed && zetwareDirectUrl ? '⚡ Zetware Storage' : useStreambertEmbed ? activeSourceObj.label : 'Local MP4'}
+                                        {!useStreambertEmbed && zetwareDirectUrl ? '⚡ Zetware Cloud' : useStreambertEmbed ? activeSourceObj.label : 'Local MP4'}
                                     </span>
                                     {media.type === 'series' && (
                                         <>
@@ -408,10 +442,71 @@ export default function WatchPage({
                         </div>
 
                         {/* Right: Controls (Server, Episodes, Target API, Fullscreen) */}
-                        <div className="flex flex-wrap items-center gap-2 justify-end">
+                        <div className="flex flex-wrap items-center gap-2 justify-end relative z-30">
                             {/* Zetware Glowing Badge in Header when playing from zetware.id */}
                             {!useStreambertEmbed && zetwareDirectUrl && (
-                                <ZetwareGlowingBadge variant="header" qualityText="640x320 MP4" />
+                                <ZetwareGlowingBadge variant="header" qualityText={detectedResolution} />
+                            )}
+
+                            {/* Resolution Selector Button for Zetware Cloud in Header */}
+                            {!useStreambertEmbed && zetwareDirectUrl && (
+                                <div className="relative">
+                                    <button
+                                        onClick={() => {
+                                            setShowResolutionMenu(!showResolutionMenu);
+                                            setShowSourceMenu(false);
+                                            setShowEpisodeMenu(false);
+                                        }}
+                                        className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-amber-500/40 text-amber-300 hover:text-amber-200 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition cursor-pointer active:scale-95"
+                                        title="Pilih Resolusi Video Zetware Cloud"
+                                    >
+                                        <Monitor className="w-3.5 h-3.5 text-amber-400" />
+                                        <span>{detectedResolution}</span>
+                                        <ChevronDown className="w-3 h-3 text-amber-400" />
+                                    </button>
+
+                                    {showResolutionMenu && (
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-40 bg-transparent"
+                                                onClick={() => setShowResolutionMenu(false)}
+                                            />
+                                            <div className="absolute top-11 right-0 w-52 bg-slate-950 border border-white/20 rounded-2xl p-2 shadow-2xl z-50 text-xs space-y-1 backdrop-blur-2xl">
+                                                <div className="px-2 py-1 border-b border-white/10 text-white font-bold flex items-center justify-between">
+                                                    <span className="flex items-center gap-1.5">
+                                                        <Monitor className="w-3.5 h-3.5 text-amber-400" />
+                                                        Resolusi Video
+                                                    </span>
+                                                </div>
+                                                {zetwareStreams.length > 0 ? (
+                                                    zetwareStreams.map((st) => (
+                                                        <button
+                                                            key={st.url}
+                                                            onClick={() => handleSelectZetwareResolution(st.url)}
+                                                            className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition text-xs font-semibold ${
+                                                                zetwareDirectUrl === st.url
+                                                                    ? 'bg-amber-400 text-slate-950 font-black'
+                                                                    : 'text-slate-300 hover:bg-white/10'
+                                                            }`}
+                                                        >
+                                                            <span className="flex items-center gap-1.5">
+                                                                <Zap className="w-3 h-3 fill-current" />
+                                                                {st.label} MP4
+                                                            </span>
+                                                            {zetwareDirectUrl === st.url && (
+                                                                <Check className="w-3.5 h-3.5 text-slate-950" />
+                                                            )}
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-2 py-1.5 text-[11px] text-slate-400">
+                                                        {detectedResolution}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             )}
 
                             {/* Server Selector */}
@@ -428,11 +523,16 @@ export default function WatchPage({
                                     }`}
                                 >
                                     <Server className="w-3.5 h-3.5" />
-                                    <span>Server: {!useStreambertEmbed && zetwareDirectUrl ? 'Zetware Storage' : activeSourceObj.label}</span>
+                                    <span>Server: {!useStreambertEmbed && zetwareDirectUrl ? 'Zetware Cloud' : activeSourceObj.label}</span>
                                 </button>
 
                                 {showSourceMenu && (
-                                    <div className="absolute top-11 right-0 w-80 bg-slate-950 border border-white/20 rounded-2xl p-2.5 shadow-2xl z-50 text-xs space-y-1.5 backdrop-blur-2xl">
+                                    <>
+                                        <div
+                                            className="fixed inset-0 z-40 bg-transparent"
+                                            onClick={() => setShowSourceMenu(false)}
+                                        />
+                                        <div className="absolute top-11 right-0 w-80 bg-slate-950 border border-white/20 rounded-2xl p-2.5 shadow-2xl z-50 text-xs space-y-1.5 backdrop-blur-2xl">
                                         <div className="px-2 py-1 border-b border-white/10 text-white font-bold flex items-center justify-between">
                                             <div className="flex items-center gap-1.5">
                                                 <Layers className="w-3.5 h-3.5 text-red-500" />
@@ -440,34 +540,64 @@ export default function WatchPage({
                                             </div>
                                         </div>
 
-                                        {/* Option: Zetware Storage Native File (If Available) */}
+                                        {/* Option: Zetware Cloud Native File (If Available) */}
                                         {zetwareDirectUrl && (
-                                            <button
-                                                onClick={() => {
-                                                    setUseStreambertEmbed(false);
-                                                    setShowSourceMenu(false);
-                                                }}
-                                                className={`w-full text-left p-2.5 rounded-xl transition border mb-1 ${
+                                            <div
+                                                className={`p-2.5 rounded-xl transition border mb-1.5 ${
                                                     !useStreambertEmbed
                                                         ? 'bg-gradient-to-r from-red-950 via-slate-900 to-slate-900 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'
                                                         : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
                                                 }`}
                                             >
-                                                <div className="flex items-center justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-5 h-5 rounded-md bg-gradient-to-br from-red-600 to-amber-500 flex items-center justify-center font-black text-white text-[10px] shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-                                                            Z
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setUseStreambertEmbed(false);
+                                                        setShowSourceMenu(false);
+                                                    }}
+                                                    className="w-full text-left"
+                                                >
+                                                    <div className="flex items-center justify-between">
+                                                        <div className="flex items-center gap-2">
+                                                            <div className="w-5 h-5 rounded-md bg-gradient-to-br from-red-600 to-amber-500 flex items-center justify-center font-black text-white text-[10px] shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+                                                                Z
+                                                            </div>
+                                                            <span className="font-extrabold text-white">Zetware Cloud</span>
                                                         </div>
-                                                        <span className="font-extrabold text-white">Zetware Storage</span>
+                                                        <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-bold text-emerald-400">
+                                                            {detectedResolution}
+                                                        </span>
                                                     </div>
-                                                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-bold text-emerald-400">
-                                                        640x320 MP4
-                                                    </span>
-                                                </div>
-                                                <p className="text-[10px] text-slate-300 line-clamp-1 mt-1">
-                                                    File lokal direct MP4 super cepat dari storage zetware.id
-                                                </p>
-                                            </button>
+                                                    <p className="text-[10px] text-slate-300 line-clamp-1 mt-1">
+                                                        File streaming direct MP4 cepat & jernih dari cloud zetware.id
+                                                    </p>
+                                                </button>
+
+                                                {/* Resolusi Selector di dalam Server Menu */}
+                                                {zetwareStreams.length > 0 && (
+                                                    <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
+                                                        <span className="text-[10px] text-slate-400 font-semibold w-full">Pilih Resolusi Zetware Cloud:</span>
+                                                        {zetwareStreams.map((st) => (
+                                                            <button
+                                                                key={st.url}
+                                                                type="button"
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    handleSelectZetwareResolution(st.url);
+                                                                }}
+                                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
+                                                                    !useStreambertEmbed && zetwareDirectUrl === st.url
+                                                                        ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30'
+                                                                        : 'bg-white/10 hover:bg-white/20 text-slate-200'
+                                                                }`}
+                                                            >
+                                                                <Zap className="w-2.5 h-2.5 fill-current" />
+                                                                <span>{st.label}</span>
+                                                            </button>
+                                                        ))}
+                                                    </div>
+                                                )}
+                                            </div>
                                         )}
 
                                         <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
@@ -499,6 +629,7 @@ export default function WatchPage({
                                             ))}
                                         </div>
                                     </div>
+                                    </>
                                 )}
                             </div>
 
@@ -517,7 +648,12 @@ export default function WatchPage({
                                     </button>
 
                                     {showEpisodeMenu && (
-                                        <div className="absolute top-11 right-0 w-64 bg-slate-950 border border-white/20 rounded-2xl p-3 shadow-2xl z-50 text-xs space-y-2 backdrop-blur-2xl">
+                                        <>
+                                            <div
+                                                className="fixed inset-0 z-40 bg-transparent"
+                                                onClick={() => setShowEpisodeMenu(false)}
+                                            />
+                                            <div className="absolute top-11 right-0 w-64 bg-slate-950 border border-white/20 rounded-2xl p-3 shadow-2xl z-50 text-xs space-y-2 backdrop-blur-2xl">
                                             <span className="font-bold text-white block border-b border-white/10 pb-1.5">
                                                 Pilih Musim & Episode
                                             </span>
@@ -573,7 +709,8 @@ export default function WatchPage({
                                                 </div>
                                             </div>
                                         </div>
-                                    )}
+                                    </>
+                                )}
                                 </div>
                             )}
 
@@ -613,7 +750,7 @@ export default function WatchPage({
                     {/* CINEMA VIDEO VIEWPORT */}
                     <div 
                         ref={frameContainerRef}
-                        className="relative w-full aspect-video bg-black rounded-3xl overflow-hidden border border-white/15 shadow-2xl flex items-center justify-center"
+                        className="relative z-0 w-full aspect-video bg-black rounded-3xl overflow-hidden border border-white/15 shadow-2xl flex items-center justify-center"
                     >
                         {useStreambertEmbed ? (
                             <>
@@ -824,7 +961,7 @@ export default function WatchPage({
                                     type="text"
                                     value={apiBaseUrl}
                                     onChange={(e) => handleBaseUrlChange(e.target.value)}
-                                    placeholder="http://localhost:8000/api/stream"
+                                    placeholder="http://100.81.252.14:8000/extract"
                                     className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs focus:outline-none focus:border-amber-500 transition"
                                 />
                             </div>

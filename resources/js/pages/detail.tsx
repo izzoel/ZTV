@@ -37,9 +37,13 @@ export default function DetailPage({ id }: DetailPageProps) {
     const [showApiTargetModal, setShowApiTargetModal] = useState<boolean>(false);
     const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => {
         try {
-            return localStorage.getItem('ztv_api_target_base_url') || 'http://localhost:8000/api/stream';
+            const saved = localStorage.getItem('ztv_api_target_base_url');
+            if (saved && saved !== 'http://localhost:8000/api/stream') {
+                return saved;
+            }
+            return 'http://100.81.252.14:8000/extract';
         } catch {
-            return 'http://localhost:8000/api/stream';
+            return 'http://100.81.252.14:8000/extract';
         }
     });
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
@@ -224,7 +228,7 @@ export default function DetailPage({ id }: DetailPageProps) {
     };
 
     const getTargetFullUrl = (baseUrl: string = apiBaseUrl) => {
-        const trimmed = baseUrl.trim() || 'http://localhost:8000/api/stream';
+        const trimmed = baseUrl.trim() || 'http://100.81.252.14:8000/extract';
         try {
             const parsed = new URL(trimmed);
             parsed.searchParams.set('tmdb_id', targetTmdbId);
@@ -662,7 +666,7 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     type="text"
                                     value={apiBaseUrl}
                                     onChange={(e) => handleBaseUrlChange(e.target.value)}
-                                    placeholder="http://localhost:8000/api/stream"
+                                    placeholder="http://100.81.252.14:8000/extract"
                                     className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs focus:outline-none focus:border-amber-500 transition"
                                 />
                             </div>
@@ -722,7 +726,7 @@ export default function DetailPage({ id }: DetailPageProps) {
                                                             targetM3u8Type === 'zetware' ? 'bg-red-500 text-white font-bold ring-1 ring-red-400' : 'bg-white/10 text-red-300 hover:text-white'
                                                         }`}
                                                     >
-                                                        ⚡ Zetware Direct
+                                                        ⚡ Zetware Cloud
                                                     </button>
                                                 )}
                                             </div>
