@@ -21,7 +21,7 @@ Route::get('/watch/{id}', function ($id) {
     ]);
 })->name('watch');
 
-Route::get('/api/check-zetware-media', function (\Illuminate\Http\Request $request) {
+$checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
     $rawCandidates = $request->query('candidates');
     if (is_array($rawCandidates)) {
         $candidates = $rawCandidates;
@@ -113,7 +113,11 @@ Route::get('/api/check-zetware-media', function (\Illuminate\Http\Request $reque
         'url' => ! empty($streams) ? $streams[0]['url'] : null,
         'streams' => $streams,
     ]);
-});
+};
+
+Route::get('/api/check-zetware-media', $checkZetwareMediaHandler);
+Route::get('/check-zetware-media', $checkZetwareMediaHandler);
+
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
