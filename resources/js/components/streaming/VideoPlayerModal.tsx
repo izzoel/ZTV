@@ -675,11 +675,6 @@ export default function VideoPlayerModal({
                         </>
                     ) : (
                         <div className="relative w-full h-full flex items-center justify-center bg-black">
-                            {zetwareDirectUrl && (
-                                <div className="absolute top-4 left-4 z-20 pointer-events-none">
-                                    <ZetwareGlowingBadge variant="overlay" qualityText="640x320 MP4" />
-                                </div>
-                            )}
                             <video
                                 ref={videoRef}
                                 key={zetwareDirectUrl || item.videoUrl}

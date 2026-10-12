@@ -1,77 +1,48 @@
 import React from 'react';
+import { Zap } from 'lucide-react';
 
 interface ZetwareGlowingBadgeProps {
-    variant?: 'overlay' | 'header' | 'compact';
+    variant?: 'header' | 'compact' | 'overlay';
     qualityText?: string;
     className?: string;
 }
 
 export default function ZetwareGlowingBadge({
-    variant = 'overlay',
-    qualityText = 'Direct MP4',
+    variant = 'header',
     className = ''
 }: ZetwareGlowingBadgeProps) {
-    if (variant === 'header') {
-        return (
-            <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl bg-gradient-to-r from-red-950/80 via-slate-900 to-slate-900 border border-red-500/50 shadow-[0_0_15px_rgba(239,68,68,0.35)] backdrop-blur-xl ${className}`}>
-                {/* Glowing Z Emblem */}
-                <div className="relative flex items-center justify-center w-5 h-5 rounded-md bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 shadow-[0_0_10px_rgba(239,68,68,0.9)] animate-pulse">
-                    <span className="font-black text-white text-[11px] leading-none drop-shadow-[0_0_4px_rgba(255,255,255,0.9)]">
-                        Z
-                    </span>
-                    <div className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 bg-cyan-400 rounded-full animate-ping opacity-75" />
-                </div>
-                <div className="flex items-center gap-1.5">
-                    <span className="text-xs font-black text-white tracking-wider uppercase drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]">
-                        Zetware Direct
-                    </span>
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] animate-pulse" />
-                </div>
-                <span className="text-[10px] text-amber-300 font-mono font-bold bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.2 rounded">
-                    {qualityText}
-                </span>
-            </div>
-        );
+    // If overlay is requested, do not render inside player frame
+    if (variant === 'overlay') {
+        return null;
     }
 
-    if (variant === 'compact') {
-        return (
-            <div className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/90 border border-red-500/40 shadow-[0_0_12px_rgba(239,68,68,0.5)] ${className}`}>
-                <div className="relative flex items-center justify-center w-4 h-4 rounded bg-gradient-to-br from-red-600 to-amber-500 shadow-[0_0_8px_rgba(239,68,68,0.8)] animate-pulse">
-                    <span className="font-black text-white text-[9px]">Z</span>
-                </div>
-                <span className="text-[10px] font-black text-white uppercase tracking-wider">
-                    Zetware ID
-                </span>
-            </div>
-        );
-    }
-
-    // Default: 'overlay' floating inside the player viewport
     return (
-        <div className={`pointer-events-none select-none flex items-center gap-3 px-3.5 py-2 rounded-2xl bg-slate-950/85 backdrop-blur-xl border border-red-500/40 shadow-[0_0_25px_rgba(239,68,68,0.45)] ring-1 ring-white/10 animate-in fade-in zoom-in-95 duration-300 ${className}`}>
-            {/* Glowing Z Emblem with double pulse ring */}
-            <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 shadow-[0_0_16px_rgba(239,68,68,1)] animate-pulse shrink-0">
-                <span className="font-black text-white text-base tracking-wider drop-shadow-[0_0_8px_rgba(255,255,255,1)]">
+        <div
+            className={`relative inline-flex items-center justify-center p-1 sm:p-1.5 rounded-xl bg-slate-950/85 border border-yellow-400/50 shadow-[0_0_18px_rgba(234,179,8,0.4)] backdrop-blur-xl group select-none transition-all duration-300 hover:scale-105 hover:shadow-[0_0_24px_rgba(250,204,21,0.7)] ${className}`}
+            title="Zetware Direct"
+            aria-label="Zetware Direct"
+        >
+            {/* Ambient electric aura */}
+            <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-yellow-500/10 via-amber-400/20 to-yellow-500/10 opacity-80 animate-pulse pointer-events-none" />
+
+            {/* Lightning Z Emblem */}
+            <div className="relative flex items-center justify-center w-7 h-7 sm:w-8 sm:h-8 rounded-lg bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 shadow-[0_0_14px_rgba(250,204,21,0.9)] border border-yellow-200/60 overflow-visible">
+                {/* Electric flash shine */}
+                <div className="absolute inset-0 rounded-lg bg-white/20 animate-pulse pointer-events-none" />
+
+                {/* Bold Z character */}
+                <span className="font-black text-slate-950 text-sm sm:text-base italic tracking-tighter leading-none select-none drop-shadow-[0_1px_1px_rgba(255,255,255,0.7)]">
                     Z
                 </span>
-                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-cyan-400 rounded-full animate-ping opacity-90" />
-                <div className="absolute inset-0 rounded-xl border border-white/40 animate-pulse" />
-            </div>
 
-            <div className="flex flex-col">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-white tracking-widest uppercase drop-shadow-[0_0_8px_rgba(255,255,255,0.7)]">
-                        ZETWARE NATIVE
-                    </span>
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.2 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-bold text-emerald-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399] animate-pulse" />
-                        ONLINE
-                    </span>
-                </div>
-                <span className="text-[10px] text-slate-300 font-mono font-medium -mt-0.5">
-                    Direct High Speed • {qualityText}
-                </span>
+                {/* Lightning Bolt (Petir) Accent */}
+                <Zap
+                    className="absolute -top-1.5 -right-1.5 w-4 h-4 text-yellow-200 fill-amber-300 drop-shadow-[0_0_6px_rgba(250,204,21,1)] animate-bounce"
+                    style={{ animationDuration: '2.5s' }}
+                />
+
+                {/* Electric cyan spark */}
+                <div className="absolute -bottom-0.5 -left-0.5 w-1.5 h-1.5 bg-cyan-300 rounded-full animate-ping opacity-80" />
             </div>
         </div>
     );
