@@ -7,6 +7,8 @@ import {
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
 import { fetchMediaById, fetchTmdbCredits, fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
 import { getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
+import { checkZetwareMediaExists } from '@/lib/zetwareStorage';
+import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
 import { useLanguage } from '@/lib/i18n';
 import Navbar from '@/components/streaming/Navbar';
 import StreamingFooter from '@/components/streaming/StreamingFooter';
@@ -21,6 +23,7 @@ export default function DetailPage({ id }: DetailPageProps) {
     const { language, t } = useLanguage();
     const [media, setMedia] = useState<MediaItem | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(null);
     const [myList, setMyList] = useState<string[]>([]);
     const [castList, setCastList] = useState<string[]>([]);
     const [directorName, setDirectorName] = useState<string>('');
@@ -42,7 +45,7 @@ export default function DetailPage({ id }: DetailPageProps) {
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
     const [testDownload, setTestDownload] = useState<boolean>(true);
     const [threads, setThreads] = useState<number>(2);
-    const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream'>('watch');
+    const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream' | 'zetware'>('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);
     const [apiFeedback, setApiFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -139,6 +142,31 @@ export default function DetailPage({ id }: DetailPageProps) {
         }
     }, [media, selectedSeasonNumber]);
 
+    // Check if media exists in Zetware Direct Storage
+    useEffect(() => {
+        if (!media) return;
+        let isMounted = true;
+
+        checkZetwareMediaExists({
+            title: media.title,
+            type: media.type,
+            season: selectedSeasonNumber,
+            episode: 1,
+        }).then((res) => {
+            if (isMounted) {
+                if (res.exists && res.url) {
+                    setZetwareDirectUrl(res.url);
+                } else {
+                    setZetwareDirectUrl(null);
+                }
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [media, selectedSeasonNumber]);
+
     const handleToggleMyList = () => {
         if (!media) return;
         setMyList((prev) => {
@@ -174,7 +202,9 @@ export default function DetailPage({ id }: DetailPageProps) {
         return `${domain}/watch/${mediaId}${query}`;
     };
 
-    const targetM3u8Url = targetM3u8Type === 'watch'
+    const targetM3u8Url = targetM3u8Type === 'zetware' && zetwareDirectUrl
+        ? zetwareDirectUrl
+        : targetM3u8Type === 'watch'
         ? getTargetWatchUrl()
         : (media ? getSourceUrl('vidsrc', media.type, targetTmdbId || 27205, selectedSeasonNumber, 1) : '');
 
@@ -262,7 +292,7 @@ export default function DetailPage({ id }: DetailPageProps) {
             <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
                 <Navbar
                     activeCategory="Semua"
-                    onSelectCategory={(cat) => router.visit(`/?category=${encodeURIComponent(cat)}`)}
+                    onSelectCategory={(cat) => router.visit(cat === 'Semua' ? '/' : `/?category=${encodeURIComponent(cat)}`)}
                     onPlayMedia={(m) => router.visit(`/watch/${m.id}`)}
                     onOpenDetail={(m) => router.visit(`/detail/${m.id}`)}
                     myListCount={myList.length}
@@ -303,8 +333,8 @@ export default function DetailPage({ id }: DetailPageProps) {
             <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-red-600 selection:text-white antialiased">
                 {/* Navbar */}
                 <Navbar
-                    activeCategory={media.type === 'series' ? 'Serial TV' : 'Film'}
-                    onSelectCategory={(cat) => router.visit(`/?category=${encodeURIComponent(cat)}`)}
+                    activeCategory={media.type === 'series' ? 'Series TV' : 'Film'}
+                    onSelectCategory={(cat) => router.visit(cat === 'Semua' ? '/' : `/?category=${encodeURIComponent(cat)}`)}
                     onPlayMedia={(m) => router.visit(`/watch/${m.id}`)}
                     onOpenDetail={(m) => router.visit(`/detail/${m.id}`)}
                     myListCount={myList.length}
@@ -410,6 +440,13 @@ export default function DetailPage({ id }: DetailPageProps) {
                                         <Play className="w-5 h-5 fill-white" />
                                         <span>Putar Sekarang</span>
                                     </Link>
+
+                                    {/* Zetware Storage Available Badge */}
+                                    {zetwareDirectUrl && (
+                                        <div className="shrink-0">
+                                            <ZetwareGlowingBadge variant="compact" />
+                                        </div>
+                                    )}
 
                                     {/* My List Toggle */}
                                     <button
@@ -677,6 +714,17 @@ export default function DetailPage({ id }: DetailPageProps) {
                                                 >
                                                     Stream Embed
                                                 </button>
+                                                {zetwareDirectUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTargetM3u8Type('zetware')}
+                                                        className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                                                            targetM3u8Type === 'zetware' ? 'bg-red-500 text-white font-bold ring-1 ring-red-400' : 'bg-white/10 text-red-300 hover:text-white'
+                                                        }`}
+                                                    >
+                                                        ⚡ Zetware Direct
+                                                    </button>
+                                                )}
                                             </div>
                                         </div>
                                         <p className="text-[11px] text-slate-400 mt-0.5">URL manifest target</p>

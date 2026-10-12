@@ -7,6 +7,8 @@ import {
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
 import { fetchMediaById, fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
 import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
+import { checkZetwareMediaExists } from '@/lib/zetwareStorage';
+import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
 import Navbar from '@/components/streaming/Navbar';
 import StreamingFooter from '@/components/streaming/StreamingFooter';
 import StreamingSkeleton from '@/components/streaming/StreamingSkeleton';
@@ -29,6 +31,10 @@ export default function WatchPage({
 
     const [media, setMedia] = useState<MediaItem | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+
+    // Zetware Direct Storage State
+    const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(null);
+    const [isCheckingZetware, setIsCheckingZetware] = useState<boolean>(true);
 
     // Streambert Engine State
     const [selectedSource, setSelectedSource] = useState<string>('vidsrc');
@@ -56,7 +62,7 @@ export default function WatchPage({
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
     const [testDownload, setTestDownload] = useState<boolean>(true);
     const [threads, setThreads] = useState<number>(2);
-    const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream'>('watch');
+    const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream' | 'zetware'>('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);
     const [apiFeedback, setApiFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
@@ -136,6 +142,29 @@ export default function WatchPage({
         }
     }, [media, currentTmdbId, selectedSeason]);
 
+    // Automatic check for Zetware Storage MP4 availability
+    useEffect(() => {
+        let isMounted = true;
+        if (!media) return;
+
+        setIsCheckingZetware(true);
+        checkZetwareMediaExists(media.title, media.type, selectedSeason, selectedEpisode).then((res) => {
+            if (!isMounted) return;
+            setIsCheckingZetware(false);
+            if (res.exists && res.url) {
+                setZetwareDirectUrl(res.url);
+                setUseStreambertEmbed(false); // Automatically use Zetware ID direct MP4!
+            } else {
+                setZetwareDirectUrl(null);
+                setUseStreambertEmbed(true); // Fallback to existing stream!
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [media, selectedSeason, selectedEpisode]);
+
     // Safety timeout timer for iframe server loading
     useEffect(() => {
         if (iframeLoading) {
@@ -200,7 +229,11 @@ export default function WatchPage({
         return `${domain}/watch/${mediaId}${query}`;
     };
 
-    const targetM3u8Url = targetM3u8Type === 'watch' ? getTargetWatchUrl() : streamUrl;
+    const targetM3u8Url = targetM3u8Type === 'zetware' && zetwareDirectUrl
+        ? zetwareDirectUrl
+        : targetM3u8Type === 'watch'
+        ? getTargetWatchUrl()
+        : streamUrl;
     
     const targetTitle = media
         ? media.type === 'series'
@@ -325,8 +358,8 @@ export default function WatchPage({
             <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-red-600 selection:text-white antialiased">
                 {/* Navbar */}
                 <Navbar
-                    activeCategory={media.type === 'series' ? 'Serial TV' : 'Film'}
-                    onSelectCategory={(cat) => router.visit(`/?category=${encodeURIComponent(cat)}`)}
+                    activeCategory={media.type === 'series' ? 'Series TV' : 'Film'}
+                    onSelectCategory={(cat) => router.visit(cat === 'Semua' ? '/' : `/?category=${encodeURIComponent(cat)}`)}
                     onPlayMedia={(m) => router.visit(`/watch/${m.id}`)}
                     onOpenDetail={(m) => router.visit(`/detail/${m.id}`)}
                     myListCount={0}
@@ -359,7 +392,9 @@ export default function WatchPage({
                                     {media.title}
                                 </h1>
                                 <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <span className="text-emerald-400 font-semibold">{useStreambertEmbed ? activeSourceObj.label : 'Local MP4'}</span>
+                                    <span className="text-emerald-400 font-semibold">
+                                        {!useStreambertEmbed && zetwareDirectUrl ? '⚡ Zetware Storage' : useStreambertEmbed ? activeSourceObj.label : 'Local MP4'}
+                                    </span>
                                     {media.type === 'series' && (
                                         <>
                                             <span>•</span>
@@ -374,6 +409,11 @@ export default function WatchPage({
 
                         {/* Right: Controls (Server, Episodes, Target API, Fullscreen) */}
                         <div className="flex flex-wrap items-center gap-2 justify-end">
+                            {/* Zetware Glowing Badge in Header when playing from zetware.id */}
+                            {!useStreambertEmbed && zetwareDirectUrl && (
+                                <ZetwareGlowingBadge variant="header" qualityText="640x320 MP4" />
+                            )}
+
                             {/* Server Selector */}
                             <div className="relative">
                                 <button
@@ -381,19 +421,56 @@ export default function WatchPage({
                                         setShowSourceMenu(!showSourceMenu);
                                         setShowEpisodeMenu(false);
                                     }}
-                                    className="px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-red-600/30 transition cursor-pointer active:scale-95"
+                                    className={`px-3 py-1.5 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition cursor-pointer active:scale-95 ${
+                                        !useStreambertEmbed && zetwareDirectUrl
+                                            ? 'bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-400/50'
+                                            : 'bg-red-600 hover:bg-red-500 shadow-red-600/30'
+                                    }`}
                                 >
                                     <Server className="w-3.5 h-3.5" />
-                                    <span>Server: {activeSourceObj.label}</span>
+                                    <span>Server: {!useStreambertEmbed && zetwareDirectUrl ? 'Zetware Storage' : activeSourceObj.label}</span>
                                 </button>
 
                                 {showSourceMenu && (
-                                    <div className="absolute top-11 right-0 w-72 bg-slate-950 border border-white/20 rounded-2xl p-2.5 shadow-2xl z-50 text-xs space-y-1.5 backdrop-blur-2xl">
-                                        <div className="px-2 py-1 border-b border-white/10 text-white font-bold flex items-center gap-1.5">
-                                            <Layers className="w-3.5 h-3.5 text-red-500" />
-                                            <span>Pilih Server Streambert</span>
+                                    <div className="absolute top-11 right-0 w-80 bg-slate-950 border border-white/20 rounded-2xl p-2.5 shadow-2xl z-50 text-xs space-y-1.5 backdrop-blur-2xl">
+                                        <div className="px-2 py-1 border-b border-white/10 text-white font-bold flex items-center justify-between">
+                                            <div className="flex items-center gap-1.5">
+                                                <Layers className="w-3.5 h-3.5 text-red-500" />
+                                                <span>Pilih Sumber Tayangan</span>
+                                            </div>
                                         </div>
-                                        <div className="max-h-60 overflow-y-auto space-y-1 pr-1">
+
+                                        {/* Option: Zetware Storage Native File (If Available) */}
+                                        {zetwareDirectUrl && (
+                                            <button
+                                                onClick={() => {
+                                                    setUseStreambertEmbed(false);
+                                                    setShowSourceMenu(false);
+                                                }}
+                                                className={`w-full text-left p-2.5 rounded-xl transition border mb-1 ${
+                                                    !useStreambertEmbed
+                                                        ? 'bg-gradient-to-r from-red-950 via-slate-900 to-slate-900 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'
+                                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                                }`}
+                                            >
+                                                <div className="flex items-center justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <div className="w-5 h-5 rounded-md bg-gradient-to-br from-red-600 to-amber-500 flex items-center justify-center font-black text-white text-[10px] shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+                                                            Z
+                                                        </div>
+                                                        <span className="font-extrabold text-white">Zetware Storage</span>
+                                                    </div>
+                                                    <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-bold text-emerald-400">
+                                                        640x320 MP4
+                                                    </span>
+                                                </div>
+                                                <p className="text-[10px] text-slate-300 line-clamp-1 mt-1">
+                                                    File lokal direct MP4 super cepat dari storage zetware.id
+                                                </p>
+                                            </button>
+                                        )}
+
+                                        <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
                                             {PLAYER_SOURCES.map((src) => (
                                                 <button
                                                     key={src.id}
@@ -574,13 +651,22 @@ export default function WatchPage({
                                 />
                             </>
                         ) : (
-                            <video
-                                ref={videoRef}
-                                src={media.videoUrl}
-                                autoPlay
-                                controls
-                                className="w-full h-full object-contain"
-                            />
+                            <div className="relative w-full h-full flex items-center justify-center bg-black">
+                                {/* Glowing Z Badge Overlay when played on zetware.id */}
+                                {zetwareDirectUrl && (
+                                    <div className="absolute top-4 left-4 z-20 pointer-events-none">
+                                        <ZetwareGlowingBadge variant="overlay" qualityText="640x320 MP4" />
+                                    </div>
+                                )}
+                                <video
+                                    ref={videoRef}
+                                    key={zetwareDirectUrl || media.videoUrl}
+                                    src={zetwareDirectUrl || media.videoUrl}
+                                    autoPlay
+                                    controls
+                                    className="w-full h-full object-contain"
+                                />
+                            </div>
                         )}
                     </div>
 
@@ -786,6 +872,17 @@ export default function WatchPage({
                                                 >
                                                     Watch URL
                                                 </button>
+                                                {zetwareDirectUrl && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setTargetM3u8Type('zetware')}
+                                                        className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
+                                                            targetM3u8Type === 'zetware' ? 'bg-red-600 text-white font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                        }`}
+                                                    >
+                                                        ⚡ Zetware Direct
+                                                    </button>
+                                                )}
                                                 <button
                                                     type="button"
                                                     onClick={() => setTargetM3u8Type('stream')}

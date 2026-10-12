@@ -7,6 +7,8 @@ import {
 import { MediaItem, Episode } from '@/data/movies';
 import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
 import { fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
+import { checkZetwareMediaExists } from '@/lib/zetwareStorage';
+import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
 
 interface VideoPlayerModalProps {
     item: MediaItem | null;
@@ -24,6 +26,10 @@ export default function VideoPlayerModal({
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
     const frameContainerRef = useRef<HTMLDivElement>(null);
+
+    // Zetware Direct Storage State
+    const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(null);
+    const [isCheckingZetware, setIsCheckingZetware] = useState<boolean>(true);
 
     // Streambert Engine State
     const [selectedSource, setSelectedSource] = useState<string>('vidsrc');
@@ -97,6 +103,29 @@ export default function VideoPlayerModal({
             });
         }
     }, [item, currentTmdbId, selectedSeason]);
+
+    // Automatic check for Zetware Storage MP4 availability
+    useEffect(() => {
+        let isMounted = true;
+        if (!item) return;
+
+        setIsCheckingZetware(true);
+        checkZetwareMediaExists(item.title, item.type, selectedSeason, selectedEpisode).then((res) => {
+            if (!isMounted) return;
+            setIsCheckingZetware(false);
+            if (res.exists && res.url) {
+                setZetwareDirectUrl(res.url);
+                setUseStreambertEmbed(false);
+            } else {
+                setZetwareDirectUrl(null);
+                setUseStreambertEmbed(true);
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [item, selectedSeason, selectedEpisode]);
 
     // Safety timeout timer for iframe server loading
     useEffect(() => {
@@ -362,6 +391,11 @@ export default function VideoPlayerModal({
 
                     {/* HEADER CONTROL BUTTONS (DI ATAS BINGKAI) */}
                     <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 shrink-0 justify-between sm:justify-end border-t border-white/5 sm:border-0 pt-2 sm:pt-0">
+                        {/* Zetware Glowing Badge in Header */}
+                        {!useStreambertEmbed && zetwareDirectUrl && (
+                            <ZetwareGlowingBadge variant="header" qualityText="640x320 MP4" />
+                        )}
+
                         {/* SERVER SELECTOR BUTTON */}
                         <div className="relative">
                             <button
@@ -370,21 +404,55 @@ export default function VideoPlayerModal({
                                     setShowSubtitleMenu(false);
                                     setShowEpisodeMenu(false);
                                 }}
-                                className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-red-600/30 transition cursor-pointer active:scale-95"
+                                className={`px-2.5 sm:px-3 py-1.5 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 shadow-lg transition cursor-pointer active:scale-95 ${
+                                    !useStreambertEmbed && zetwareDirectUrl
+                                        ? 'bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-400/50'
+                                        : 'bg-red-600 hover:bg-red-500 shadow-red-600/30'
+                                }`}
                             >
                                 <Server className="w-3.5 h-3.5" />
-                                <span>Server: {activeSourceObj.label}</span>
+                                <span>Server: {!useStreambertEmbed && zetwareDirectUrl ? 'Zetware Storage' : activeSourceObj.label}</span>
                             </button>
 
                             {/* SERVER DROPDOWN */}
                             {showSourceMenu && (
-                                <div className="absolute top-11 right-0 w-72 max-w-[calc(100vw-2rem)] bg-slate-950 border border-white/20 rounded-2xl p-3 shadow-2xl z-50 text-xs space-y-2 backdrop-blur-2xl">
+                                <div className="absolute top-11 right-0 w-80 max-w-[calc(100vw-2rem)] bg-slate-950 border border-white/20 rounded-2xl p-3 shadow-2xl z-50 text-xs space-y-2 backdrop-blur-2xl">
                                     <div className="flex items-center justify-between border-b border-white/10 pb-2">
                                         <span className="font-bold text-white flex items-center gap-1.5">
                                             <Layers className="w-4 h-4 text-red-500" />
                                             Pilih Server Streaming
                                         </span>
                                     </div>
+
+                                    {/* Option: Zetware Storage Native File (If Available) */}
+                                    {zetwareDirectUrl && (
+                                        <button
+                                            onClick={() => {
+                                                setUseStreambertEmbed(false);
+                                                setShowSourceMenu(false);
+                                            }}
+                                            className={`w-full text-left p-2.5 rounded-xl transition border mb-1.5 ${
+                                                !useStreambertEmbed
+                                                    ? 'bg-gradient-to-r from-red-950 via-slate-900 to-slate-900 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'
+                                                    : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
+                                            }`}
+                                        >
+                                            <div className="flex items-center justify-between">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="w-5 h-5 rounded-md bg-gradient-to-br from-red-600 to-amber-500 flex items-center justify-center font-black text-white text-[10px] shadow-[0_0_8px_rgba(239,68,68,0.8)]">
+                                                        Z
+                                                    </div>
+                                                    <span className="font-extrabold text-white">Zetware Storage</span>
+                                                </div>
+                                                <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-bold text-emerald-400">
+                                                    640x320 MP4
+                                                </span>
+                                            </div>
+                                            <p className="text-[10px] text-slate-300 line-clamp-1 mt-1">
+                                                File lokal direct MP4 super cepat dari storage zetware.id
+                                            </p>
+                                        </button>
+                                    )}
 
                                     <div className="space-y-1 max-h-60 overflow-y-auto pr-1">
                                         {PLAYER_SOURCES.map((src) => (
@@ -606,15 +674,23 @@ export default function VideoPlayerModal({
                             />
                         </>
                     ) : (
-                        <video
-                            ref={videoRef}
-                            src={item.videoUrl}
-                            autoPlay
-                            controls
-                            className="w-full h-full object-contain"
-                            onTimeUpdate={handleTimeUpdate}
-                            onEnded={() => setIsPlaying(false)}
-                        />
+                        <div className="relative w-full h-full flex items-center justify-center bg-black">
+                            {zetwareDirectUrl && (
+                                <div className="absolute top-4 left-4 z-20 pointer-events-none">
+                                    <ZetwareGlowingBadge variant="overlay" qualityText="640x320 MP4" />
+                                </div>
+                            )}
+                            <video
+                                ref={videoRef}
+                                key={zetwareDirectUrl || item.videoUrl}
+                                src={zetwareDirectUrl || item.videoUrl}
+                                autoPlay
+                                controls
+                                className="w-full h-full object-contain"
+                                onTimeUpdate={handleTimeUpdate}
+                                onEnded={() => setIsPlaying(false)}
+                            />
+                        </div>
                     )}
                 </div>
             </div>

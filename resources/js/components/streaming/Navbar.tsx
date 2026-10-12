@@ -184,34 +184,34 @@ export default function Navbar({
         >
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
                 {/* Left side: Brand Logo & Navigation */}
-                <div className="flex items-center gap-8">
+                <div className="flex items-center gap-2 sm:gap-6 lg:gap-8 min-w-0">
                     <button
                         onClick={() => {
                             onSelectCategory('Semua');
                             onToggleMyListOnly(false);
                         }}
-                        className="flex items-center gap-2 group text-left cursor-pointer"
+                        className="flex items-center gap-2 group text-left cursor-pointer shrink-0"
                     >
-                        <div className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 shadow-lg shadow-red-600/30 group-hover:scale-105 transition-transform duration-300">
-                            <span className="font-black text-white text-xl tracking-wider">Z</span>
-                            <div className="absolute -top-1 -right-1 w-3 h-3 bg-cyan-400 rounded-full animate-ping opacity-75" />
+                        <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 shadow-lg shadow-red-600/30 group-hover:scale-105 transition-transform duration-300">
+                            <span className="font-black text-white text-lg sm:text-xl tracking-wider">Z</span>
+                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-cyan-400 rounded-full animate-ping opacity-75" />
                         </div>
                         <div className="flex flex-col">
-                            <span className="font-extrabold text-2xl tracking-tighter text-white drop-shadow-sm flex items-center gap-1">
-                                ZTV <span className="text-xs font-semibold px-1.5 py-0.5 rounded bg-red-600/30 border border-red-500/50 text-red-400">STREAM</span>
+                            <span className="font-extrabold text-xl sm:text-2xl tracking-tighter text-white drop-shadow-sm flex items-center gap-1">
+                                ZTV <span className="text-[10px] sm:text-xs font-semibold px-1 sm:px-1.5 py-0.5 rounded bg-red-600/30 border border-red-500/50 text-red-400">STREAM</span>
                             </span>
-                            <span className="text-[10px] text-slate-400 -mt-1 font-medium tracking-widest uppercase">Premium Cinema</span>
+                            <span className="hidden sm:block text-[10px] text-slate-400 -mt-1 font-medium tracking-widest uppercase">Premium Cinema</span>
                         </div>
                     </button>
 
-                    {/* Primary Links */}
-                    <nav className="hidden md:flex items-center gap-1 lg:gap-2">
+                    {/* Primary Links - Always visible across mobile, tablet, and desktop */}
+                    <nav className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 overflow-x-auto no-scrollbar py-0.5">
                         <button
                             onClick={() => {
                                 onSelectCategory('Semua');
                                 onToggleMyListOnly(false);
                             }}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all ${
+                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all shrink-0 ${
                                 activeCategory === 'Semua' && !showMyListOnly
                                     ? 'bg-white text-slate-950 shadow-md font-semibold'
                                     : 'text-slate-300 hover:text-white hover:bg-white/10'
@@ -224,41 +224,41 @@ export default function Navbar({
                                 onSelectCategory('Film');
                                 onToggleMyListOnly(false);
                             }}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
-                                activeCategory === 'Film' && !showMyListOnly
-                                    ? 'bg-white text-slate-950 shadow-md font-semibold'
+                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
+                                (activeCategory === 'Film' || activeCategory === 'Movies') && !showMyListOnly
+                                    ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-semibold'
                                     : 'text-slate-300 hover:text-white hover:bg-white/10'
                             }`}
                         >
                             <Film className="w-3.5 h-3.5" />
-                            {t('nav_movies')}
+                            <span>{t('nav_movies')}</span>
                         </button>
                         <button
                             onClick={() => {
-                                onSelectCategory('Serial TV');
+                                onSelectCategory('Series TV');
                                 onToggleMyListOnly(false);
                             }}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
-                                activeCategory === 'Serial TV' && !showMyListOnly
-                                    ? 'bg-white text-slate-950 shadow-md font-semibold'
+                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
+                                (activeCategory === 'Series TV' || activeCategory === 'Serial TV' || activeCategory === 'TV Series') && !showMyListOnly
+                                    ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-semibold'
                                     : 'text-slate-300 hover:text-white hover:bg-white/10'
                             }`}
                         >
                             <Tv className="w-3.5 h-3.5" />
-                            {t('nav_series')}
+                            <span>{t('nav_series')}</span>
                         </button>
                         <button
                             onClick={() => onToggleMyListOnly(true)}
-                            className={`px-3 py-1.5 rounded-full text-sm font-medium transition-all flex items-center gap-1.5 ${
+                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
                                 showMyListOnly
                                     ? 'bg-amber-500 text-slate-950 font-semibold shadow-md'
                                     : 'text-slate-300 hover:text-white hover:bg-white/10'
                             }`}
                         >
                             <Bookmark className="w-3.5 h-3.5" />
-                            {t('nav_my_list')}
+                            <span className="hidden sm:inline">{t('nav_my_list')}</span>
                             {myListCount > 0 && (
-                                <span className="ml-1 px-1.5 py-0.2 text-[10px] bg-red-600 text-white rounded-full font-bold">
+                                <span className="ml-0.5 sm:ml-1 px-1.5 py-0.2 text-[10px] bg-red-600 text-white rounded-full font-bold">
                                     {myListCount}
                                 </span>
                             )}
@@ -548,42 +548,6 @@ export default function Navbar({
                         )}
                     </div>
                 </div>
-            </div>
-
-            {/* Sub-navigation category pills for mobile */}
-            <div className="flex md:hidden items-center gap-2 overflow-x-auto px-4 mt-3 pb-1 no-scrollbar">
-                {['Semua', 'Film', 'Serial TV'].map((cat) => (
-                    <button
-                        key={cat}
-                        onClick={() => {
-                            onSelectCategory(cat);
-                            onToggleMyListOnly(false);
-                        }}
-                        className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 transition-all ${
-                            activeCategory === cat && !showMyListOnly
-                                ? 'bg-red-600 text-white font-semibold shadow-md shadow-red-600/30'
-                                : 'bg-white/10 text-slate-300 hover:bg-white/20'
-                        }`}
-                    >
-                        {cat}
-                    </button>
-                ))}
-                <button
-                    onClick={() => onToggleMyListOnly(true)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium shrink-0 transition-all flex items-center gap-1 ${
-                        showMyListOnly
-                            ? 'bg-amber-500 text-slate-950 font-bold shadow-md'
-                            : 'bg-white/10 text-slate-300 hover:bg-white/20'
-                    }`}
-                >
-                    <Bookmark className="w-3 h-3" />
-                    <span>Daftar Saya</span>
-                    {myListCount > 0 && (
-                        <span className="px-1.5 py-0.2 text-[9px] bg-red-600 text-white rounded-full font-extrabold ml-0.5">
-                            {myListCount}
-                        </span>
-                    )}
-                </button>
             </div>
         </header>
     );

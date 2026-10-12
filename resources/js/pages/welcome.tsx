@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Head, router } from '@inertiajs/react';
+import { Head, router, usePage } from '@inertiajs/react';
+import { Film, Tv, Flame, Bookmark, RefreshCw } from 'lucide-react';
 import { MediaItem } from '@/data/movies';
 import { fetchLiveTmdbCatalog, fetchMoreTmdbContent } from '@/lib/tmdbService';
 import Navbar from '@/components/streaming/Navbar';
@@ -12,14 +13,37 @@ import StreamingSkeleton from '@/components/streaming/StreamingSkeleton';
 import DevNoticeBanner from '@/components/streaming/DevNoticeBanner';
 import { useLanguage } from '@/lib/i18n';
 
+const parseCategoryParam = (cat: string | null): string => {
+    if (!cat) return 'Semua';
+    const lower = cat.toLowerCase();
+    if (lower === 'film' || lower === 'movie' || lower === 'movies') return 'Film';
+    if (lower === 'series tv' || lower === 'serial tv' || lower === 'series' || lower === 'tv' || lower === 'serial') return 'Series TV';
+    if (lower === 'ztv originals' || lower === 'originals') return 'ZTV Originals';
+    return cat;
+};
+
 export default function Welcome() {
     const { t } = useLanguage();
-    const [activeCategory, setActiveCategory] = useState('Semua');
+    const { url } = usePage();
+
+    const [activeCategory, setActiveCategory] = useState<string>(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            return parseCategoryParam(params.get('category'));
+        }
+        return 'Semua';
+    });
     const [activeGenre, setActiveGenre] = useState('Semua');
     const [myList, setMyList] = useState<string[]>([]);
-    const [showMyListOnly, setShowMyListOnly] = useState(false);
+    const [showMyListOnly, setShowMyListOnly] = useState<boolean>(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            return params.get('my_list') === '1' || params.get('my_list') === 'true';
+        }
+        return false;
+    });
 
-    // Infinite Scroll Pagination & Loading State (Khusus Halaman Film & Serial TV)
+    // Infinite Scroll Pagination & Loading State (Khusus Halaman Film & Series TV)
     const [moviePage, setMoviePage] = useState<number>(2);
     const [seriesPage, setSeriesPage] = useState<number>(2);
     const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
@@ -33,6 +57,63 @@ export default function Welcome() {
     const [actionMedia, setActionMedia] = useState<MediaItem[]>([]);
     const [horrorMedia, setHorrorMedia] = useState<MediaItem[]>([]);
     const [isTmdbLive, setIsTmdbLive] = useState<boolean>(false);
+
+    // Category identification helpers
+    const isSeriesCategory = activeCategory === 'Series TV' || activeCategory === 'Serial TV';
+    const isFilmCategory = activeCategory === 'Film';
+
+    // Sync state with URL when URL changes
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+        const params = new URLSearchParams(window.location.search);
+        const catParam = params.get('category');
+        const myListParam = params.get('my_list');
+
+        if (myListParam === '1' || myListParam === 'true') {
+            setShowMyListOnly(true);
+        } else if (myListParam === '0' || myListParam === 'false') {
+            setShowMyListOnly(false);
+        }
+
+        if (catParam) {
+            setActiveCategory(parseCategoryParam(catParam));
+        }
+    }, [url]);
+
+    const handleSelectCategory = (cat: string) => {
+        const normalized = parseCategoryParam(cat);
+        setActiveCategory(normalized);
+        setActiveGenre('Semua');
+        setShowMyListOnly(false);
+
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (normalized === 'Semua') {
+                params.delete('category');
+            } else {
+                params.set('category', normalized);
+            }
+            params.delete('my_list');
+            const qs = params.toString();
+            const newUrl = qs ? `/?${qs}` : '/';
+            window.history.replaceState({}, '', newUrl);
+        }
+    };
+
+    const handleToggleMyListOnly = (show: boolean) => {
+        setShowMyListOnly(show);
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            if (show) {
+                params.set('my_list', '1');
+            } else {
+                params.delete('my_list');
+            }
+            const qs = params.toString();
+            const newUrl = qs ? `/?${qs}` : '/';
+            window.history.replaceState({}, '', newUrl);
+        }
+    };
 
     // Page navigation handlers for watching and detail view
     const handlePlayMedia = (item: MediaItem, episodeNumber: number = 1, seasonNumber: number = 1) => {
@@ -98,13 +179,13 @@ export default function Welcome() {
         }
     }, []);
 
-    // Infinite Scroll API Fetch Handler (Aktif HANYA di Kategori Film & Serial TV)
+    // Infinite Scroll API Fetch Handler (Aktif HANYA di Kategori Film & Series TV)
     const loadMoreContent = async () => {
-        if (isFetchingMore || !['Film', 'Serial TV'].includes(activeCategory)) return;
+        if (isFetchingMore || (!isFilmCategory && !isSeriesCategory)) return;
         setIsFetchingMore(true);
 
         try {
-            const typeToFetch: 'movie' | 'series' = activeCategory === 'Serial TV' ? 'series' : 'movie';
+            const typeToFetch: 'movie' | 'series' = isSeriesCategory ? 'series' : 'movie';
             const nextPage = typeToFetch === 'movie' ? moviePage : seriesPage;
 
             const newItems = await fetchMoreTmdbContent(typeToFetch, nextPage);
@@ -129,9 +210,9 @@ export default function Welcome() {
         }
     };
 
-    // Scroll Listener (Dinonaktifkan di Beranda Utama 'Semua', Aktif di 'Film' & 'Serial TV')
+    // Scroll Listener (Dinonaktifkan di Beranda Utama 'Semua', Aktif di 'Film' & 'Series TV')
     useEffect(() => {
-        if (!['Film', 'Serial TV'].includes(activeCategory) || showMyListOnly) return;
+        if ((!isFilmCategory && !isSeriesCategory) || showMyListOnly) return;
 
         const handleScroll = () => {
             if (isLoading || isFetchingMore) return;
@@ -145,7 +226,7 @@ export default function Welcome() {
 
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [isLoading, isFetchingMore, activeCategory, moviePage, seriesPage, showMyListOnly]);
+    }, [isLoading, isFetchingMore, activeCategory, moviePage, seriesPage, showMyListOnly, isFilmCategory, isSeriesCategory]);
 
     const handleToggleMyList = (id: string) => {
         setMyList((prev) => {
@@ -163,9 +244,9 @@ export default function Welcome() {
             return list.filter((m) => myList.includes(m.id));
         }
 
-        if (activeCategory === 'Film') {
+        if (isFilmCategory) {
             list = list.filter((m) => m.type === 'movie');
-        } else if (activeCategory === 'Serial TV') {
+        } else if (isSeriesCategory) {
             list = list.filter((m) => m.type === 'series');
         } else if (activeCategory === 'ZTV Originals') {
             list = list.filter((m) => m.isOriginal);
@@ -200,19 +281,14 @@ export default function Welcome() {
                 {/* Fixed Navigation Header */}
                 <Navbar
                     activeCategory={activeCategory}
-                    onSelectCategory={(cat) => {
-                        setActiveCategory(cat);
-                        setActiveGenre('Semua');
-                    }}
+                    onSelectCategory={handleSelectCategory}
                     onPlayMedia={handlePlayMedia}
                     onOpenDetail={handleOpenDetail}
                     myListCount={myList.length}
                     showMyListOnly={showMyListOnly}
-                    onToggleMyListOnly={setShowMyListOnly}
+                    onToggleMyListOnly={handleToggleMyListOnly}
                     catalogMedia={allMedia}
                 />
-
-
 
                 {/* Content rendering: Loading Skeleton vs Catalog Content */}
                 {isLoading ? (
@@ -230,12 +306,16 @@ export default function Welcome() {
                             />
                         )}
 
-                        {/* Genre Filter Pills */}
+                        {/* Category & Genre Filter Pills (Always accessible on page) */}
                         {!showMyListOnly && (
-                            <CategoryPillFilter
-                                activeGenre={activeGenre}
-                                onSelectGenre={(genre) => setActiveGenre(genre)}
-                            />
+                            <div className={activeCategory !== 'Semua' || activeGenre !== 'Semua' ? 'pt-24 sm:pt-28' : ''}>
+                                <CategoryPillFilter
+                                    activeCategory={activeCategory}
+                                    onSelectCategory={handleSelectCategory}
+                                    activeGenre={activeGenre}
+                                    onSelectGenre={(genre) => setActiveGenre(genre)}
+                                />
+                            </div>
                         )}
 
                         {/* Main Content Area */}
@@ -250,7 +330,7 @@ export default function Welcome() {
                                                 Daftar Saya ({filteredMedia.length})
                                             </h1>
                                             <p className="text-sm text-slate-400 mt-1">
-                                                Film dan serial TV yang Anda simpan untuk ditonton nanti.
+                                                Film dan series TV yang Anda simpan untuk ditonton nanti.
                                             </p>
                                         </div>
                                     </div>
@@ -262,13 +342,13 @@ export default function Welcome() {
                                             </div>
                                             <h3 className="text-xl font-bold text-white">Daftar Saya Masih Kosong</h3>
                                             <p className="text-sm text-slate-400 max-w-md mx-auto">
-                                                Jelajahi ribuan film & serial di ZTV dan klik tombol <span className="text-red-400 font-semibold">+ Tambah ke Daftar</span> pada judul yang menarik minat Anda.
+                                                Jelajahi ribuan film & series TV di ZTV dan klik tombol <span className="text-red-400 font-semibold">+ Tambah ke Daftar</span> pada judul yang menarik minat Anda.
                                             </p>
                                             <button
-                                                onClick={() => setShowMyListOnly(false)}
-                                                className="px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-sm shadow-lg transition"
+                                                onClick={() => handleToggleMyListOnly(false)}
+                                                className="px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-sm shadow-lg transition cursor-pointer"
                                             >
-                                                Mulai Jelajahi Film
+                                                Mulai Jelajahi Tayangan
                                             </button>
                                         </div>
                                     ) : (
@@ -292,13 +372,39 @@ export default function Welcome() {
                                     )}
                                 </section>
                             ) : activeGenre !== 'Semua' || activeCategory !== 'Semua' ? (
-                                /* Filtered Grid View */
-                                <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-24 pb-16">
-                                    <div className="mb-6">
-                                        <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                                            <Film className="w-6 h-6 text-red-500" />
-                                            {activeCategory !== 'Semua' ? activeCategory : ''} {activeGenre !== 'Semua' ? `- ${activeGenre}` : ''}
-                                        </h1>
+                                /* Filtered Grid View for Film, Series TV, or Genres */
+                                <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-16">
+                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
+                                        <div>
+                                            <h1 className="text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-3">
+                                                {isSeriesCategory ? (
+                                                    <Tv className="w-7 h-7 text-cyan-400" />
+                                                ) : isFilmCategory ? (
+                                                    <Film className="w-7 h-7 text-red-500" />
+                                                ) : (
+                                                    <Flame className="w-7 h-7 text-amber-500" />
+                                                )}
+                                                <span>
+                                                    {isFilmCategory
+                                                        ? 'Katalog Film'
+                                                        : isSeriesCategory
+                                                        ? 'Katalog Series TV'
+                                                        : activeCategory}
+                                                    {activeGenre !== 'Semua' ? ` • ${activeGenre}` : ''}
+                                                </span>
+                                            </h1>
+                                            <p className="text-sm text-slate-400 mt-1">
+                                                Menampilkan {filteredMedia.length} tayangan {isFilmCategory ? 'film' : isSeriesCategory ? 'series TV' : ''} berkualitas HD & 4K Ultra HD
+                                            </p>
+                                        </div>
+                                        {activeCategory !== 'Semua' && (
+                                            <button
+                                                onClick={() => handleSelectCategory('Semua')}
+                                                className="self-start sm:self-auto px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer"
+                                            >
+                                                Tampilkan Semua Konten
+                                            </button>
+                                        )}
                                     </div>
 
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
@@ -379,11 +485,11 @@ export default function Welcome() {
                                     />
                                 </>
                             )}
-                            {/* Infinite Scroll Dynamic Loading Indicator (hanya di kategori Film & Serial TV) */}
-                            {isFetchingMore && ['Film', 'Serial TV'].includes(activeCategory) && (
+                            {/* Infinite Scroll Dynamic Loading Indicator (hanya di kategori Film & Series TV) */}
+                            {isFetchingMore && (isFilmCategory || isSeriesCategory) && (
                                 <div className="flex items-center justify-center gap-3 py-10 text-slate-400 text-xs sm:text-sm font-semibold">
                                     <RefreshCw className="w-5 h-5 text-red-500 animate-spin" />
-                                    <span>Memuat lebih banyak {activeCategory === 'Film' ? 'Film' : 'Serial TV'} dari TMDB...</span>
+                                    <span>Memuat lebih banyak {isFilmCategory ? 'Film' : 'Series TV'} dari TMDB...</span>
                                 </div>
                             )}
                         </main>

@@ -7,7 +7,7 @@ export const translations = {
         // Navbar
         nav_home: 'Beranda',
         nav_movies: 'Film',
-        nav_series: 'Serial TV',
+        nav_series: 'Series TV',
         nav_originals: 'ZTV Originals',
         nav_my_list: 'Daftar Saya',
         nav_search_placeholder: 'Cari judul film, serial, genre...',
@@ -23,7 +23,7 @@ export const translations = {
         // Category Filter Pills
         cat_all: 'Semua',
         cat_movies: 'Film',
-        cat_series: 'Serial TV',
+        cat_series: 'Series TV',
         cat_originals: 'ZTV Originals',
 
         // Home Rows
