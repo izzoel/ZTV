@@ -251,8 +251,8 @@ export default function WatchPage({
             : media.title.toUpperCase()
         : '';
 
-    const detectedResolution = zetwareDirectUrl?.match(/_(\d+x\d+|\d+p)/i)?.[1]
-        ? `${zetwareDirectUrl.match(/_(\d+x\d+|\d+p)/i)?.[1]} MP4`
+    const detectedResolution = zetwareDirectUrl?.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1]
+        ? `${zetwareDirectUrl.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1]} MP4`
         : 'Direct MP4';
 
     const handleSelectZetwareResolution = (newUrl: string) => {

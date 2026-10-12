@@ -78,7 +78,7 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
 
         if ($httpCode >= 200 && $httpCode < 400) {
             $res = 'Direct MP4';
-            if (preg_match('/_(\d+x\d+|\d+p)/i', $url, $m)) {
+            if (preg_match('/_(\d+x\d+|\d+p|\d{3,4}|4k)/i', $url, $m)) {
                 $res = $m[1];
             }
 
@@ -95,16 +95,22 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
     usort($streams, function ($a, $b) {
         $numA = 0;
         $numB = 0;
-        if (preg_match('/(\d+)x(\d+)/', $a['resolution'], $ma)) {
+        if (preg_match('/(\d+)x(\d+)/i', $a['resolution'], $ma)) {
             $numA = (int) $ma[1] * (int) $ma[2];
-        } elseif (preg_match('/(\d+)p/', $a['resolution'], $ma)) {
+        } elseif (preg_match('/(\d+)p?/i', $a['resolution'], $ma)) {
             $numA = (int) $ma[1] * 1000;
+        } elseif (stripos($a['resolution'], '4k') !== false) {
+            $numA = 4000 * 1000;
         }
-        if (preg_match('/(\d+)x(\d+)/', $b['resolution'], $mb)) {
+
+        if (preg_match('/(\d+)x(\d+)/i', $b['resolution'], $mb)) {
             $numB = (int) $mb[1] * (int) $mb[2];
-        } elseif (preg_match('/(\d+)p/', $b['resolution'], $mb)) {
+        } elseif (preg_match('/(\d+)p?/i', $b['resolution'], $mb)) {
             $numB = (int) $mb[1] * 1000;
+        } elseif (stripos($b['resolution'], '4k') !== false) {
+            $numB = 4000 * 1000;
         }
+
         return $numB <=> $numA;
     });
 

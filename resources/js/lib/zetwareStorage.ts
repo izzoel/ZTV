@@ -24,15 +24,34 @@ export interface ZetwareMediaCheckOptions {
 }
 
 const COMMON_RESOLUTIONS = [
-    '_1920x960',  // 2:1 cinema (e.g. LANTERNS - S1E2_1920x960.mp4)
-    '_640x320',   // 2:1 mobile
+    '_1920x960',  // 2:1 cinema FHD (e.g. LANTERNS - S1E2_1920x960.mp4)
+    '_1280x640',  // 2:1 cinema HD (e.g. LANTERNS - S1E2_1280x640.mp4)
+    '_640x320',   // 2:1 cinema mobile SD
     '_1920x1080', // 1080p 16:9
     '_1280x720',  // 720p 16:9
+    '_854x480',   // 480p 16:9
     '_640x360',   // 360p 16:9
+    '_1920x800',  // 2.39:1 ultrawide cinema
+    '_1920x804',
+    '_1280x536',  // 2.39:1 ultrawide 720p
+    '_960x480',   // 2:1 480p
+    '_1280x960',  // 4:3
     '_640x480',   // 480p 4:3
+    '_3840x2160', // 4K 16:9
+    '_3840x1920', // 4K 2:1
     '_1080p',
     '_720p',
     '_480p',
+    '_360p',
+    '_2160p',
+    '_4K',
+    '_4k',
+    '_1920',
+    '_1280',
+    '_720',
+    '_1080',
+    '_640',
+    '_480',
     '',           // Raw without resolution suffix (e.g. LANTERNS - S1E2.mp4)
 ];
 
