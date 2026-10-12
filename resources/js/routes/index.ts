@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../wayfinder'
 /**
 * @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::login
 * @see vendor/laravel/fortify/src/Http/Controllers/AuthenticatedSessionController.php:47
@@ -459,6 +459,190 @@ cookiesForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => 
 })
 
 cookies.form = cookiesForm
+
+/**
+* @see routes/web.php:10
+* @route '/detail/{id}'
+*/
+export const detail = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: detail.url(args, options),
+    method: 'get',
+})
+
+detail.definition = {
+    methods: ["get","head"],
+    url: '/detail/{id}',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see routes/web.php:10
+* @route '/detail/{id}'
+*/
+detail.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { id: args }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            id: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        id: args.id,
+    }
+
+    return detail.definition.url
+            .replace('{id}', parsedArgs.id.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see routes/web.php:10
+* @route '/detail/{id}'
+*/
+detail.get = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: detail.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:10
+* @route '/detail/{id}'
+*/
+detail.head = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: detail.url(args, options),
+    method: 'head',
+})
+
+/**
+* @see routes/web.php:10
+* @route '/detail/{id}'
+*/
+const detailForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: detail.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:10
+* @route '/detail/{id}'
+*/
+detailForm.get = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: detail.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:10
+* @route '/detail/{id}'
+*/
+detailForm.head = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: detail.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+detail.form = detailForm
+
+/**
+* @see routes/web.php:16
+* @route '/watch/{id}'
+*/
+export const watch = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: watch.url(args, options),
+    method: 'get',
+})
+
+watch.definition = {
+    methods: ["get","head"],
+    url: '/watch/{id}',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see routes/web.php:16
+* @route '/watch/{id}'
+*/
+watch.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { id: args }
+    }
+
+    if (Array.isArray(args)) {
+        args = {
+            id: args[0],
+        }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+        id: args.id,
+    }
+
+    return watch.definition.url
+            .replace('{id}', parsedArgs.id.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see routes/web.php:16
+* @route '/watch/{id}'
+*/
+watch.get = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: watch.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:16
+* @route '/watch/{id}'
+*/
+watch.head = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: watch.url(args, options),
+    method: 'head',
+})
+
+/**
+* @see routes/web.php:16
+* @route '/watch/{id}'
+*/
+const watchForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: watch.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:16
+* @route '/watch/{id}'
+*/
+watchForm.get = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: watch.url(args, options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:16
+* @route '/watch/{id}'
+*/
+watchForm.head = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: watch.url(args, {
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+watch.form = watchForm
 
 /**
 * @see \Inertia\Controller::__invoke

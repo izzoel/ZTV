@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { MediaItem } from '@/data/movies';
 import { fetchLiveTmdbCatalog, fetchMoreTmdbContent } from '@/lib/tmdbService';
 import Navbar from '@/components/streaming/Navbar';
@@ -7,8 +7,6 @@ import HeroSpotlight from '@/components/streaming/HeroSpotlight';
 import CategoryPillFilter from '@/components/streaming/CategoryPillFilter';
 import MovieRow from '@/components/streaming/MovieRow';
 import Top10Row from '@/components/streaming/Top10Row';
-import VideoPlayerModal from '@/components/streaming/VideoPlayerModal';
-import MovieDetailModal from '@/components/streaming/MovieDetailModal';
 import StreamingFooter from '@/components/streaming/StreamingFooter';
 import StreamingSkeleton from '@/components/streaming/StreamingSkeleton';
 import DevNoticeBanner from '@/components/streaming/DevNoticeBanner';
@@ -26,12 +24,6 @@ export default function Welcome() {
     const [seriesPage, setSeriesPage] = useState<number>(2);
     const [isFetchingMore, setIsFetchingMore] = useState<boolean>(false);
 
-    // Modal State Management (Strictly Isolated)
-    const [playingMedia, setPlayingMedia] = useState<MediaItem | null>(null);
-    const [playingEpisodeNumber, setPlayingEpisodeNumber] = useState<number>(1);
-    const [playingSeasonNumber, setPlayingSeasonNumber] = useState<number>(1);
-    const [detailMedia, setDetailMedia] = useState<MediaItem | null>(null);
-
     // Dynamic TMDB State & Loading
     const [isLoading, setIsLoading] = useState<boolean>(true);
     const [featuredMedia, setFeaturedMedia] = useState<MediaItem[]>([]);
@@ -42,30 +34,24 @@ export default function Welcome() {
     const [horrorMedia, setHorrorMedia] = useState<MediaItem[]>([]);
     const [isTmdbLive, setIsTmdbLive] = useState<boolean>(false);
 
-    // Helper functions to prevent modal stacking
+    // Page navigation handlers for watching and detail view
     const handlePlayMedia = (item: MediaItem, episodeNumber: number = 1, seasonNumber: number = 1) => {
-        setDetailMedia(null);
-        setPlayingMedia(item);
-        setPlayingEpisodeNumber(episodeNumber || 1);
-        setPlayingSeasonNumber(seasonNumber || 1);
+        try {
+            sessionStorage.setItem(`ztv_media_${item.id}`, JSON.stringify(item));
+        } catch {
+            // ignore
+        }
+        router.visit(`/watch/${item.id}?season=${seasonNumber || 1}&episode=${episodeNumber || 1}`);
     };
 
     const handleOpenDetail = (item: MediaItem) => {
-        setPlayingMedia(null);
-        setDetailMedia(item);
-    };
-
-    // Body scroll lock management when any modal is open
-    useEffect(() => {
-        if (playingMedia || detailMedia) {
-            document.body.style.overflow = 'hidden';
-        } else {
-            document.body.style.overflow = '';
+        try {
+            sessionStorage.setItem(`ztv_media_${item.id}`, JSON.stringify(item));
+        } catch {
+            // ignore
         }
-        return () => {
-            document.body.style.overflow = '';
-        };
-    }, [playingMedia, detailMedia]);
+        router.visit(`/detail/${item.id}`);
+    };
 
     // Fetch live TMDB data on mount
     useEffect(() => {
@@ -407,25 +393,6 @@ export default function Welcome() {
                 {/* Footer */}
                 <StreamingFooter />
 
-                {/* Interactive Modals - Mutually Exclusive Rendering */}
-                {playingMedia && (
-                    <VideoPlayerModal
-                        item={playingMedia}
-                        initialEpisodeNumber={playingEpisodeNumber}
-                        initialSeasonNumber={playingSeasonNumber}
-                        onClose={() => setPlayingMedia(null)}
-                    />
-                )}
-
-                {detailMedia && !playingMedia && (
-                    <MovieDetailModal
-                        item={detailMedia}
-                        onClose={() => setDetailMedia(null)}
-                        onPlay={handlePlayMedia}
-                        isSaved={myList.includes(detailMedia.id)}
-                        onToggleMyList={handleToggleMyList}
-                    />
-                )}
                 {/* Development Notice Toast Banner */}
                 <DevNoticeBanner />
             </div>

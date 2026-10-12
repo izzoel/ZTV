@@ -450,3 +450,75 @@ export async function fetchTmdbTvSeasons(
         return [{ seasonNumber: 1, name: 'Musim 1', episodeCount: 10 }];
     }
 }
+
+/**
+ * Fetch a single MediaItem by ID (from FALLBACK_MOVIES or TMDB Live API)
+ */
+export async function fetchMediaById(id: string | number): Promise<MediaItem | null> {
+    const strId = String(id).trim();
+    if (!strId) return null;
+
+    // 1. Check in FALLBACK_MOVIES
+    const foundFallback = FALLBACK_MOVIES.find(
+        (m) => m.id === strId || String(m.tmdbId) === strId
+    );
+    if (foundFallback) {
+        return foundFallback;
+    }
+
+    // 2. Determine type and numeric TMDB ID
+    let isMovie = true;
+    let numericId: string = strId;
+
+    if (strId.startsWith('tmdb-tv-')) {
+        isMovie = false;
+        numericId = strId.replace('tmdb-tv-', '');
+    } else if (strId.startsWith('tmdb-mov-')) {
+        isMovie = true;
+        numericId = strId.replace('tmdb-mov-', '');
+    }
+
+    // 3. Fetch from TMDB API
+    try {
+        if (!isMovie) {
+            const [resId, resEn] = await Promise.all([
+                fetchFromTmdb(`/tv/${numericId}`, { language: 'id-ID' }),
+                fetchFromTmdb(`/tv/${numericId}`, { language: 'en-US' }),
+            ]);
+            if (resId && resId.id) {
+                const enMap = new Map<number | string, string>();
+                if (resEn?.overview) enMap.set(resId.id, resEn.overview.trim());
+                return formatTmdbItemToMedia(resId, 'series', false, enMap);
+            }
+        }
+
+        // Try movie
+        const [resId, resEn] = await Promise.all([
+            fetchFromTmdb(`/movie/${numericId}`, { language: 'id-ID' }),
+            fetchFromTmdb(`/movie/${numericId}`, { language: 'en-US' }),
+        ]);
+        if (resId && resId.id) {
+            const enMap = new Map<number | string, string>();
+            if (resEn?.overview) enMap.set(resId.id, resEn.overview.trim());
+            return formatTmdbItemToMedia(resId, 'movie', false, enMap);
+        }
+
+        // Fallback to TV if movie failed and not explicitly prefixed
+        if (isMovie && !strId.startsWith('tmdb-mov-')) {
+            const [tvId, tvEn] = await Promise.all([
+                fetchFromTmdb(`/tv/${numericId}`, { language: 'id-ID' }),
+                fetchFromTmdb(`/tv/${numericId}`, { language: 'en-US' }),
+            ]);
+            if (tvId && tvId.id) {
+                const enMap = new Map<number | string, string>();
+                if (tvEn?.overview) enMap.set(tvId.id, tvEn.overview.trim());
+                return formatTmdbItemToMedia(tvId, 'series', false, enMap);
+            }
+        }
+    } catch (e) {
+        console.warn('Error fetching media by ID:', e);
+    }
+
+    return null;
+}
+
