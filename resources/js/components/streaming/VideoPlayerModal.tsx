@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { 
     Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, X, 
     MessageSquare, Sparkles, Server, Tv, Search, Layers, RefreshCw, AlertCircle, Film,
-    ShieldCheck, ShieldAlert
+    ShieldCheck, ShieldAlert, Share2, ExternalLink, Copy, Check, Send, Globe, Code, CheckCircle2
 } from 'lucide-react';
 import { MediaItem, Episode } from '@/data/movies';
 import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
@@ -37,6 +37,19 @@ export default function VideoPlayerModal({
     const [showSourceMenu, setShowSourceMenu] = useState<boolean>(false);
     const [showTmdbModal, setShowTmdbModal] = useState<boolean>(false);
     const [customTmdbInput, setCustomTmdbInput] = useState<string>('');
+
+    // API Target Modal State
+    const [showApiTargetModal, setShowApiTargetModal] = useState<boolean>(false);
+    const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => {
+        try {
+            return localStorage.getItem('ztv_api_target_base_url') || 'http://localhost:8000/api/stream';
+        } catch {
+            return 'http://localhost:8000/api/stream';
+        }
+    });
+    const [copiedField, setCopiedField] = useState<string | null>(null);
+    const [apiSending, setApiSending] = useState<boolean>(false);
+    const [apiFeedback, setApiFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     // HTML5 Video State (Fallback)
     const [isPlaying, setIsPlaying] = useState<boolean>(true);
@@ -195,6 +208,82 @@ export default function VideoPlayerModal({
             setCurrentTmdbId(customTmdbInput.trim());
             setIframeLoading(true);
             setShowTmdbModal(false);
+        }
+    };
+
+    // Target Query Parameters Calculation
+    const targetTmdbId = String(currentTmdbId || (item ? getTmdbIdForMedia(item.id, item.tmdbId) : ''));
+    const targetM3u8Url = streamUrl;
+    const targetTitle = item.type === 'series' 
+        ? `${item.title} - S${selectedSeason}E${selectedEpisode}` 
+        : item.title;
+
+    const handleBaseUrlChange = (val: string) => {
+        setApiBaseUrl(val);
+        try {
+            localStorage.setItem('ztv_api_target_base_url', val);
+        } catch {
+            // Ignore storage restriction
+        }
+    };
+
+    const getTargetFullUrl = (baseUrl: string = apiBaseUrl) => {
+        const trimmed = baseUrl.trim() || 'http://localhost:8000/api/stream';
+        try {
+            const parsed = new URL(trimmed);
+            parsed.searchParams.set('tmdb_id', targetTmdbId);
+            parsed.searchParams.set('m3u8_url', targetM3u8Url);
+            parsed.searchParams.set('title', targetTitle);
+            return parsed.toString();
+        } catch {
+            const qs = new URLSearchParams({
+                tmdb_id: targetTmdbId,
+                m3u8_url: targetM3u8Url,
+                title: targetTitle,
+            }).toString();
+            return `${trimmed}${trimmed.includes('?') ? '&' : '?'}${qs}`;
+        }
+    };
+
+    const handleCopy = (text: string, fieldKey: string) => {
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text);
+        }
+        setCopiedField(fieldKey);
+        setTimeout(() => {
+            setCopiedField((curr) => (curr === fieldKey ? null : curr));
+        }, 2000);
+    };
+
+    const handleSendApiRequest = async () => {
+        setApiSending(true);
+        setApiFeedback(null);
+        try {
+            const fullUrl = getTargetFullUrl();
+            const res = await fetch(fullUrl, {
+                method: 'GET',
+                headers: {
+                    'Accept': 'application/json',
+                },
+            });
+            if (res.ok) {
+                setApiFeedback({
+                    type: 'success',
+                    message: `Berhasil terkirim! Status: ${res.status} ${res.statusText || 'OK'}`,
+                });
+            } else {
+                setApiFeedback({
+                    type: 'error',
+                    message: `Respon server HTTP ${res.status}: ${res.statusText || 'Error'}`,
+                });
+            }
+        } catch (err: any) {
+            setApiFeedback({
+                type: 'error',
+                message: `Gagal memanggil API: ${err.message || 'CORS / Server unreachable'}`,
+            });
+        } finally {
+            setApiSending(false);
         }
     };
 
@@ -428,6 +517,19 @@ export default function VideoPlayerModal({
                             <Search className="w-4 h-4" />
                         </button>
 
+                        {/* TARGET API BUTTON */}
+                        <button
+                            onClick={() => {
+                                setApiFeedback(null);
+                                setShowApiTargetModal(true);
+                            }}
+                            className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 hover:text-amber-200 border border-amber-500/30 hover:border-amber-400 transition cursor-pointer active:scale-95 flex items-center gap-1.5 text-xs font-semibold shadow-sm"
+                            title="Kirim / Preview Parameter Stream Target (tmdb_id, m3u8_url, title)"
+                        >
+                            <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                            <span className="hidden sm:inline">Target API</span>
+                        </button>
+
                         {/* CLOSE BUTTON FOR TABLET/DESKTOP */}
                         <button
                             onClick={onClose}
@@ -569,6 +671,243 @@ export default function VideoPlayerModal({
                                 </button>
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* MODAL KONFIRMASI & PREVIEW API TARGET (tmdb_id, m3u8_url, title) */}
+            {showApiTargetModal && (
+                <div 
+                    onClick={(e) => {
+                        if (e.target === e.currentTarget) setShowApiTargetModal(false);
+                    }}
+                    className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 cursor-pointer"
+                >
+                    <div 
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-full max-w-xl bg-slate-950 border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto cursor-default text-slate-200"
+                    >
+                        {/* Header */}
+                        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                                    <Share2 className="w-5 h-5" />
+                                </div>
+                                <div>
+                                    <h3 className="text-base font-bold text-white flex items-center gap-1.5">
+                                        Preview Query Target Stream API
+                                    </h3>
+                                    <p className="text-[11px] text-slate-400">
+                                        Parameter query string target untuk pemutar / manifest streaming
+                                    </p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setShowApiTargetModal(false)}
+                                className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition cursor-pointer"
+                                title="Tutup"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        {/* Base URL Input */}
+                        <div className="space-y-1.5">
+                            <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
+                                <Globe className="w-3.5 h-3.5 text-amber-400" />
+                                Base URL / Endpoint Target:
+                            </label>
+                            <input
+                                type="text"
+                                value={apiBaseUrl}
+                                onChange={(e) => handleBaseUrlChange(e.target.value)}
+                                placeholder="http://localhost:8000/api/stream"
+                                className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs focus:outline-none focus:border-amber-500 transition"
+                            />
+                            <p className="text-[10px] text-slate-400">
+                                Tersimpan otomatis di browser (localStorage) untuk pemanggilan berikutnya.
+                            </p>
+                        </div>
+
+                        {/* Parameter List Items */}
+                        <div className="space-y-2 pt-1">
+                            <span className="text-[11px] font-bold text-slate-300 uppercase tracking-wider block">
+                                Parameter Query Yang Disediakan:
+                            </span>
+
+                            {/* 1. tmdb_id */}
+                            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <code className="text-xs font-mono font-bold text-red-400">tmdb_id *</code>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-mono">string (query)</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">ID TMDb media</p>
+                                    <p className="text-xs font-mono text-white font-semibold truncate mt-1 bg-black/40 px-2 py-1 rounded-lg">
+                                        {targetTmdbId}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopy(targetTmdbId, 'tmdb_id')}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1.5 self-start sm:self-center transition shrink-0 active:scale-95"
+                                >
+                                    {copiedField === 'tmdb_id' ? (
+                                        <>
+                                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span className="text-emerald-400">Disalin</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3.5 h-3.5" />
+                                            <span>Salin</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* 2. m3u8_url */}
+                            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <code className="text-xs font-mono font-bold text-amber-400">m3u8_url *</code>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono">string (query)</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">URL halaman player / manifest target</p>
+                                    <p className="text-xs font-mono text-white font-semibold break-all mt-1 bg-black/40 px-2 py-1 rounded-lg max-h-16 overflow-y-auto">
+                                        {targetM3u8Url}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopy(targetM3u8Url, 'm3u8_url')}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1.5 self-start sm:self-center transition shrink-0 active:scale-95"
+                                >
+                                    {copiedField === 'm3u8_url' ? (
+                                        <>
+                                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span className="text-emerald-400">Disalin</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3.5 h-3.5" />
+                                            <span>Salin</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+
+                            {/* 3. title */}
+                            <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="min-w-0 flex-1">
+                                    <div className="flex items-center gap-2">
+                                        <code className="text-xs font-mono font-bold text-emerald-400">title *</code>
+                                        <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">string (query)</span>
+                                    </div>
+                                    <p className="text-[11px] text-slate-400 mt-0.5">Judul media / video</p>
+                                    <p className="text-xs font-mono text-white font-semibold truncate mt-1 bg-black/40 px-2 py-1 rounded-lg">
+                                        {targetTitle}
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopy(targetTitle, 'title')}
+                                    className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium flex items-center gap-1.5 self-start sm:self-center transition shrink-0 active:scale-95"
+                                >
+                                    {copiedField === 'title' ? (
+                                        <>
+                                            <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                            <span className="text-emerald-400">Disalin</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3.5 h-3.5" />
+                                            <span>Salin</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Full URL Preview */}
+                        <div className="space-y-1.5 pt-1">
+                            <div className="flex items-center justify-between">
+                                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                                    <Code className="w-3.5 h-3.5 text-slate-400" />
+                                    Preview Full URL (dengan Query Params):
+                                </label>
+                                <button
+                                    type="button"
+                                    onClick={() => handleCopy(getTargetFullUrl(), 'full_url')}
+                                    className="text-[11px] text-amber-400 hover:text-amber-300 flex items-center gap-1 transition"
+                                >
+                                    {copiedField === 'full_url' ? (
+                                        <>
+                                            <Check className="w-3 h-3 text-emerald-400" />
+                                            <span className="text-emerald-400 font-semibold">URL Disalin</span>
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Copy className="w-3 h-3" />
+                                            <span>Salin Semua</span>
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                            <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 text-[11px] font-mono text-amber-300 break-all max-h-20 overflow-y-auto select-all">
+                                {getTargetFullUrl()}
+                            </div>
+                        </div>
+
+                        {/* Status feedback */}
+                        {apiFeedback && (
+                            <div className={`p-3 rounded-xl text-xs flex items-center gap-2 border ${
+                                apiFeedback.type === 'success' 
+                                    ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' 
+                                    : 'bg-red-950/40 border-red-500/30 text-red-300'
+                            }`}>
+                                {apiFeedback.type === 'success' ? (
+                                    <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                                ) : (
+                                    <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                                )}
+                                <span>{apiFeedback.message}</span>
+                            </div>
+                        )}
+
+                        {/* Footer Action Buttons */}
+                        <div className="flex flex-wrap gap-2 pt-3 border-t border-white/10">
+                            <button
+                                type="button"
+                                onClick={() => window.open(getTargetFullUrl(), '_blank')}
+                                className="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 shadow-lg shadow-amber-600/30 active:scale-95 cursor-pointer"
+                            >
+                                <ExternalLink className="w-3.5 h-3.5" />
+                                <span>Buka di Tab Baru</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                disabled={apiSending}
+                                onClick={handleSendApiRequest}
+                                className="flex-1 min-w-[130px] py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer disabled:opacity-50"
+                            >
+                                {apiSending ? (
+                                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                ) : (
+                                    <Send className="w-3.5 h-3.5 text-amber-400" />
+                                )}
+                                <span>{apiSending ? 'Mengirim...' : 'Kirim Request'}</span>
+                            </button>
+
+                            <button
+                                type="button"
+                                onClick={() => setShowApiTargetModal(false)}
+                                className="py-2.5 px-4 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 text-xs font-semibold transition cursor-pointer"
+                            >
+                                Tutup
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
