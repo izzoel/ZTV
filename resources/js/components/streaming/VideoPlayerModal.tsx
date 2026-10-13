@@ -3,12 +3,13 @@ import {
     Play, Pause, RotateCcw, RotateCw, Volume2, VolumeX, Maximize, X, 
     MessageSquare, Sparkles, Server, Tv, Search, Layers, RefreshCw, AlertCircle, Film,
     ShieldCheck, ShieldAlert, Share2, ExternalLink, Copy, Check, Send, Globe, Code, CheckCircle2,
-    Zap, Monitor, ChevronDown
+    Zap, Monitor, ChevronDown, Subtitles, Upload
 } from 'lucide-react';
 import { MediaItem, Episode } from '@/data/movies';
 import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
 import { fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
 import { checkZetwareMediaExists, ZetwareStreamOption } from '@/lib/zetwareStorage';
+import { fetchSubtitlesForMedia, convertSrtToVttBlob, SubtitleTrack } from '@/lib/subtitleService';
 import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
 
 interface VideoPlayerModalProps {
@@ -74,8 +75,10 @@ export default function VideoPlayerModal({
     const [duration, setDuration] = useState<number>(0);
     const [volume, setVolume] = useState<number>(0.9);
     const [isMuted, setIsMuted] = useState<boolean>(false);
-    const [selectedSubtitles, setSelectedSubtitles] = useState<string>('id');
+    const [selectedSubtitles, setSelectedSubtitles] = useState<string | 'off'>('id');
     const [showSubtitleMenu, setShowSubtitleMenu] = useState<boolean>(false);
+    const [subtitles, setSubtitles] = useState<SubtitleTrack[]>([]);
+    const [isLoadingSubtitles, setIsLoadingSubtitles] = useState<boolean>(false);
     const [showEpisodeMenu, setShowEpisodeMenu] = useState<boolean>(false);
 
     // Initialize item data & TMDB ID
@@ -135,6 +138,77 @@ export default function VideoPlayerModal({
             isMounted = false;
         };
     }, [item, selectedSeason, selectedEpisode]);
+
+    // Automatic fetch subtitles for Zetware Cloud / Local MP4 (Opsi B)
+    useEffect(() => {
+        let isMounted = true;
+        if (!item) return;
+
+        setIsLoadingSubtitles(true);
+        fetchSubtitlesForMedia(
+            currentTmdbId,
+            item.type,
+            selectedSeason,
+            selectedEpisode
+        ).then((subs) => {
+            if (!isMounted) return;
+            setIsLoadingSubtitles(false);
+            setSubtitles(subs);
+            if (subs.length > 0) {
+                const defaultTrack = subs.find((s) => s.isDefault) || subs[0];
+                setSelectedSubtitles(defaultTrack.id);
+            } else {
+                setSelectedSubtitles('off');
+            }
+        });
+
+        return () => {
+            isMounted = false;
+        };
+    }, [item, currentTmdbId, selectedSeason, selectedEpisode]);
+
+    // Sync HTML5 video textTracks when selectedSubtitles changes
+    useEffect(() => {
+        if (!videoRef.current || !videoRef.current.textTracks) return;
+        const tracks = videoRef.current.textTracks;
+        for (let i = 0; i < tracks.length; i++) {
+            const t = tracks[i];
+            const matchingSub = subtitles.find((s) => s.label === t.label || s.lang === t.language);
+            if (selectedSubtitles === 'off') {
+                t.mode = 'disabled';
+            } else if (matchingSub && matchingSub.id === selectedSubtitles) {
+                t.mode = 'showing';
+            } else {
+                t.mode = 'disabled';
+            }
+        }
+    }, [selectedSubtitles, subtitles]);
+
+    // Handle user uploading local subtitle file (.srt / .vtt)
+    const handleUploadLocalSubtitle = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const text = event.target?.result as string;
+            if (text) {
+                const blobUrl = convertSrtToVttBlob(text);
+                const customTrack: SubtitleTrack = {
+                    id: `local-${Date.now()}`,
+                    lang: 'id',
+                    label: `Lokal (${file.name})`,
+                    fileName: file.name,
+                    url: blobUrl,
+                    source: 'Lokal',
+                    isDefault: true,
+                };
+                setSubtitles((prev) => [customTrack, ...prev]);
+                setSelectedSubtitles(customTrack.id);
+                setShowSubtitleMenu(false);
+            }
+        };
+        reader.readAsText(file);
+    };
 
     // Safety timeout timer for iframe server loading
     useEffect(() => {
@@ -492,6 +566,121 @@ export default function VideoPlayerModal({
                             </div>
                         )}
 
+                        {/* Subtitle Selector Button for Zetware Cloud in Header */}
+                        {!useStreambertEmbed && (
+                            <div className="relative">
+                                <button
+                                    onClick={() => {
+                                        setShowSubtitleMenu(!showSubtitleMenu);
+                                        setShowResolutionMenu(false);
+                                        setShowSourceMenu(false);
+                                        setShowEpisodeMenu(false);
+                                    }}
+                                    className="px-2.5 py-1.5 rounded-xl bg-slate-900 border border-emerald-500/40 text-emerald-300 hover:text-emerald-200 text-xs font-bold flex items-center gap-1.5 shadow-md shadow-emerald-500/20 transition cursor-pointer active:scale-95"
+                                    title="Pilih Subtitle (Teks Terjemahan) Zetware Cloud"
+                                >
+                                    <Subtitles className="w-3.5 h-3.5 text-emerald-400" />
+                                    <span>
+                                        {selectedSubtitles === 'off'
+                                            ? 'Sub: Off'
+                                            : `Sub: ${subtitles.find((s) => s.id === selectedSubtitles)?.label || 'Auto'}`}
+                                    </span>
+                                    <ChevronDown className="w-3 h-3 text-emerald-400" />
+                                </button>
+
+                                {showSubtitleMenu && (
+                                    <>
+                                        <div
+                                            className="fixed inset-0 z-40 bg-transparent"
+                                            onClick={() => setShowSubtitleMenu(false)}
+                                        />
+                                        <div className="absolute top-11 right-0 w-64 bg-slate-950 border border-white/20 rounded-2xl p-2 shadow-2xl z-50 text-xs space-y-1 backdrop-blur-2xl">
+                                            <div className="px-2 py-1 border-b border-white/10 text-white font-bold flex items-center justify-between">
+                                                <span className="flex items-center gap-1.5">
+                                                    <Subtitles className="w-3.5 h-3.5 text-emerald-400" />
+                                                    Subtitle Video
+                                                </span>
+                                                {isLoadingSubtitles && (
+                                                    <span className="text-[10px] text-emerald-400 animate-pulse font-normal">
+                                                        Memuat...
+                                                    </span>
+                                                )}
+                                            </div>
+
+                                            <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
+                                                {/* Option: Matikan Subtitle */}
+                                                <button
+                                                    onClick={() => {
+                                                        setSelectedSubtitles('off');
+                                                        setShowSubtitleMenu(false);
+                                                    }}
+                                                    className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition text-xs font-semibold ${
+                                                        selectedSubtitles === 'off'
+                                                            ? 'bg-red-600 text-white font-bold'
+                                                            : 'text-slate-300 hover:bg-white/10'
+                                                    }`}
+                                                >
+                                                    <span>Nonaktifkan (Off)</span>
+                                                    {selectedSubtitles === 'off' && <Check className="w-3.5 h-3.5 text-white" />}
+                                                </button>
+
+                                                {/* List Available Subtitles */}
+                                                {subtitles.length > 0 ? (
+                                                    subtitles.map((st) => (
+                                                        <button
+                                                            key={st.id}
+                                                            onClick={() => {
+                                                                setSelectedSubtitles(st.id);
+                                                                setShowSubtitleMenu(false);
+                                                            }}
+                                                            className={`w-full text-left px-2.5 py-1.5 rounded-xl flex items-center justify-between transition text-xs font-semibold ${
+                                                                selectedSubtitles === st.id
+                                                                    ? 'bg-emerald-500 text-slate-950 font-black'
+                                                                    : 'text-slate-300 hover:bg-white/10'
+                                                            }`}
+                                                        >
+                                                            <div className="min-w-0 pr-1">
+                                                                <div className="flex items-center gap-1.5">
+                                                                    {st.lang === 'id' && <span>⚡</span>}
+                                                                    <span className="truncate">{st.label}</span>
+                                                                </div>
+                                                                {st.fileName && (
+                                                                    <p className={`text-[10px] truncate ${selectedSubtitles === st.id ? 'text-slate-900/80' : 'text-slate-400'}`}>
+                                                                        {st.fileName}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+                                                            {selectedSubtitles === st.id && (
+                                                                <Check className="w-3.5 h-3.5 shrink-0 text-slate-950" />
+                                                            )}
+                                                        </button>
+                                                    ))
+                                                ) : (
+                                                    <div className="px-2.5 py-2 text-slate-400 text-[11px] text-center">
+                                                        {isLoadingSubtitles ? 'Sedang mencari subtitle...' : 'Subtitle otomatis belum tersedia'}
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Upload custom subtitle button */}
+                                            <div className="pt-1 border-t border-white/10">
+                                                <label className="w-full px-2.5 py-1.5 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 flex items-center justify-center gap-1.5 text-[11px] font-semibold cursor-pointer transition">
+                                                    <Upload className="w-3 h-3 text-emerald-400" />
+                                                    <span>Unggah Subtitle (.srt / .vtt)</span>
+                                                    <input
+                                                        type="file"
+                                                        accept=".srt,.vtt"
+                                                        className="hidden"
+                                                        onChange={handleUploadLocalSubtitle}
+                                                    />
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        )}
+
                         {/* SERVER SELECTOR BUTTON */}
                         <div className="relative">
                             <button
@@ -822,7 +1011,18 @@ export default function VideoPlayerModal({
                                 className="w-full h-full object-contain"
                                 onTimeUpdate={handleTimeUpdate}
                                 onEnded={() => setIsPlaying(false)}
-                            />
+                            >
+                                {subtitles.map((sub) => (
+                                    <track
+                                        key={sub.id}
+                                        kind="subtitles"
+                                        src={sub.url}
+                                        srcLang={sub.lang}
+                                        label={sub.label}
+                                        default={selectedSubtitles === sub.id}
+                                    />
+                                ))}
+                            </video>
                         </div>
                     )}
                 </div>
