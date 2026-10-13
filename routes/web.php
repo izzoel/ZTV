@@ -78,7 +78,7 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
 
         if ($httpCode >= 200 && $httpCode < 400) {
             $res = 'Direct MP4';
-            if (preg_match('/_(\d+x\d+|\d+p|\d{3,4}|4k)/i', $url, $m)) {
+            if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $url, $m)) {
                 $res = $m[1];
             }
 
@@ -111,7 +111,14 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
             $numB = 4000 * 1000;
         }
 
-        return $numB <=> $numA;
+        if ($numB !== $numA) {
+            return $numB <=> $numA;
+        }
+
+        // Prioritize subfolder URLs (more slashes after /storage/movies/)
+        $depthA = substr_count($a['url'], '/');
+        $depthB = substr_count($b['url'], '/');
+        return $depthB <=> $depthA;
     });
 
     return response()->json([
