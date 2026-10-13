@@ -69,15 +69,14 @@ export default function Welcome() {
         const catParam = params.get('category');
         const myListParam = params.get('my_list');
 
-        if (myListParam === '1' || myListParam === 'true') {
-            setShowMyListOnly(true);
-        } else if (myListParam === '0' || myListParam === 'false') {
-            setShowMyListOnly(false);
-        }
+        setShowMyListOnly(myListParam === '1' || myListParam === 'true');
 
         if (catParam) {
             setActiveCategory(parseCategoryParam(catParam));
+        } else {
+            setActiveCategory('Semua');
         }
+        setActiveGenre('Semua');
     }, [url]);
 
     const handleSelectCategory = (cat: string) => {

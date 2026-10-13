@@ -291,17 +291,33 @@ export default function DetailPage({ id }: DetailPageProps) {
         }
     };
 
+    const handleNavbarSelectCategory = (cat: string) => {
+        if (cat === 'Semua') {
+            router.visit('/');
+        } else {
+            router.visit(`/?category=${encodeURIComponent(cat)}`);
+        }
+    };
+
+    const handleNavbarToggleMyListOnly = (show: boolean) => {
+        if (show) {
+            router.visit('/?my_list=1');
+        } else {
+            router.visit('/');
+        }
+    };
+
     if (isLoading && !media) {
         return (
             <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
                 <Navbar
-                    activeCategory="Semua"
-                    onSelectCategory={(cat) => router.visit(cat === 'Semua' ? '/' : `/?category=${encodeURIComponent(cat)}`)}
+                    activeCategory=""
+                    onSelectCategory={handleNavbarSelectCategory}
                     onPlayMedia={(m) => router.visit(`/watch/${m.id}`)}
                     onOpenDetail={(m) => router.visit(`/detail/${m.id}`)}
                     myListCount={myList.length}
                     showMyListOnly={false}
-                    onToggleMyListOnly={() => router.visit('/?my_list=1')}
+                    onToggleMyListOnly={handleNavbarToggleMyListOnly}
                 />
                 <div className="pt-24 px-4 sm:px-8 max-w-7xl mx-auto">
                     <StreamingSkeleton />
@@ -337,13 +353,13 @@ export default function DetailPage({ id }: DetailPageProps) {
             <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-red-600 selection:text-white antialiased">
                 {/* Navbar */}
                 <Navbar
-                    activeCategory={media.type === 'series' ? 'Series TV' : 'Film'}
-                    onSelectCategory={(cat) => router.visit(cat === 'Semua' ? '/' : `/?category=${encodeURIComponent(cat)}`)}
+                    activeCategory=""
+                    onSelectCategory={handleNavbarSelectCategory}
                     onPlayMedia={(m) => router.visit(`/watch/${m.id}`)}
                     onOpenDetail={(m) => router.visit(`/detail/${m.id}`)}
                     myListCount={myList.length}
                     showMyListOnly={false}
-                    onToggleMyListOnly={() => router.visit('/?my_list=1')}
+                    onToggleMyListOnly={handleNavbarToggleMyListOnly}
                 />
 
                 {/* Back to Home Quick Floating Bar */}

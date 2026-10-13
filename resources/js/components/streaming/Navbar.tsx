@@ -188,7 +188,6 @@ export default function Navbar({
                     <button
                         onClick={() => {
                             onSelectCategory('Semua');
-                            onToggleMyListOnly(false);
                         }}
                         className="flex items-center gap-2 group text-left cursor-pointer shrink-0"
                     >
@@ -209,7 +208,6 @@ export default function Navbar({
                         <button
                             onClick={() => {
                                 onSelectCategory('Semua');
-                                onToggleMyListOnly(false);
                             }}
                             className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all shrink-0 ${
                                 activeCategory === 'Semua' && !showMyListOnly
@@ -222,7 +220,6 @@ export default function Navbar({
                         <button
                             onClick={() => {
                                 onSelectCategory('Film');
-                                onToggleMyListOnly(false);
                             }}
                             className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
                                 (activeCategory === 'Film' || activeCategory === 'Movies') && !showMyListOnly
@@ -236,7 +233,6 @@ export default function Navbar({
                         <button
                             onClick={() => {
                                 onSelectCategory('Series TV');
-                                onToggleMyListOnly(false);
                             }}
                             className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
                                 (activeCategory === 'Series TV' || activeCategory === 'Serial TV' || activeCategory === 'TV Series') && !showMyListOnly
