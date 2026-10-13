@@ -45,25 +45,34 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         $episode = (int) ($request->input('episode') ?? $request->query('episode') ?? 1);
 
         $resolutions = [
-            '_1920x960', '_1280x640', '_640x320', '_1920x1080', '_1280x720',
-            '_854x480', '_640x360', '_1920x800', '_1280x536', '_3840x2160',
-            '_1080p', '_720p', '_480p', '_4K', ''
+            '_1280x534', '_640x266', '_1920x800', '_1920x804', '_1280x536',
+            '_1920x1080', '_1280x720', '_1920x960', '_1280x640', '_640x320',
+            '_854x480', '_640x360', '_854x356', '_640x268', '_3840x2160',
+            '_1080p', '_720p', '_480p', '_360p', '_4K', ''
         ];
 
         $bases = ['https://zetware.id/storage/movies', 'https://zetware.id/storage/movie'];
+
+        $sanitizedTitle = trim(preg_replace('/[:\/\\\\?*"<>|]/', '', $title));
+        $sanitizedTitleNormalized = trim(preg_replace('/\s+/', ' ', $sanitizedTitle));
+
         $folderVariants = array_values(array_unique(array_filter([
+            strtoupper($sanitizedTitleNormalized),
+            strtoupper($sanitizedTitle),
             strtoupper($title),
+            $sanitizedTitleNormalized,
+            $sanitizedTitle,
             $title,
-            strtolower($title),
-            strtoupper(preg_replace('/[:\/\\\\?*"<>|]/', '', $title)),
-            preg_replace('/[:\/\\\\?*"<>|]/', '', $title),
+            strtolower($sanitizedTitleNormalized),
         ])));
 
         $titleVariants = array_values(array_unique(array_filter([
+            strtoupper($sanitizedTitleNormalized),
+            strtoupper($sanitizedTitle),
             strtoupper($title),
+            $sanitizedTitleNormalized,
+            $sanitizedTitle,
             $title,
-            strtoupper(preg_replace('/[:\/\\\\?*"<>|]/', '', $title)),
-            preg_replace('/[:\/\\\\?*"<>|]/', '', $title),
         ])));
 
         if ($type === 'series') {
@@ -145,15 +154,15 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
     $batches = array_chunk($validCandidates, 16);
     $streams = [];
 
-    foreach ($batches as $batch) {
+    foreach ($batches as $batchIndex => $batch) {
         $mh = curl_multi_init();
         $handles = [];
         foreach ($batch as $url) {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_NOBODY, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 1);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 2);
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             curl_setopt($ch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
             curl_multi_add_handle($mh, $ch);
@@ -166,7 +175,7 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         } while ($mrc == CURLM_CALL_MULTI_PERFORM);
 
         while ($active && $mrc == CURLM_OK) {
-            if (curl_multi_select($mh, 0.2) == -1) {
+            if (curl_multi_select($mh, 0.1) == -1) {
                 usleep(10000);
             }
             do {
@@ -197,6 +206,11 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
 
         // Stop as soon as valid streams are found in the prioritized batch
         if (! empty($streams)) {
+            break;
+        }
+
+        // Limit maximum batches to 2 (32 prioritized URLs) so non-existent media fails fast in <2s
+        if ($batchIndex >= 1) {
             break;
         }
     }

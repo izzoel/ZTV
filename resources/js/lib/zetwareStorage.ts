@@ -24,20 +24,25 @@ export interface ZetwareMediaCheckOptions {
 }
 
 const COMMON_RESOLUTIONS = [
+    '_1280x534',  // 2.39:1 scope 720p (e.g. SPIDER-MAN BRAND NEW DAY_1280x534.mp4)
+    '_640x266',   // 2.39:1 scope mobile (e.g. SPIDER-MAN BRAND NEW DAY_640x266.mp4)
+    '_1920x800',  // 2.39:1 ultrawide cinema
+    '_1920x804',
+    '_1280x536',
+    '_1920x1080', // 1080p 16:9
+    '_1280x720',  // 720p 16:9
     '_1920x960',  // 2:1 cinema FHD (e.g. LANTERNS - S1E2_1920x960.mp4)
     '_1280x640',  // 2:1 cinema HD (e.g. LANTERNS - S1E2_1280x640.mp4)
     '_640x320',   // 2:1 cinema mobile SD
-    '_1920x1080', // 1080p 16:9
-    '_1280x720',  // 720p 16:9
     '_854x480',   // 480p 16:9
     '_640x360',   // 360p 16:9
-    '_1920x800',  // 2.39:1 ultrawide cinema
-    '_1920x804',
-    '_1280x536',  // 2.39:1 ultrawide 720p
+    '_854x356',   // 2.39:1 480p
+    '_640x268',
     '_960x480',   // 2:1 480p
     '_1280x960',  // 4:3
     '_640x480',   // 480p 4:3
     '_3840x2160', // 4K 16:9
+    '_3840x1600', // 4K scope
     '_3840x1920', // 4K 2:1
     '_1080p',
     '_720p',
@@ -46,12 +51,6 @@ const COMMON_RESOLUTIONS = [
     '_2160p',
     '_4K',
     '_4k',
-    '_1920',
-    '_1280',
-    '_720',
-    '_1080',
-    '_640',
-    '_480',
     '',           // Raw without resolution suffix (e.g. LANTERNS - S1E2.mp4)
 ];
 
@@ -67,14 +66,19 @@ export function generateZetwareStorageUrls(
     const candidates: string[] = [];
     const bases = ['https://zetware.id/storage/movies', 'https://zetware.id/storage/movie'];
 
-    // Folder variants for {title} (e.g. "LANTERNS", "Lanterns", or stripped colons/symbols)
+    // Folder variants for {title} (e.g. "SPIDER-MAN BRAND NEW DAY", "LANTERNS")
     const sanitizedTitle = cleanTitle.replace(/[:\/\\?*"<>|]/g, '').trim();
+    const sanitizedTitleNormalized = sanitizedTitle.replace(/\s+/g, ' ');
+
+    // Prioritize sanitized uppercase title (matches filesystem folder standard)
     const folderVariants = Array.from(
         new Set([
-            cleanTitle.toUpperCase(),
-            cleanTitle,
+            sanitizedTitleNormalized.toUpperCase(),
             sanitizedTitle.toUpperCase(),
+            cleanTitle.toUpperCase(),
+            sanitizedTitleNormalized,
             sanitizedTitle,
+            cleanTitle,
             cleanTitle.toLowerCase(),
         ])
     ).filter(Boolean);
@@ -82,10 +86,12 @@ export function generateZetwareStorageUrls(
     // Title label variants for the filename
     const titleVariants = Array.from(
         new Set([
-            cleanTitle.toUpperCase(),
-            cleanTitle,
+            sanitizedTitleNormalized.toUpperCase(),
             sanitizedTitle.toUpperCase(),
+            cleanTitle.toUpperCase(),
+            sanitizedTitleNormalized,
             sanitizedTitle,
+            cleanTitle,
         ])
     ).filter(Boolean);
 
