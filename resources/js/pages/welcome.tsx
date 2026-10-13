@@ -18,7 +18,6 @@ const parseCategoryParam = (cat: string | null): string => {
     const lower = cat.toLowerCase();
     if (lower === 'film' || lower === 'movie' || lower === 'movies') return 'Film';
     if (lower === 'series tv' || lower === 'serial tv' || lower === 'series' || lower === 'tv' || lower === 'serial') return 'Series TV';
-    if (lower === 'ztv originals' || lower === 'originals') return 'ZTV Originals';
     return cat;
 };
 
@@ -247,18 +246,12 @@ export default function Welcome() {
             list = list.filter((m) => m.type === 'movie');
         } else if (isSeriesCategory) {
             list = list.filter((m) => m.type === 'series');
-        } else if (activeCategory === 'ZTV Originals') {
-            list = list.filter((m) => m.isOriginal);
         }
 
         if (activeGenre !== 'Semua') {
-            if (activeGenre === 'ZTV Originals') {
-                list = list.filter((m) => m.isOriginal);
-            } else {
-                list = list.filter((m) =>
-                    m.genres.some((g) => g.toLowerCase().includes(activeGenre.toLowerCase().split(' ')[0]))
-                );
-            }
+            list = list.filter((m) =>
+                m.genres.some((g) => g.toLowerCase().includes(activeGenre.toLowerCase().split(' ')[0]))
+            );
         }
 
         return list;
@@ -268,7 +261,6 @@ export default function Welcome() {
 
     // Specific list subsets for rows
     const continueWatching = allMedia.filter((m) => m.progress !== undefined);
-    const ztvOriginals = allMedia.filter((m) => m.isOriginal);
     const displayAction = actionMedia.length > 0 ? actionMedia : allMedia.filter((m) => m.genres.includes('Aksi') || m.genres.includes('Sci-Fi'));
     const displayHorror = horrorMedia.length > 0 ? horrorMedia : allMedia.filter((m) => m.genres.includes('Horor') || m.genres.includes('Misteri'));
 

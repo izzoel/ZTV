@@ -1,11 +1,10 @@
-import { Sparkles, Film, Tv, Flame, Heart, Zap, Ghost, Smile, Compass, Layers } from 'lucide-react';
+import { Film, Tv, Flame, Heart, Zap, Ghost, Smile, Compass, Layers } from 'lucide-react';
 import { GENRES } from '@/data/movies';
 
 export const MAIN_CATEGORIES = [
     { id: 'Semua', label: 'Semua Konten', icon: Flame },
     { id: 'Film', label: 'Film', icon: Film },
     { id: 'Series TV', label: 'Series TV', icon: Tv },
-    { id: 'ZTV Originals', label: 'ZTV Originals', icon: Sparkles },
 ];
 
 interface CategoryPillFilterProps {
