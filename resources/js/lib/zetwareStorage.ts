@@ -65,7 +65,7 @@ export function generateZetwareStorageUrls(
     if (!cleanTitle) return [];
 
     const candidates: string[] = [];
-    const base = 'https://zetware.id/storage/movies';
+    const bases = ['https://zetware.id/storage/movies', 'https://zetware.id/storage/movie'];
 
     // Folder variants for {title} (e.g. "LANTERNS", "Lanterns", or stripped colons/symbols)
     const sanitizedTitle = cleanTitle.replace(/[:\/\\?*"<>|]/g, '').trim();
@@ -97,76 +97,84 @@ export function generateZetwareStorageUrls(
             ])
         );
 
-        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file
-        for (const folder of folderVariants) {
-            const encFolder = encodeURIComponent(folder);
+        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file and /storage/movie/{title}/file
+        for (const base of bases) {
+            for (const folder of folderVariants) {
+                const encFolder = encodeURIComponent(folder);
 
-            for (const ep of epPatterns) {
-                // Pattern A: {folder}/{title} - {ep}{res}.mp4 (e.g. LANTERNS/LANTERNS - S1E2_1920x960.mp4)
-                for (const titleVar of titleVariants) {
+                for (const ep of epPatterns) {
+                    // Pattern A: {folder}/{title} - {ep}{res}.mp4 (e.g. LANTERNS/LANTERNS - S1E2_1920x960.mp4)
+                    for (const titleVar of titleVariants) {
+                        for (const res of COMMON_RESOLUTIONS) {
+                            const filename = `${titleVar} - ${ep}${res}.mp4`;
+                            candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                        }
+                    }
+
+                    // Pattern B: {folder}/{ep}{res}.mp4 (e.g. LANTERNS/S1E2_1920x960.mp4)
                     for (const res of COMMON_RESOLUTIONS) {
-                        const filename = `${titleVar} - ${ep}${res}.mp4`;
+                        const filename = `${ep}${res}.mp4`;
                         candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
                     }
-                }
 
-                // Pattern B: {folder}/{ep}{res}.mp4 (e.g. LANTERNS/S1E2_1920x960.mp4)
-                for (const res of COMMON_RESOLUTIONS) {
-                    const filename = `${ep}${res}.mp4`;
-                    candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
-                }
-
-                // Pattern C: {folder}/{title}_{ep}{res}.mp4 (e.g. LANTERNS/LANTERNS_S1E2_1920x960.mp4)
-                for (const titleVar of titleVariants) {
-                    for (const res of COMMON_RESOLUTIONS) {
-                        const filename = `${titleVar}_${ep}${res}.mp4`;
-                        candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                    // Pattern C: {folder}/{title}_{ep}{res}.mp4 (e.g. LANTERNS/LANTERNS_S1E2_1920x960.mp4)
+                    for (const titleVar of titleVariants) {
+                        for (const res of COMMON_RESOLUTIONS) {
+                            const filename = `${titleVar}_${ep}${res}.mp4`;
+                            candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                        }
                     }
                 }
             }
         }
 
-        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file
-        for (const titleVar of titleVariants) {
-            for (const ep of epPatterns) {
-                for (const res of COMMON_RESOLUTIONS) {
-                    const filename = `${titleVar} - ${ep}${res}.mp4`;
-                    candidates.push(`${base}/${encodeURI(filename)}`);
+        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file and /storage/movie/file
+        for (const base of bases) {
+            for (const titleVar of titleVariants) {
+                for (const ep of epPatterns) {
+                    for (const res of COMMON_RESOLUTIONS) {
+                        const filename = `${titleVar} - ${ep}${res}.mp4`;
+                        candidates.push(`${base}/${encodeURI(filename)}`);
+                    }
                 }
             }
         }
     } else {
-        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file
-        for (const folder of folderVariants) {
-            const encFolder = encodeURIComponent(folder);
+        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file and /storage/movie/{title}/file
+        for (const base of bases) {
+            for (const folder of folderVariants) {
+                const encFolder = encodeURIComponent(folder);
 
-            // Pattern A: {folder}/{title}{res}.mp4 (e.g. FIGHT CLUB/FIGHT CLUB_1920x960.mp4)
+                // Pattern A: {folder}/{title}{res}.mp4 (e.g. FIGHT CLUB/FIGHT CLUB_1920x960.mp4)
+                for (const titleVar of titleVariants) {
+                    for (const res of COMMON_RESOLUTIONS) {
+                        const filename = `${titleVar}${res}.mp4`;
+                        candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                    }
+                }
+
+                // Pattern B: {folder}/{res}.mp4 (e.g. FIGHT CLUB/1920x960.mp4 or 1080p.mp4)
+                for (const res of COMMON_RESOLUTIONS) {
+                    if (res) {
+                        const cleanRes = res.replace(/^_/, '');
+                        candidates.push(`${base}/${encFolder}/${encodeURI(cleanRes)}.mp4`);
+                        candidates.push(`${base}/${encFolder}/${encodeURI(res)}.mp4`);
+                    }
+                }
+
+                // Pattern C: {folder}/movie.mp4 or video.mp4
+                candidates.push(`${base}/${encFolder}/movie.mp4`);
+                candidates.push(`${base}/${encFolder}/video.mp4`);
+            }
+        }
+
+        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file and /storage/movie/file
+        for (const base of bases) {
             for (const titleVar of titleVariants) {
                 for (const res of COMMON_RESOLUTIONS) {
                     const filename = `${titleVar}${res}.mp4`;
-                    candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                    candidates.push(`${base}/${encodeURI(filename)}`);
                 }
-            }
-
-            // Pattern B: {folder}/{res}.mp4 (e.g. FIGHT CLUB/1920x960.mp4 or 1080p.mp4)
-            for (const res of COMMON_RESOLUTIONS) {
-                if (res) {
-                    const cleanRes = res.replace(/^_/, '');
-                    candidates.push(`${base}/${encFolder}/${encodeURI(cleanRes)}.mp4`);
-                    candidates.push(`${base}/${encFolder}/${encodeURI(res)}.mp4`);
-                }
-            }
-
-            // Pattern C: {folder}/movie.mp4 or video.mp4
-            candidates.push(`${base}/${encFolder}/movie.mp4`);
-            candidates.push(`${base}/${encFolder}/video.mp4`);
-        }
-
-        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file
-        for (const titleVar of titleVariants) {
-            for (const res of COMMON_RESOLUTIONS) {
-                const filename = `${titleVar}${res}.mp4`;
-                candidates.push(`${base}/${encodeURI(filename)}`);
             }
         }
     }
@@ -198,16 +206,32 @@ export async function checkZetwareMediaExists(
         ep = episode;
     }
 
+    if (!title.trim()) {
+        return { exists: false, url: null, streams: [], source: 'streambert' };
+    }
+
     const candidates = generateZetwareStorageUrls(title, mediaType, s, ep);
     if (candidates.length === 0) {
         return { exists: false, url: null, streams: [], source: 'streambert' };
     }
 
     try {
-        const queryParams = new URLSearchParams();
-        candidates.forEach((c) => queryParams.append('candidates[]', c));
+        const response = await fetch('/api/check-zetware-media', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+            body: JSON.stringify({
+                title: title.trim(),
+                type: mediaType,
+                season: s,
+                episode: ep,
+                candidates: candidates.slice(0, 30),
+            }),
+        });
 
-        const response = await fetch(`/api/check-zetware-media?${queryParams.toString()}`);
         if (!response.ok) {
             return { exists: false, url: null, streams: [], source: 'streambert' };
         }

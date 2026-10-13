@@ -22,13 +22,13 @@ Route::get('/watch/{id}', function ($id) {
 })->name('watch');
 
 $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
-    $rawCandidates = $request->query('candidates');
+    $rawCandidates = $request->input('candidates') ?? $request->query('candidates');
     if (is_array($rawCandidates)) {
         $candidates = $rawCandidates;
     } elseif (is_string($rawCandidates) && ! empty($rawCandidates)) {
         $candidates = explode(',', $rawCandidates);
     } else {
-        $url = $request->query('url');
+        $url = $request->input('url') ?? $request->query('url');
         if (is_string($url) && ! empty($url)) {
             $candidates = explode(',', $url);
         } else {
@@ -36,9 +36,99 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         }
     }
 
+    // Auto-generate candidates if title is provided
+    $title = trim((string) ($request->input('title') ?? $request->query('title') ?? ''));
+    $generatedCandidates = [];
+    if (! empty($title)) {
+        $type = (string) ($request->input('type') ?? $request->query('type') ?? 'movie');
+        $season = (int) ($request->input('season') ?? $request->query('season') ?? 1);
+        $episode = (int) ($request->input('episode') ?? $request->query('episode') ?? 1);
+
+        $resolutions = [
+            '_1920x960', '_1280x640', '_640x320', '_1920x1080', '_1280x720',
+            '_854x480', '_640x360', '_1920x800', '_1280x536', '_3840x2160',
+            '_1080p', '_720p', '_480p', '_4K', ''
+        ];
+
+        $bases = ['https://zetware.id/storage/movies', 'https://zetware.id/storage/movie'];
+        $folderVariants = array_values(array_unique(array_filter([
+            strtoupper($title),
+            $title,
+            strtolower($title),
+            strtoupper(preg_replace('/[:\/\\\\?*"<>|]/', '', $title)),
+            preg_replace('/[:\/\\\\?*"<>|]/', '', $title),
+        ])));
+
+        $titleVariants = array_values(array_unique(array_filter([
+            strtoupper($title),
+            $title,
+            strtoupper(preg_replace('/[:\/\\\\?*"<>|]/', '', $title)),
+            preg_replace('/[:\/\\\\?*"<>|]/', '', $title),
+        ])));
+
+        if ($type === 'series') {
+            $epPatterns = array_values(array_unique([
+                "S{$season}E{$episode}",
+                sprintf('S%02dE%02d', $season, $episode),
+            ]));
+
+            foreach ($bases as $base) {
+                foreach ($folderVariants as $folder) {
+                    $encFolder = rawurlencode($folder);
+                    foreach ($epPatterns as $ep) {
+                        foreach ($titleVariants as $tv) {
+                            foreach ($resolutions as $res) {
+                                $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$tv} - {$ep}{$res}.mp4");
+                            }
+                        }
+                        foreach ($resolutions as $res) {
+                            $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$ep}{$res}.mp4");
+                        }
+                    }
+                }
+                foreach ($titleVariants as $tv) {
+                    foreach ($epPatterns as $ep) {
+                        foreach ($resolutions as $res) {
+                            $generatedCandidates[] = "$base/" . rawurlencode("{$tv} - {$ep}{$res}.mp4");
+                        }
+                    }
+                }
+            }
+        } else {
+            foreach ($bases as $base) {
+                foreach ($folderVariants as $folder) {
+                    $encFolder = rawurlencode($folder);
+                    foreach ($titleVariants as $tv) {
+                        foreach ($resolutions as $res) {
+                            $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$tv}{$res}.mp4");
+                        }
+                    }
+                    foreach ($resolutions as $res) {
+                        if ($res) {
+                            $cleanRes = ltrim($res, '_');
+                            $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$cleanRes}.mp4");
+                        }
+                    }
+                    $generatedCandidates[] = "$base/$encFolder/movie.mp4";
+                    $generatedCandidates[] = "$base/$encFolder/video.mp4";
+                }
+                foreach ($titleVariants as $tv) {
+                    foreach ($resolutions as $res) {
+                        $generatedCandidates[] = "$base/" . rawurlencode("{$tv}{$res}.mp4");
+                    }
+                }
+            }
+        }
+    }
+
+    $allCandidates = array_values(array_unique(array_merge($candidates, $generatedCandidates)));
+
     $validCandidates = [];
-    foreach ($candidates as $rawUrl) {
-        if (is_string($rawUrl) && str_starts_with($rawUrl, 'https://zetware.id/storage/movies/')) {
+    foreach ($allCandidates as $rawUrl) {
+        if (is_string($rawUrl) && (
+            str_starts_with($rawUrl, 'https://zetware.id/storage/movies/') ||
+            str_starts_with($rawUrl, 'https://zetware.id/storage/movie/')
+        )) {
             $validCandidates[] = $rawUrl;
         }
     }
@@ -51,46 +141,65 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         ]);
     }
 
-    $mh = curl_multi_init();
-    $handles = [];
-    foreach ($validCandidates as $url) {
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_NOBODY, true);
-        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 3);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
-        curl_multi_add_handle($mh, $ch);
-        $handles[$url] = $ch;
-    }
-
-    $running = null;
-    do {
-        curl_multi_exec($mh, $running);
-        curl_multi_select($mh);
-    } while ($running > 0);
-
+    // Chunk checking into batches (16 URLs at a time) for speed and to avoid timeouts
+    $batches = array_chunk($validCandidates, 16);
     $streams = [];
-    foreach ($handles as $url => $ch) {
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        curl_multi_remove_handle($mh, $ch);
-        curl_close($ch);
 
-        if ($httpCode >= 200 && $httpCode < 400) {
-            $res = 'Direct MP4';
-            if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $url, $m)) {
-                $res = $m[1];
+    foreach ($batches as $batch) {
+        $mh = curl_multi_init();
+        $handles = [];
+        foreach ($batch as $url) {
+            $ch = curl_init($url);
+            curl_setopt($ch, CURLOPT_NOBODY, true);
+            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 2);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 3);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
+            curl_multi_add_handle($mh, $ch);
+            $handles[$url] = $ch;
+        }
+
+        $active = null;
+        do {
+            $mrc = curl_multi_exec($mh, $active);
+        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+
+        while ($active && $mrc == CURLM_OK) {
+            if (curl_multi_select($mh, 0.2) == -1) {
+                usleep(10000);
             }
+            do {
+                $mrc = curl_multi_exec($mh, $active);
+            } while ($mrc == CURLM_CALL_MULTI_PERFORM);
+        }
 
-            $streams[] = [
-                'url' => $url,
-                'resolution' => $res,
-                'label' => $res,
-                'http_code' => $httpCode,
-            ];
+        foreach ($handles as $url => $ch) {
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            curl_multi_remove_handle($mh, $ch);
+            curl_close($ch);
+
+            if ($httpCode >= 200 && $httpCode < 400) {
+                $res = 'Direct MP4';
+                if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $url, $m)) {
+                    $res = $m[1];
+                }
+
+                $streams[] = [
+                    'url' => $url,
+                    'resolution' => $res,
+                    'label' => $res,
+                    'http_code' => $httpCode,
+                ];
+            }
+        }
+        curl_multi_close($mh);
+
+        // Stop as soon as valid streams are found in the prioritized batch
+        if (! empty($streams)) {
+            break;
         }
     }
-    curl_multi_close($mh);
 
     usort($streams, function ($a, $b) {
         $numA = 0;
@@ -318,8 +427,8 @@ $subtitlesVttProxyHandler = function (\Illuminate\Http\Request $request) {
     ]);
 };
 
-Route::get('/api/check-zetware-media', $checkZetwareMediaHandler);
-Route::get('/check-zetware-media', $checkZetwareMediaHandler);
+Route::match(['get', 'post'], '/api/check-zetware-media', $checkZetwareMediaHandler);
+Route::match(['get', 'post'], '/check-zetware-media', $checkZetwareMediaHandler);
 
 Route::get('/api/subtitles', $subtitlesSearchHandler);
 Route::get('/api/subtitles/vtt', $subtitlesVttProxyHandler);
