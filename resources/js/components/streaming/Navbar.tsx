@@ -193,7 +193,7 @@ export default function Navbar({
                     >
                         <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 shadow-lg shadow-red-600/30 group-hover:scale-105 transition-transform duration-300">
                             <span className="font-black text-white text-lg sm:text-xl tracking-wider">Z</span>
-                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-cyan-400 rounded-full animate-ping opacity-75" />
+                            {/* <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-cyan-400 rounded-full animate-ping opacity-75" /> */}
                         </div>
                         <div className="flex flex-col">
                             <span className="font-extrabold text-xl sm:text-2xl tracking-tighter text-white drop-shadow-sm flex items-center gap-1">

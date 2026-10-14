@@ -8,7 +8,7 @@ import {
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
 import { fetchMediaById, fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
 import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
-import { checkZetwareMediaExists, ZetwareStreamOption } from '@/lib/zetwareStorage';
+import { checkZetwareMediaExists, ZetwareStreamOption, isZetwareDefaultEnabled } from '@/lib/zetwareStorage';
 import { fetchSubtitlesForMedia, convertSrtToVttBlob, SubtitleTrack } from '@/lib/subtitleService';
 import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
 import Navbar from '@/components/streaming/Navbar';
@@ -198,7 +198,10 @@ export default function WatchPage({
             if (res.exists && res.url) {
                 setZetwareDirectUrl(res.url);
                 setZetwareStreams(res.streams || [{ url: res.url, resolution: 'Direct MP4', label: 'Direct MP4' }]);
-                setUseStreambertEmbed(false); // Automatically use Zetware Cloud direct MP4!
+                // Aktifkan default otomatis jika preferensi pengguna di cookie/session aktif
+                if (isZetwareDefaultEnabled()) {
+                    setUseStreambertEmbed(false);
+                }
             } else {
                 setZetwareDirectUrl(null);
                 setZetwareStreams([]);
@@ -550,9 +553,20 @@ export default function WatchPage({
 
                         {/* Right: Controls (Server, Episodes, Target API, Fullscreen) */}
                         <div className="flex flex-wrap items-center gap-2 justify-end relative z-30">
-                            {/* Zetware Glowing Badge in Header when playing from zetware.id */}
-                            {!useStreambertEmbed && zetwareDirectUrl && (
-                                <ZetwareGlowingBadge variant="header" qualityText={detectedResolution} />
+                            {/* Zetware Glowing Badge with Switch in Header */}
+                            {zetwareDirectUrl && (
+                                <ZetwareGlowingBadge
+                                    variant="header"
+                                    qualityText={detectedResolution}
+                                    isPlayingZetware={!useStreambertEmbed}
+                                    onToggleDefault={(enabled) => {
+                                        if (enabled) {
+                                            setUseStreambertEmbed(false);
+                                        } else {
+                                            setUseStreambertEmbed(true);
+                                        }
+                                    }}
+                                />
                             )}
 
                             {/* Resolution Selector Button for Zetware Cloud in Header */}

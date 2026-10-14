@@ -259,3 +259,71 @@ export async function checkZetwareMediaExists(
 
     return { exists: false, url: null, streams: [], source: 'streambert' };
 }
+
+/**
+ * Cookie and Session Storage Helpers for Zetware Cloud Default Server Preference
+ */
+export const ZETWARE_DEFAULT_COOKIE = 'ztv_zetware_default';
+export const ZETWARE_DEFAULT_STORAGE = 'ztv_zetware_default';
+
+export function getCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null;
+    const match = document.cookie.match(new RegExp('(?:^|; )' + name.replace(/([.$?*|{}()[\]\\/+^])/g, '\\$1') + '=([^;]*)'));
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
+export function setCookie(name: string, value: string, days = 365): void {
+    if (typeof document === 'undefined') return;
+    const maxAge = days * 24 * 60 * 60;
+    document.cookie = `${encodeURIComponent(name)}=${encodeURIComponent(value)};path=/;max-age=${maxAge};SameSite=Lax`;
+}
+
+export function isZetwareDefaultEnabled(): boolean {
+    if (typeof window === 'undefined') return false;
+
+    // 1. Check Cookie
+    const cookieVal = getCookie(ZETWARE_DEFAULT_COOKIE);
+    if (cookieVal !== null) {
+        return cookieVal === 'true';
+    }
+
+    // 2. Check Session Storage
+    try {
+        const sessionVal = sessionStorage.getItem(ZETWARE_DEFAULT_STORAGE);
+        if (sessionVal !== null) {
+            return sessionVal === 'true';
+        }
+    } catch {}
+
+    // 3. Check Local Storage
+    try {
+        const localVal = localStorage.getItem(ZETWARE_DEFAULT_STORAGE);
+        if (localVal !== null) {
+            return localVal === 'true';
+        }
+    } catch {}
+
+    return false; // Default: non-aktif
+}
+
+export function setZetwareDefaultEnabled(enabled: boolean): void {
+    if (typeof window === 'undefined') return;
+    const valStr = enabled ? 'true' : 'false';
+
+    // 1. Store in Cookie (365 hari)
+    setCookie(ZETWARE_DEFAULT_COOKIE, valStr, 365);
+
+    // 2. Store in Session Storage & Local Storage
+    try {
+        sessionStorage.setItem(ZETWARE_DEFAULT_STORAGE, valStr);
+        localStorage.setItem(ZETWARE_DEFAULT_STORAGE, valStr);
+    } catch {}
+
+    // 3. Dispatch event to keep all components in sync in real-time
+    window.dispatchEvent(
+        new CustomEvent('ztv:zetware-default-changed', {
+            detail: { enabled },
+        })
+    );
+}
+

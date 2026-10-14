@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, X } from 'lucide-react';
+import { Wrench, X } from 'lucide-react';
 
 export default function DevNoticeBanner() {
     const [isVisible, setIsVisible] = useState(true);
@@ -18,7 +18,7 @@ export default function DevNoticeBanner() {
         <div className="fixed bottom-4 left-4 z-40 w-auto max-w-[280px] sm:max-w-xs bg-slate-950/90 backdrop-blur-md border border-amber-500/30 rounded-xl shadow-xl p-2 sm:p-2.5 text-slate-200 animate-in fade-in slide-in-from-bottom-3 duration-300 select-none">
             <div className="flex items-center gap-2">
                 <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 shrink-0 border border-amber-500/30">
-                    <Sparkles className="w-3.5 h-3.5 animate-pulse" />
+                    <Wrench className="w-3.5 h-3.5 animate-pulse" />
                 </div>
 
                 <div className="flex-1 min-w-0 leading-tight">
