@@ -6,7 +6,7 @@ import {
     Zap, Monitor, ChevronDown, Subtitles, Upload
 } from 'lucide-react';
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
-import { fetchMediaById, fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
+import { fetchMediaById, fetchTmdbEpisodes, fetchTmdbTvSeasons, translateText, isEngText } from '@/lib/tmdbService';
 import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
 import { checkZetwareMediaExists, ZetwareStreamOption, isZetwareDefaultEnabled } from '@/lib/zetwareStorage';
 import { fetchSubtitlesForMedia, convertSrtToVttBlob, SubtitleTrack } from '@/lib/subtitleService';
@@ -59,6 +59,61 @@ export default function WatchPage({
     const [showEpisodeMenu, setShowEpisodeMenu] = useState<boolean>(false);
     const [showTmdbModal, setShowTmdbModal] = useState<boolean>(false);
     const [customTmdbInput, setCustomTmdbInput] = useState<string>('');
+
+    // Synopsis translation & language toggle state
+    const [synopsisLang, setSynopsisLang] = useState<'id' | 'en'>('id');
+    const [translatedSynopsis, setTranslatedSynopsis] = useState<{ id?: string; en?: string }>({});
+    const [isTranslatingSynopsis, setIsTranslatingSynopsis] = useState<boolean>(false);
+
+    const handleSwitchSynopsisLang = async (targetLang: 'id' | 'en') => {
+        setSynopsisLang(targetLang);
+        if (!media) return;
+
+        if (targetLang === 'id') {
+            if (!translatedSynopsis.id) {
+                const currentEn = media.synopsisEn || (isEngText(media.synopsis) ? media.synopsis : '');
+                if (media.synopsis && !isEngText(media.synopsis)) return;
+                if (currentEn) {
+                    setIsTranslatingSynopsis(true);
+                    try {
+                        const res = await translateText(currentEn, 'en', 'id');
+                        if (res) setTranslatedSynopsis((prev) => ({ ...prev, id: res }));
+                    } finally {
+                        setIsTranslatingSynopsis(false);
+                    }
+                }
+            }
+        } else {
+            if (!translatedSynopsis.en) {
+                if (media.synopsisEn && isEngText(media.synopsisEn)) return;
+                if (media.synopsis && isEngText(media.synopsis)) return;
+                const currentId = media.synopsis;
+                if (currentId) {
+                    setIsTranslatingSynopsis(true);
+                    try {
+                        const res = await translateText(currentId, 'id', 'en');
+                        if (res) setTranslatedSynopsis((prev) => ({ ...prev, en: res }));
+                    } finally {
+                        setIsTranslatingSynopsis(false);
+                    }
+                }
+            }
+        }
+    };
+
+    const getDisplayedSynopsis = () => {
+        if (!media) return '';
+        if (synopsisLang === 'id') {
+            if (translatedSynopsis.id) return translatedSynopsis.id;
+            if (media.synopsis && !isEngText(media.synopsis)) return media.synopsis;
+            return media.synopsis;
+        } else {
+            if (translatedSynopsis.en) return translatedSynopsis.en;
+            if (media.synopsisEn) return media.synopsisEn;
+            if (media.synopsis && isEngText(media.synopsis)) return media.synopsis;
+            return media.synopsisEn || media.synopsis;
+        }
+    };
 
     // API Target Modal State
     const [showApiTargetModal, setShowApiTargetModal] = useState<boolean>(false);
@@ -147,6 +202,11 @@ export default function WatchPage({
                     const tmdb = getTmdbIdForMedia(fetched.id, fetched.tmdbId);
                     setCurrentTmdbId(tmdb);
                     setCustomTmdbInput(String(tmdb));
+                    try {
+                        sessionStorage.setItem(`ztv_media_${id}`, JSON.stringify(fetched));
+                    } catch {
+                        // ignore storage error
+                    }
                 }
             } catch (err) {
                 console.warn('Failed to fetch media for player:', err);
@@ -887,13 +947,50 @@ export default function WatchPage({
 
                     {/* BELOW PLAYER MEDIA INFO & BINGE WATCH BAR */}
                     <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <div className="space-y-1.5 flex-1 min-w-0">
-                            <h2 className="text-xl font-bold text-white truncate">
-                                {media.title}
-                            </h2>
-                            <p className="text-xs text-slate-300 line-clamp-2">
-                                {media.synopsis}
-                            </p>
+                        <div className="space-y-2 flex-1 min-w-0">
+                            <div className="flex items-center gap-3 flex-wrap">
+                                <h2 className="text-xl font-bold text-white truncate">
+                                    {media.title}
+                                </h2>
+                                {/* Synopsis Language Switcher */}
+                                <div className="flex items-center gap-1 p-0.5 bg-white/5 border border-white/10 rounded-lg shrink-0">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSwitchSynopsisLang('id')}
+                                        disabled={isTranslatingSynopsis}
+                                        title="Bahasa Indonesia"
+                                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                                            synopsisLang === 'id'
+                                                ? 'bg-red-600 text-white shadow-sm'
+                                                : 'text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        ID
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSwitchSynopsisLang('en')}
+                                        disabled={isTranslatingSynopsis}
+                                        title="English"
+                                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                                            synopsisLang === 'en'
+                                                ? 'bg-red-600 text-white shadow-sm'
+                                                : 'text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        ENG
+                                    </button>
+                                </div>
+                            </div>
+                            {isTranslatingSynopsis ? (
+                                <p className="text-xs text-slate-400 italic animate-pulse">
+                                    {synopsisLang === 'id' ? 'Menerjemahkan sinopsis...' : 'Translating synopsis...'}
+                                </p>
+                            ) : (
+                                <p className="text-xs text-slate-300 line-clamp-3 leading-relaxed">
+                                    {getDisplayedSynopsis()}
+                                </p>
+                            )}
                         </div>
 
                         <div className="flex items-center gap-2 shrink-0">

@@ -80,6 +80,59 @@ export async function fetchFromTmdb(endpoint: string, params: Record<string, str
     }
 }
 
+/**
+ * Cache for translated overviews to avoid redundant network calls
+ */
+const translationCache = new Map<string, string>();
+
+/**
+ * Check if text appears to be primarily English
+ */
+export const isEngText = (text: string): boolean => {
+    if (!text) return false;
+    const lower = ` ${text.toLowerCase()} `;
+    return [' the ', ' and ', ' with ', ' from ', ' after ', ' that ', ' when ', ' in a ', ' of ', ' to ', ' his ', ' her ', ' their ', ' he ', ' she '].some(w => lower.includes(w));
+};
+
+/**
+ * Translate text between English and Indonesian using free Google Translate service
+ */
+export async function translateText(text: string, from: 'en' | 'id' = 'en', to: 'id' | 'en' = 'id'): Promise<string> {
+    if (!text || text.trim().length === 0) return '';
+    if (from === to) return text;
+
+    const cacheKey = `${from}_${to}_${text.trim()}`;
+    if (translationCache.has(cacheKey)) {
+        return translationCache.get(cacheKey)!;
+    }
+
+    try {
+        const url = new URL('https://translate.googleapis.com/translate_a/single');
+        url.searchParams.set('client', 'gtx');
+        url.searchParams.set('sl', from);
+        url.searchParams.set('tl', to);
+        url.searchParams.set('dt', 't');
+        url.searchParams.set('q', text);
+
+        const res = await fetch(url.toString());
+        if (!res.ok) return text;
+
+        const data = await res.json();
+        if (Array.isArray(data) && Array.isArray(data[0])) {
+            const translated = data[0].map((chunk: any) => chunk[0]).join('');
+            if (translated && translated.trim().length > 0) {
+                const result = translated.trim();
+                translationCache.set(cacheKey, result);
+                return result;
+            }
+        }
+    } catch (err) {
+        console.warn('Translation failed, fallback to original overview:', err);
+    }
+
+    return text;
+}
+
 export function formatTmdbItemToMedia(
     item: any,
     forceType?: 'movie' | 'series',
@@ -123,29 +176,29 @@ export function formatTmdbItemToMedia(
         : posterUrl;
 
     const rawOverview = item.overview ? item.overview.trim() : '';
-    const rawEnOverview = enOverviewMap?.get(item.id) || '';
+    const rawEnOverview = enOverviewMap?.get(item.id)?.trim() || '';
 
     let synopsisId = '';
     let synopsisEn = '';
 
-    const isEng = (text: string) => {
-        if (!text) return false;
-        const lower = text.toLowerCase();
-        return [' the ', ' and ', ' with ', ' from ', ' after ', ' that ', ' when ', ' his ', ' her ', ' their '].some(w => lower.includes(w));
-    };
-
-    if (rawOverview && !isEng(rawOverview) && rawOverview.length > 10) {
+    // Selalu prioritaskan overview riil dari API TMDB
+    if (rawOverview && rawEnOverview && rawOverview !== rawEnOverview) {
+        if (isEngText(rawOverview) && !isEngText(rawEnOverview)) {
+            synopsisId = rawEnOverview;
+            synopsisEn = rawOverview;
+        } else {
+            synopsisId = rawOverview;
+            synopsisEn = rawEnOverview;
+        }
+    } else if (rawOverview) {
         synopsisId = rawOverview;
-    } else {
-        synopsisId = `Mengisahkan tentang perjalanan mendalam dalam ${title}. Menyajikan alur cerita berkelas dunia yang penuh ketegangan, drama, dan momen emosional memukau.`;
-    }
-
-    if (rawEnOverview && rawEnOverview.length > 10) {
+        synopsisEn = rawEnOverview || rawOverview;
+    } else if (rawEnOverview) {
+        synopsisId = rawEnOverview;
         synopsisEn = rawEnOverview;
-    } else if (rawOverview && isEng(rawOverview)) {
-        synopsisEn = rawOverview;
     } else {
-        synopsisEn = `Follow the extraordinary journey in ${title}. Featuring world-class storytelling packed with suspense, action, and compelling drama.`;
+        synopsisId = 'Sinopsis resmi belum tersedia.';
+        synopsisEn = 'Official synopsis is not yet available.';
     }
 
     return {
@@ -487,7 +540,21 @@ export async function fetchMediaById(id: string | number): Promise<MediaItem | n
             ]);
             if (resId && resId.id) {
                 const enMap = new Map<number | string, string>();
-                if (resEn?.overview) enMap.set(resId.id, resEn.overview.trim());
+                let idOverview = resId.overview?.trim() || '';
+                let enOverview = resEn?.overview?.trim() || '';
+
+                // Jika overview Indonesia kosong atau masih bahasa Inggris, terjemahkan dari overview EN
+                if ((!idOverview || isEngText(idOverview)) && enOverview) {
+                    const translatedId = await translateText(enOverview, 'en', 'id');
+                    if (translatedId) idOverview = translatedId;
+                } else if (!enOverview && idOverview) {
+                    const translatedEn = await translateText(idOverview, 'id', 'en');
+                    if (translatedEn) enOverview = translatedEn;
+                }
+
+                if (idOverview) resId.overview = idOverview;
+                if (enOverview) enMap.set(resId.id, enOverview);
+
                 return formatTmdbItemToMedia(resId, 'series', false, enMap);
             }
         }
@@ -499,7 +566,21 @@ export async function fetchMediaById(id: string | number): Promise<MediaItem | n
         ]);
         if (resId && resId.id) {
             const enMap = new Map<number | string, string>();
-            if (resEn?.overview) enMap.set(resId.id, resEn.overview.trim());
+            let idOverview = resId.overview?.trim() || '';
+            let enOverview = resEn?.overview?.trim() || '';
+
+            // Jika overview Indonesia kosong atau masih bahasa Inggris, terjemahkan dari overview EN
+            if ((!idOverview || isEngText(idOverview)) && enOverview) {
+                const translatedId = await translateText(enOverview, 'en', 'id');
+                if (translatedId) idOverview = translatedId;
+            } else if (!enOverview && idOverview) {
+                const translatedEn = await translateText(idOverview, 'id', 'en');
+                if (translatedEn) enOverview = translatedEn;
+            }
+
+            if (idOverview) resId.overview = idOverview;
+            if (enOverview) enMap.set(resId.id, enOverview);
+
             return formatTmdbItemToMedia(resId, 'movie', false, enMap);
         }
 
@@ -511,7 +592,20 @@ export async function fetchMediaById(id: string | number): Promise<MediaItem | n
             ]);
             if (tvId && tvId.id) {
                 const enMap = new Map<number | string, string>();
-                if (tvEn?.overview) enMap.set(tvId.id, tvEn.overview.trim());
+                let idOverview = tvId.overview?.trim() || '';
+                let enOverview = tvEn?.overview?.trim() || '';
+
+                if ((!idOverview || isEngText(idOverview)) && enOverview) {
+                    const translatedId = await translateText(enOverview, 'en', 'id');
+                    if (translatedId) idOverview = translatedId;
+                } else if (!enOverview && idOverview) {
+                    const translatedEn = await translateText(idOverview, 'id', 'en');
+                    if (translatedEn) enOverview = translatedEn;
+                }
+
+                if (idOverview) tvId.overview = idOverview;
+                if (enOverview) enMap.set(tvId.id, enOverview);
+
                 return formatTmdbItemToMedia(tvId, 'series', false, enMap);
             }
         }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Play, Plus, Check, X, Star, Film, Clock, RefreshCw, Layers, ChevronDown } from 'lucide-react';
 import { MediaItem, Episode } from '@/data/movies';
-import { fetchTmdbCredits, fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
+import { fetchTmdbCredits, fetchTmdbEpisodes, fetchTmdbTvSeasons, translateText, isEngText } from '@/lib/tmdbService';
 import { useLanguage } from '@/lib/i18n';
 
 interface MovieDetailModalProps {
@@ -27,6 +27,65 @@ export default function MovieDetailModal({
     const [seasonsList, setSeasonsList] = useState<{ seasonNumber: number; name: string; episodeCount: number }[]>([]);
     const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(1);
     const [isLoadingEpisodes, setIsLoadingEpisodes] = useState<boolean>(false);
+
+    // Synopsis translation state
+    const [synopsisLang, setSynopsisLang] = useState<'id' | 'en'>(language === 'en' ? 'en' : 'id');
+    const [translatedSynopsis, setTranslatedSynopsis] = useState<{ id?: string; en?: string }>({});
+    const [isTranslatingSynopsis, setIsTranslatingSynopsis] = useState<boolean>(false);
+
+    useEffect(() => {
+        setSynopsisLang(language === 'en' ? 'en' : 'id');
+    }, [language]);
+
+    const handleSwitchSynopsisLang = async (targetLang: 'id' | 'en') => {
+        setSynopsisLang(targetLang);
+        if (!item) return;
+
+        if (targetLang === 'id') {
+            if (!translatedSynopsis.id) {
+                const currentEn = item.synopsisEn || (isEngText(item.synopsis) ? item.synopsis : '');
+                if (item.synopsis && !isEngText(item.synopsis)) return;
+                if (currentEn) {
+                    setIsTranslatingSynopsis(true);
+                    try {
+                        const res = await translateText(currentEn, 'en', 'id');
+                        if (res) setTranslatedSynopsis((prev) => ({ ...prev, id: res }));
+                    } finally {
+                        setIsTranslatingSynopsis(false);
+                    }
+                }
+            }
+        } else {
+            if (!translatedSynopsis.en) {
+                if (item.synopsisEn && isEngText(item.synopsisEn)) return;
+                if (item.synopsis && isEngText(item.synopsis)) return;
+                const currentId = item.synopsis;
+                if (currentId) {
+                    setIsTranslatingSynopsis(true);
+                    try {
+                        const res = await translateText(currentId, 'id', 'en');
+                        if (res) setTranslatedSynopsis((prev) => ({ ...prev, en: res }));
+                    } finally {
+                        setIsTranslatingSynopsis(false);
+                    }
+                }
+            }
+        }
+    };
+
+    const getDisplayedSynopsis = () => {
+        if (!item) return '';
+        if (synopsisLang === 'id') {
+            if (translatedSynopsis.id) return translatedSynopsis.id;
+            if (item.synopsis && !isEngText(item.synopsis)) return item.synopsis;
+            return item.synopsis;
+        } else {
+            if (translatedSynopsis.en) return translatedSynopsis.en;
+            if (item.synopsisEn) return item.synopsisEn;
+            if (item.synopsis && isEngText(item.synopsis)) return item.synopsis;
+            return item.synopsisEn || item.synopsis;
+        }
+    };
 
     // Keyboard ESC shortcut to close modal
     useEffect(() => {
@@ -166,10 +225,46 @@ export default function MovieDetailModal({
                     {/* Synopsis & Cast */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
                         <div className="md:col-span-2 space-y-2.5 sm:space-y-3">
-                            <h3 className="text-base sm:text-lg font-bold text-white">{t('synopsis_title')}</h3>
-                            <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
-                                {language === 'en' && item.synopsisEn ? item.synopsisEn : item.synopsis}
-                            </p>
+                            <div className="flex items-center justify-between gap-3">
+                                <h3 className="text-base sm:text-lg font-bold text-white">{t('synopsis_title')}</h3>
+                                <div className="flex items-center gap-1 p-0.5 bg-white/5 border border-white/10 rounded-lg">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSwitchSynopsisLang('id')}
+                                        disabled={isTranslatingSynopsis}
+                                        title="Bahasa Indonesia"
+                                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                                            synopsisLang === 'id'
+                                                ? 'bg-red-600 text-white shadow-sm'
+                                                : 'text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        ID
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSwitchSynopsisLang('en')}
+                                        disabled={isTranslatingSynopsis}
+                                        title="English"
+                                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                                            synopsisLang === 'en'
+                                                ? 'bg-red-600 text-white shadow-sm'
+                                                : 'text-slate-400 hover:text-white'
+                                        }`}
+                                    >
+                                        ENG
+                                    </button>
+                                </div>
+                            </div>
+                            {isTranslatingSynopsis ? (
+                                <p className="text-xs text-slate-400 italic animate-pulse">
+                                    {synopsisLang === 'id' ? 'Menerjemahkan sinopsis...' : 'Translating synopsis...'}
+                                </p>
+                            ) : (
+                                <p className="text-xs sm:text-sm text-slate-300 leading-relaxed">
+                                    {getDisplayedSynopsis()}
+                                </p>
+                            )}
                         </div>
                         <div className="space-y-2.5 bg-slate-900/60 p-3.5 sm:p-4 rounded-2xl border border-white/10 text-xs">
                             <div>

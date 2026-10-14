@@ -5,7 +5,7 @@ import {
     ArrowLeft, Share2, Globe, Sparkles, Tv, Server, AlertCircle, Copy, ExternalLink, Send, Code
 } from 'lucide-react';
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
-import { fetchMediaById, fetchTmdbCredits, fetchTmdbEpisodes, fetchTmdbTvSeasons } from '@/lib/tmdbService';
+import { fetchMediaById, fetchTmdbCredits, fetchTmdbEpisodes, fetchTmdbTvSeasons, translateText, isEngText } from '@/lib/tmdbService';
 import { getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
 import { checkZetwareMediaExists } from '@/lib/zetwareStorage';
 import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
@@ -32,6 +32,76 @@ export default function DetailPage({ id }: DetailPageProps) {
     const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(1);
     const [isLoadingEpisodes, setIsLoadingEpisodes] = useState<boolean>(false);
     const [isCopiedShare, setIsCopiedShare] = useState<boolean>(false);
+
+    // Synopsis translation state
+    const [synopsisLang, setSynopsisLang] = useState<'id' | 'en'>(language === 'en' ? 'en' : 'id');
+    const [translatedSynopsis, setTranslatedSynopsis] = useState<{ id?: string; en?: string }>({});
+    const [isTranslatingSynopsis, setIsTranslatingSynopsis] = useState<boolean>(false);
+
+    // Sync synopsis language with navbar language if changed
+    useEffect(() => {
+        setSynopsisLang(language === 'en' ? 'en' : 'id');
+    }, [language]);
+
+    const handleSwitchSynopsisLang = async (targetLang: 'id' | 'en') => {
+        setSynopsisLang(targetLang);
+        if (!media) return;
+
+        if (targetLang === 'id') {
+            if (!translatedSynopsis.id) {
+                const currentEn = media.synopsisEn || (isEngText(media.synopsis) ? media.synopsis : '');
+                if (media.synopsis && !isEngText(media.synopsis)) {
+                    return;
+                }
+                if (currentEn) {
+                    setIsTranslatingSynopsis(true);
+                    try {
+                        const res = await translateText(currentEn, 'en', 'id');
+                        if (res) {
+                            setTranslatedSynopsis((prev) => ({ ...prev, id: res }));
+                        }
+                    } finally {
+                        setIsTranslatingSynopsis(false);
+                    }
+                }
+            }
+        } else {
+            if (!translatedSynopsis.en) {
+                if (media.synopsisEn && isEngText(media.synopsisEn)) {
+                    return;
+                }
+                if (media.synopsis && isEngText(media.synopsis)) {
+                    return;
+                }
+                const currentId = media.synopsis;
+                if (currentId) {
+                    setIsTranslatingSynopsis(true);
+                    try {
+                        const res = await translateText(currentId, 'id', 'en');
+                        if (res) {
+                            setTranslatedSynopsis((prev) => ({ ...prev, en: res }));
+                        }
+                    } finally {
+                        setIsTranslatingSynopsis(false);
+                    }
+                }
+            }
+        }
+    };
+
+    const getDisplayedSynopsis = () => {
+        if (!media) return '';
+        if (synopsisLang === 'id') {
+            if (translatedSynopsis.id) return translatedSynopsis.id;
+            if (media.synopsis && !isEngText(media.synopsis)) return media.synopsis;
+            return media.synopsis;
+        } else {
+            if (translatedSynopsis.en) return translatedSynopsis.en;
+            if (media.synopsisEn) return media.synopsisEn;
+            if (media.synopsis && isEngText(media.synopsis)) return media.synopsis;
+            return media.synopsisEn || media.synopsis;
+        }
+    };
 
     // API Target Modal State
     const [showApiTargetModal, setShowApiTargetModal] = useState<boolean>(false);
@@ -88,6 +158,11 @@ export default function DetailPage({ id }: DetailPageProps) {
                     setCastList(fetched.cast || []);
                     setDirectorName(fetched.director || '');
                     setEpisodesList(fetched.episodes || []);
+                    try {
+                        sessionStorage.setItem(`ztv_media_${id}`, JSON.stringify(fetched));
+                    } catch {
+                        // ignore storage error
+                    }
                 }
             } catch (err) {
                 console.warn('Failed to fetch media details:', err);
@@ -344,8 +419,6 @@ export default function DetailPage({ id }: DetailPageProps) {
         );
     }
 
-    const synopsisText = (language === 'en' && media.synopsisEn) ? media.synopsisEn : media.synopsis;
-
     return (
         <>
             <Head title={`${media.title} - Detail Tayangan | ZTV Stream`} />
@@ -517,13 +590,55 @@ export default function DetailPage({ id }: DetailPageProps) {
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
                         {/* Synopsis & Overview (2 columns) */}
                         <div className="lg:col-span-2 space-y-4 p-6 sm:p-8 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
-                            <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                                <Film className="w-5 h-5 text-red-500" />
-                                Sinopsis & Alur Cerita
-                            </h2>
-                            <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
-                                {synopsisText}
-                            </p>
+                            <div className="flex items-center justify-between gap-4 flex-wrap">
+                                <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                                    <Film className="w-5 h-5 text-red-500" />
+                                    <span>{synopsisLang === 'en' ? 'Synopsis & Storyline' : 'Sinopsis & Alur Cerita'}</span>
+                                </h2>
+
+                                {/* Toggle Translate ID / ENG */}
+                                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSwitchSynopsisLang('id')}
+                                        disabled={isTranslatingSynopsis}
+                                        title="Tampilkan sinopsis dalam Bahasa Indonesia"
+                                        className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                                            synopsisLang === 'id'
+                                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-bold'
+                                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <span>🇮🇩</span>
+                                        <span>ID</span>
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleSwitchSynopsisLang('en')}
+                                        disabled={isTranslatingSynopsis}
+                                        title="Show synopsis in English"
+                                        className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                                            synopsisLang === 'en'
+                                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-bold'
+                                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                        }`}
+                                    >
+                                        <span>🇬🇧</span>
+                                        <span>ENG</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {isTranslatingSynopsis ? (
+                                <div className="flex items-center gap-2 py-4 text-sm text-slate-400 animate-pulse">
+                                    <RefreshCw className="w-4 h-4 animate-spin text-red-500" />
+                                    <span>{synopsisLang === 'id' ? 'Menerjemahkan sinopsis ke Bahasa Indonesia...' : 'Translating synopsis to English...'}</span>
+                                </div>
+                            ) : (
+                                <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+                                    {getDisplayedSynopsis()}
+                                </p>
+                            )}
                         </div>
 
                         {/* Credits & Metadata Info (1 column) */}
