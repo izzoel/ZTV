@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Head, Link, router } from '@inertiajs/react';
 import { 
     Play, Pause, ArrowLeft, Server, Tv, Search, Layers, RefreshCw, AlertCircle, Film,
@@ -33,6 +34,11 @@ export default function WatchPage({
 
     const [media, setMedia] = useState<MediaItem | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
+    const [mounted, setMounted] = useState<boolean>(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     // Zetware Cloud Direct Storage State
     const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(null);
@@ -659,110 +665,188 @@ export default function WatchPage({
                                     <span>Server: {!useStreambertEmbed && zetwareDirectUrl ? 'Zetware Cloud' : activeSourceObj.label}</span>
                                 </button>
 
-                                {showSourceMenu && (
-                                    <>
+                                {showSourceMenu && mounted && createPortal(
+                                    <div className="fixed inset-0 z-[9999] flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4">
+                                        {/* Fullscreen Backdrop */}
                                         <div
-                                            className="fixed inset-0 z-40 bg-transparent"
+                                            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
                                             onClick={() => setShowSourceMenu(false)}
                                         />
-                                        <div className="absolute top-11 right-0 w-80 bg-slate-950 border border-white/20 rounded-2xl p-2.5 shadow-2xl z-50 text-xs space-y-1.5 backdrop-blur-2xl">
-                                        <div className="px-2 py-1 border-b border-white/10 text-white font-bold flex items-center justify-between">
-                                            <div className="flex items-center gap-1.5">
-                                                <Layers className="w-3.5 h-3.5 text-red-500" />
-                                                <span>Pilih Sumber Tayangan</span>
-                                            </div>
-                                        </div>
 
-                                        {/* Option: Zetware Cloud Native File (If Available) */}
-                                        {zetwareDirectUrl && (
-                                            <div
-                                                className={`p-2.5 rounded-xl transition border mb-1.5 ${
-                                                    !useStreambertEmbed
-                                                        ? 'bg-gradient-to-r from-red-950 via-slate-900 to-slate-900 border-red-500 shadow-[0_0_15px_rgba(239,68,68,0.4)] text-white'
-                                                        : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10'
-                                                }`}
-                                            >
+                                        {/* Modal Container: Bottom Sheet on Mobile, Centered Card on Desktop */}
+                                        <div className="relative z-10 w-full sm:max-w-md max-h-[85vh] sm:max-h-[80vh] bg-slate-950/98 border-t sm:border border-white/20 rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl backdrop-blur-2xl space-y-3.5 flex flex-col pb-safe animate-in slide-in-from-bottom sm:slide-in-from-bottom-2 sm:zoom-in-95 duration-200">
+                                            {/* Mobile Drag Pill */}
+                                            <div className="w-12 h-1.5 bg-white/25 rounded-full mx-auto -mt-1 mb-1 sm:hidden shrink-0" />
+
+                                            {/* Header with Title & Close Button */}
+                                            <div className="px-1 pb-2.5 border-b border-white/10 flex items-center justify-between shrink-0">
+                                                <div className="flex items-center gap-2.5">
+                                                    <div className="w-8 h-8 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500 shrink-0">
+                                                        <Server className="w-4 h-4" />
+                                                    </div>
+                                                    <div>
+                                                        <span className="font-extrabold text-white text-sm sm:text-base block leading-tight">Pilih Server Streaming</span>
+                                                        <span className="text-[11px] sm:text-xs text-slate-400 block">Zetware Cloud & Server Cadangan</span>
+                                                    </div>
+                                                </div>
                                                 <button
                                                     type="button"
-                                                    onClick={() => {
-                                                        setUseStreambertEmbed(false);
-                                                        setShowSourceMenu(false);
-                                                    }}
-                                                    className="w-full text-left"
+                                                    onClick={() => setShowSourceMenu(false)}
+                                                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-95"
+                                                    title="Tutup"
                                                 >
-                                                    <div className="flex items-center justify-between">
-                                                        <div className="flex items-center gap-2">
-                                                            <div className="w-5 h-5 rounded-md bg-gradient-to-br from-red-600 to-amber-500 flex items-center justify-center font-black text-white text-[10px] shadow-[0_0_8px_rgba(239,68,68,0.8)]">
-                                                                Z
-                                                            </div>
-                                                            <span className="font-extrabold text-white">Zetware Cloud</span>
-                                                        </div>
-                                                        <span className="px-1.5 py-0.2 rounded bg-emerald-500/20 border border-emerald-500/40 text-[9px] font-bold text-emerald-400">
-                                                            {detectedResolution}
-                                                        </span>
-                                                    </div>
-                                                    <p className="text-[10px] text-slate-300 line-clamp-1 mt-1">
-                                                        File streaming direct MP4 cepat & jernih dari cloud zetware.id
-                                                    </p>
+                                                    <X className="w-4 h-4" />
                                                 </button>
-
-                                                {/* Resolusi Selector di dalam Server Menu */}
-                                                {zetwareStreams.length > 0 && (
-                                                    <div className="flex flex-wrap items-center gap-1.5 mt-2 pt-2 border-t border-white/10">
-                                                        <span className="text-[10px] text-slate-400 font-semibold w-full">Pilih Resolusi Zetware Cloud:</span>
-                                                        {zetwareStreams.map((st) => (
-                                                            <button
-                                                                key={st.url}
-                                                                type="button"
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    handleSelectZetwareResolution(st.url);
-                                                                }}
-                                                                className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition flex items-center gap-1 cursor-pointer ${
-                                                                    !useStreambertEmbed && zetwareDirectUrl === st.url
-                                                                        ? 'bg-amber-400 text-slate-950 shadow-md shadow-amber-400/30'
-                                                                        : 'bg-white/10 hover:bg-white/20 text-slate-200'
-                                                                }`}
-                                                            >
-                                                                <Zap className="w-2.5 h-2.5 fill-current" />
-                                                                <span>{st.label}</span>
-                                                            </button>
-                                                        ))}
-                                                    </div>
-                                                )}
                                             </div>
-                                        )}
 
-                                        <div className="max-h-56 overflow-y-auto space-y-1 pr-1">
-                                            {PLAYER_SOURCES.map((src) => (
-                                                <button
-                                                    key={src.id}
-                                                    onClick={() => {
-                                                        setSelectedSource(src.id);
-                                                        setUseStreambertEmbed(true);
-                                                        setIframeLoading(true);
-                                                        setShowSourceMenu(false);
-                                                    }}
-                                                    className={`w-full text-left p-2 rounded-xl transition ${
-                                                        useStreambertEmbed && selectedSource === src.id
-                                                            ? 'bg-red-600 text-white font-bold'
-                                                            : 'text-slate-300 hover:bg-white/10'
-                                                    }`}
-                                                >
-                                                    <div className="flex items-center justify-between">
-                                                        <span className="font-bold">{src.label}</span>
-                                                        {src.tag && (
-                                                            <span className="px-1.5 py-0.2 rounded bg-white/20 text-[10px] text-amber-300">
-                                                                {src.tag}
-                                                            </span>
+                                            {/* Scrollable Content */}
+                                            <div className="overflow-y-auto space-y-3.5 pr-0.5 -mr-0.5 flex-1">
+                                                {/* Option: Zetware Cloud Native File (If Available) */}
+                                                {zetwareDirectUrl && (
+                                                    <div
+                                                        className={`p-3.5 rounded-2xl transition border ${
+                                                            !useStreambertEmbed
+                                                                ? 'bg-gradient-to-br from-amber-500/20 via-slate-900/95 to-red-950/40 border-amber-400/80 shadow-[0_0_20px_rgba(245,158,11,0.25)] text-white ring-1 ring-amber-400/30'
+                                                                : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
+                                                        }`}
+                                                    >
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setUseStreambertEmbed(false);
+                                                                setShowSourceMenu(false);
+                                                            }}
+                                                            className="w-full text-left cursor-pointer group"
+                                                        >
+                                                            <div className="flex items-center justify-between">
+                                                                <div className="flex items-center gap-2.5">
+                                                                    <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 text-slate-950 shadow-[0_0_12px_rgba(250,204,21,0.8)] font-black text-sm shrink-0">
+                                                                        <span>Z</span>
+                                                                        <Zap className="absolute -top-1 -right-1 w-3.5 h-3.5 text-yellow-200 fill-amber-300 drop-shadow-[0_0_4px_rgba(250,204,21,1)]" />
+                                                                    </div>
+                                                                    <div>
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="font-black text-white text-sm group-hover:text-amber-300 transition">Zetware Cloud</span>
+                                                                            <span className="px-2 py-0.5 rounded-md bg-amber-400/20 border border-amber-400/40 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
+                                                                                Cepat & Jernih
+                                                                            </span>
+                                                                        </div>
+                                                                        <p className="text-xs text-slate-300 line-clamp-1 mt-0.5">
+                                                                            Direct cloud MP4 tanpa buffer dari zetware.id
+                                                                        </p>
+                                                                    </div>
+                                                                </div>
+                                                                {!useStreambertEmbed ? (
+                                                                    <span className="px-2.5 py-1 rounded-xl bg-amber-400 text-slate-950 text-xs font-black flex items-center gap-1 shrink-0 shadow-sm">
+                                                                        <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                                                        <span>Aktif</span>
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="px-2.5 py-1 rounded-xl bg-white/10 group-hover:bg-amber-400/20 text-slate-300 group-hover:text-amber-300 text-xs font-bold shrink-0 transition">
+                                                                        Pilih
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </button>
+
+                                                        {/* Resolusi Selector di dalam Server Menu */}
+                                                        {zetwareStreams.length > 0 && (
+                                                            <div className="mt-3 pt-2.5 border-t border-white/10 space-y-2">
+                                                                <div className="flex items-center justify-between text-xs">
+                                                                    <span className="text-amber-300 font-bold flex items-center gap-1.5">
+                                                                        <Monitor className="w-3.5 h-3.5 text-amber-400" />
+                                                                        <span>Pilih Resolusi Video:</span>
+                                                                    </span>
+                                                                    <span className="text-slate-400 text-[11px]">
+                                                                        {detectedResolution}
+                                                                    </span>
+                                                                </div>
+                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                                    {zetwareStreams.map((st) => {
+                                                                        const isSelectedStream = !useStreambertEmbed && zetwareDirectUrl === st.url;
+                                                                        return (
+                                                                            <button
+                                                                                key={st.url}
+                                                                                type="button"
+                                                                                onClick={(e) => {
+                                                                                    e.stopPropagation();
+                                                                                    handleSelectZetwareResolution(st.url);
+                                                                                    setUseStreambertEmbed(false);
+                                                                                    setShowSourceMenu(false);
+                                                                                }}
+                                                                                className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
+                                                                                    isSelectedStream
+                                                                                        ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black shadow-md shadow-amber-400/30 ring-1 ring-white/50'
+                                                                                        : 'bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border border-white/5'
+                                                                                }`}
+                                                                            >
+                                                                                <Zap className={`w-3 h-3 ${isSelectedStream ? 'fill-slate-950 text-slate-950' : 'text-amber-400'}`} />
+                                                                                <span>{st.label} MP4</span>
+                                                                                {isSelectedStream && <Check className="w-3 h-3 stroke-[3]" />}
+                                                                            </button>
+                                                                        );
+                                                                    })}
+                                                                </div>
+                                                            </div>
                                                         )}
                                                     </div>
-                                                    <p className="text-[10px] text-slate-300 line-clamp-1 mt-0.5">{src.description}</p>
-                                                </button>
-                                            ))}
+                                                )}
+
+                                                {/* Server Alternatif */}
+                                                <div className="space-y-2">
+                                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
+                                                        <Layers className="w-3.5 h-3.5 text-slate-400" />
+                                                        <span>Server Alternatif (Embed / HLS)</span>
+                                                    </div>
+                                                    <div className="space-y-1.5">
+                                                        {PLAYER_SOURCES.map((src) => {
+                                                            const isSelected = useStreambertEmbed && selectedSource === src.id;
+                                                            return (
+                                                                <button
+                                                                    key={src.id}
+                                                                    onClick={() => {
+                                                                        setSelectedSource(src.id);
+                                                                        setUseStreambertEmbed(true);
+                                                                        setIframeLoading(true);
+                                                                        setShowSourceMenu(false);
+                                                                    }}
+                                                                    className={`w-full text-left p-3 rounded-2xl transition flex items-center justify-between cursor-pointer active:scale-[0.99] border ${
+                                                                        isSelected
+                                                                            ? 'bg-red-600 border-red-500 text-white font-bold shadow-lg shadow-red-600/30'
+                                                                            : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10 hover:border-white/10'
+                                                                    }`}
+                                                                >
+                                                                    <div className="min-w-0 pr-2">
+                                                                        <div className="flex items-center gap-2">
+                                                                            <span className="font-extrabold text-white text-xs sm:text-sm">{src.label}</span>
+                                                                            {src.tag && (
+                                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                                                                    isSelected ? 'bg-black/30 text-white' : 'bg-white/10 text-amber-300'
+                                                                                }`}>
+                                                                                    {src.tag}
+                                                                                </span>
+                                                                            )}
+                                                                        </div>
+                                                                        <p className={`text-xs line-clamp-1 mt-0.5 ${
+                                                                            isSelected ? 'text-red-100' : 'text-slate-400'
+                                                                        }`}>
+                                                                            {src.description}
+                                                                        </p>
+                                                                    </div>
+                                                                    {isSelected && (
+                                                                        <div className="w-5 h-5 rounded-full bg-white text-red-600 flex items-center justify-center shrink-0">
+                                                                            <Check className="w-3 h-3 stroke-[3]" />
+                                                                        </div>
+                                                                    )}
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            </div>
                                         </div>
-                                    </div>
-                                    </>
+                                    </div>,
+                                    document.body
                                 )}
                             </div>
 
