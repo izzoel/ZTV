@@ -337,15 +337,18 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
     ];
 
     $processed = [];
-    foreach ($rawSubtitles as $sub) {
-        $langCode = strtolower($sub['lang'] ?? 'unknown');
-        $standardCode = ($langCode === 'ind') ? 'id' : (($langCode === 'eng') ? 'en' : $langCode);
-        $label = $langLabels[$langCode] ?? ucfirst($langCode);
+    $seenUrls = [];
 
+    foreach ($rawSubtitles as $sub) {
         $downloadUrl = $sub['url'] ?? '';
-        if (! $downloadUrl) {
+        if (! $downloadUrl || isset($seenUrls[$downloadUrl])) {
             continue;
         }
+        $seenUrls[$downloadUrl] = true;
+
+        $langCode = strtolower($sub['lang'] ?? 'unknown');
+        $standardCode = ($langCode === 'ind') ? 'id' : (($langCode === 'eng') ? 'en' : $langCode);
+        $baseLabel = $langLabels[$langCode] ?? ucfirst($langCode);
 
         $vttProxyUrl = '/api/subtitles/vtt?url=' . urlencode($downloadUrl);
 
@@ -353,7 +356,7 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
             'id' => (string) ($sub['id'] ?? uniqid()),
             'lang' => $standardCode,
             'rawLang' => $langCode,
-            'label' => $label,
+            'baseLabel' => $baseLabel,
             'fileName' => $sub['subtitleFileName'] ?? '',
             'url' => $vttProxyUrl,
             'source' => 'OpenSubtitles',
@@ -373,8 +376,20 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
         if ($pA !== $pB) {
             return $pA <=> $pB;
         }
-        return strcmp($a['label'], $b['label']);
+        return strcmp($a['baseLabel'], $b['baseLabel']);
     });
+
+    // Make labels unique per language so options and textTracks are unambiguous
+    $langCount = [];
+    foreach ($processed as &$item) {
+        $code = $item['lang'];
+        $langCount[$code] = ($langCount[$code] ?? 0) + 1;
+        $item['label'] = ($langCount[$code] === 1)
+            ? $item['baseLabel']
+            : "{$item['baseLabel']} (Opsi {$langCount[$code]})";
+        unset($item['baseLabel']);
+    }
+    unset($item);
 
     // Mark the first Indonesian (or first available) as default
     if (! empty($processed)) {

@@ -46,7 +46,22 @@ export async function fetchSubtitlesForMedia(
         if (!res.ok) return [];
 
         const data: SubtitleSearchResponse = await res.json();
-        return Array.isArray(data.subtitles) ? data.subtitles : [];
+        const rawSubs = Array.isArray(data.subtitles) ? data.subtitles : [];
+
+        // Deduplicate subtitle tracks
+        const seenIds = new Set<string>();
+        const seenUrls = new Set<string>();
+        const uniqueSubs: SubtitleTrack[] = [];
+
+        for (const sub of rawSubs) {
+            if (!sub.id || !sub.url) continue;
+            if (seenIds.has(sub.id) || seenUrls.has(sub.url)) continue;
+            seenIds.add(sub.id);
+            seenUrls.add(sub.url);
+            uniqueSubs.push(sub);
+        }
+
+        return uniqueSubs;
     } catch (err) {
         console.warn('Failed to fetch subtitles:', err);
         return [];

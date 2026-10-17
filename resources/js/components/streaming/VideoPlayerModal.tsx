@@ -179,20 +179,46 @@ export default function VideoPlayerModal({
 
     // Sync HTML5 video textTracks when selectedSubtitles changes
     useEffect(() => {
-        if (!videoRef.current || !videoRef.current.textTracks) return;
-        const tracks = videoRef.current.textTracks;
-        for (let i = 0; i < tracks.length; i++) {
-            const t = tracks[i];
-            const matchingSub = subtitles.find((s) => s.label === t.label || s.lang === t.language);
-            if (selectedSubtitles === 'off') {
-                t.mode = 'disabled';
-            } else if (matchingSub && matchingSub.id === selectedSubtitles) {
-                t.mode = 'showing';
-            } else {
-                t.mode = 'disabled';
+        const video = videoRef.current;
+        if (!video || !video.textTracks) return;
+
+        let isSyncing = false;
+        const syncTracks = () => {
+            if (isSyncing) return;
+            isSyncing = true;
+            try {
+                const tracks = video.textTracks;
+                const targetSub = subtitles.find((s) => s.id === selectedSubtitles);
+
+                for (let i = 0; i < tracks.length; i++) {
+                    const t = tracks[i];
+                    const sub = subtitles[i];
+
+                    // Strictly match by ID or exact unique label or corresponding index to prevent duplicate tracks showing simultaneously
+                    const isSelected =
+                        selectedSubtitles !== 'off' &&
+                        ((t.id && t.id === selectedSubtitles) ||
+                         (targetSub && t.label === targetSub.label) ||
+                         (sub && sub.id === selectedSubtitles));
+
+                    const targetMode = isSelected ? 'showing' : 'disabled';
+                    if (t.mode !== targetMode) {
+                        t.mode = targetMode;
+                    }
+                }
+            } finally {
+                isSyncing = false;
             }
-        }
+        };
+
+        syncTracks();
+        const timer = setTimeout(syncTracks, 300);
+
+        return () => {
+            clearTimeout(timer);
+        };
     }, [selectedSubtitles, subtitles]);
+
 
     // Handle user uploading local subtitle file (.srt / .vtt)
     const handleUploadLocalSubtitle = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -952,6 +978,7 @@ export default function VideoPlayerModal({
                                 {subtitles.map((sub) => (
                                     <track
                                         key={sub.id}
+                                        id={sub.id}
                                         kind="subtitles"
                                         src={sub.url}
                                         srcLang={sub.lang}
