@@ -70,8 +70,8 @@ export default function VideoPlayerModal({
         }
     });
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
-    const [testDownload, setTestDownload] = useState<boolean>(true);
-    const [threads, setThreads] = useState<number>(2);
+    const [testDownload, setTestDownload] = useState<boolean>(false);
+    const [threads, setThreads] = useState<number>(10);
     const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream'>('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);

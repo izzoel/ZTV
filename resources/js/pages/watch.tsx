@@ -136,8 +136,8 @@ export default function WatchPage({
         }
     });
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
-    const [testDownload, setTestDownload] = useState<boolean>(true);
-    const [threads, setThreads] = useState<number>(2);
+    const [testDownload, setTestDownload] = useState<boolean>(false);
+    const [threads, setThreads] = useState<number>(10);
     const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream' | 'zetware'>('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);
@@ -633,43 +633,69 @@ export default function WatchPage({
                     showCategories={true}
                 />
 
-                {/* CINEMA PLAYER CONTAINER */}
-                <div className="pt-28 sm:pt-28 max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12 space-y-4">
-                    {/* PLAYER HEADER BAR */}
-                    <div className="relative z-30 p-3 sm:p-4 bg-slate-900/90 border border-white/10 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xl backdrop-blur-xl">
-                        {/* Left: Back & Title */}
-                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
-                            <button
-                                onClick={handleGoBack}
-                                className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-800/90 hover:bg-red-600 border border-white/15 text-white transition active:scale-95 shrink-0 flex items-center gap-1.5 shadow-md cursor-pointer group"
-                                title="Kembali"
-                            >
-                                <ArrowLeft className="w-4 h-4 text-red-400 group-hover:text-white transition-colors" />
-                                <span className="text-xs font-semibold">Kembali</span>
-                            </button>
+                {/* Back Quick Floating Bar */}
+                <div className="pt-28 sm:pt-28 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+                    <button
+                        onClick={handleGoBack}
+                        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer backdrop-blur-md mb-3 active:scale-95 shadow-md group"
+                    >
+                        <ArrowLeft className="w-4 h-4 text-red-500 group-hover:text-white transition-colors" />
+                        <span>Kembali</span>
+                    </button>
+                </div>
 
-                            <div className="min-w-0">
-                                <h1 className="text-base sm:text-lg font-extrabold text-white truncate">
-                                    {media.title}
-                                </h1>
-                                <div className="flex items-center gap-2 text-xs text-slate-400">
-                                    <span className="text-emerald-400 font-semibold">
-                                        {!useStreambertEmbed && zetwareDirectUrl ? '⚡ Zetware Cloud' : useStreambertEmbed ? activeSourceObj.label : 'Local MP4'}
-                                    </span>
-                                    {media.type === 'series' && (
-                                        <>
-                                            <span>•</span>
-                                            <span className="text-red-400 font-mono font-bold">
-                                                Musim {selectedSeason} : Eps {selectedEpisode}
-                                            </span>
-                                        </>
-                                    )}
+                {/* CINEMA PLAYER CONTAINER */}
+                <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12 space-y-4">
+                    {/* PLAYER HEADER BAR */}
+                    <div className="relative z-30 p-3 sm:p-4 bg-slate-900/90 border border-white/10 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4 shadow-xl backdrop-blur-xl">
+                        {/* Row 1 on Mobile / Left Side on Desktop: Title & Mobile Quick Actions */}
+                        <div className="flex items-center justify-between gap-3 min-w-0 w-full md:w-auto md:flex-1">
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 flex-wrap">
+                                    <h1 className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight truncate" title={media.title}>
+                                        {media.title}
+                                    </h1>
+                                    {!useStreambertEmbed && zetwareDirectUrl ? (
+                                        <span className="hidden md:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-[11px]">
+                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                            Zetware Cloud
+                                        </span>
+                                    ) : null}
                                 </div>
+                                {media.type === 'series' && (
+                                    <div className="text-xs text-red-400 font-mono font-bold mt-0.5">
+                                        Musim {selectedSeason} • Eps {selectedEpisode}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Mobile-only Quick Action Buttons (Target API & Fullscreen) */}
+                            <div className="flex items-center gap-1.5 shrink-0 md:hidden">
+                                {/* Target API Query Button */}
+                                <button
+                                    onClick={() => {
+                                        setApiFeedback(null);
+                                        setShowApiTargetModal(true);
+                                    }}
+                                    className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition active:scale-95"
+                                    title="Target API"
+                                >
+                                    <Share2 className="w-4 h-4 text-amber-400" />
+                                </button>
+
+                                {/* Fullscreen Button */}
+                                <button
+                                    onClick={toggleFullscreen}
+                                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
+                                    title="Layar Penuh"
+                                >
+                                    <Maximize className="w-4 h-4" />
+                                </button>
                             </div>
                         </div>
 
-                        {/* Right: Controls (Server, Episodes, Target API, Fullscreen) */}
-                        <div className="flex flex-wrap items-center gap-2 justify-end relative z-30">
+                        {/* Row 2 on Mobile / Right Side on Desktop: Streaming Controls */}
+                        <div className="flex items-center gap-2 w-full md:w-auto shrink-0 relative z-30 justify-start md:justify-end">
                             {/* Zetware Glowing Badge with Integrated Resolution & Subtitle Dropdown */}
                             {zetwareDirectUrl && (
                                 <ZetwareGlowingBadge
@@ -698,7 +724,7 @@ export default function WatchPage({
                             )}
 
                             {/* Server Selector */}
-                            <div className="relative">
+                            <div className="relative flex-1 md:flex-initial min-w-0">
                                 <button
                                     onClick={() => {
                                         setShowSourceMenu(!showSourceMenu);
@@ -706,14 +732,14 @@ export default function WatchPage({
                                         setShowResolutionMenu(false);
                                         setShowEpisodeMenu(false);
                                     }}
-                                    className={`px-3 py-1.5 rounded-xl text-white text-xs font-bold flex items-center gap-1.5 shadow-md transition cursor-pointer active:scale-95 ${
+                                    className={`w-full md:w-auto px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer active:scale-95 shrink-0 ${
                                         !useStreambertEmbed && zetwareDirectUrl
                                             ? 'bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-400/50'
                                             : 'bg-red-600 hover:bg-red-500 shadow-red-600/30'
                                     }`}
                                 >
-                                    <Server className="w-3.5 h-3.5" />
-                                    <span>Server: {!useStreambertEmbed && zetwareDirectUrl ? 'Zetware Cloud' : activeSourceObj.label}</span>
+                                    <Server className="w-3.5 h-3.5 shrink-0" />
+                                    <span className="truncate">Server: {!useStreambertEmbed && zetwareDirectUrl ? 'Zetware Cloud' : activeSourceObj.label}</span>
                                 </button>
 
                                 {showSourceMenu && mounted && createPortal(
@@ -987,36 +1013,30 @@ export default function WatchPage({
                                 </div>
                             )}
 
-                            {/* Fullscreen Button */}
-                            <button
-                                onClick={toggleFullscreen}
-                                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
-                                title="Layar Penuh (F)"
-                            >
-                                <Maximize className="w-4 h-4" />
-                            </button>
+                            {/* Desktop-only Quick Action Buttons */}
+                            <div className="hidden md:flex items-center gap-2 shrink-0">
+                                {/* Fullscreen Button */}
+                                <button
+                                    onClick={toggleFullscreen}
+                                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
+                                    title="Layar Penuh (F)"
+                                >
+                                    <Maximize className="w-4 h-4" />
+                                </button>
 
-                            {/* Change TMDB ID Button */}
-                            {/* <button
-                                onClick={() => setShowTmdbModal(true)}
-                                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
-                                title="Ubah TMDB ID"
-                            >
-                                <Search className="w-4 h-4" />
-                            </button> */}
-
-                            {/* Target API Query Button */}
-                            <button
-                                onClick={() => {
-                                    setApiFeedback(null);
-                                    setShowApiTargetModal(true);
-                                }}
-                                className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 hover:border-amber-400 transition cursor-pointer active:scale-95 flex items-center gap-1.5 text-xs font-semibold"
-                                title="Preview / Kirim Query TMDb Target (tmdb_id, m3u8_url, title)"
-                            >
-                                <Share2 className="w-3.5 h-3.5 text-amber-400" />
-                                <span className="hidden sm:inline">Target API</span>
-                            </button>
+                                {/* Target API Query Button */}
+                                <button
+                                    onClick={() => {
+                                        setApiFeedback(null);
+                                        setShowApiTargetModal(true);
+                                    }}
+                                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 hover:border-amber-400 transition cursor-pointer active:scale-95 flex items-center gap-1.5 text-xs font-semibold"
+                                    title="Preview / Kirim Query TMDb Target (tmdb_id, m3u8_url, title)"
+                                >
+                                    <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                                    <span>Target API</span>
+                                </button>
+                            </div>
                         </div>
                     </div>
 

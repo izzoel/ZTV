@@ -117,8 +117,8 @@ export default function DetailPage({ id }: DetailPageProps) {
         }
     });
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
-    const [testDownload, setTestDownload] = useState<boolean>(true);
-    const [threads, setThreads] = useState<number>(2);
+    const [testDownload, setTestDownload] = useState<boolean>(false);
+    const [threads, setThreads] = useState<number>(10);
     const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream' | 'zetware'>('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);
@@ -393,9 +393,9 @@ export default function DetailPage({ id }: DetailPageProps) {
                     myListCount={myList.length}
                     showMyListOnly={false}
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
-                    showCategories={false}
+                    showCategories={true}
                 />
-                <div className="pt-24 px-4 sm:px-8 max-w-7xl mx-auto">
+                <div className="pt-28 px-4 sm:px-8 max-w-7xl mx-auto">
                     <StreamingSkeleton />
                 </div>
             </div>
@@ -434,22 +434,22 @@ export default function DetailPage({ id }: DetailPageProps) {
                     myListCount={myList.length}
                     showMyListOnly={false}
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
-                    showCategories={false}
+                    showCategories={true}
                 />
 
                 {/* Back to Home Quick Floating Bar */}
-                <div className="pt-24 sm:pt-24 px-4 sm:px-8 max-w-7xl mx-auto">
+                <div className="pt-28 sm:pt-28 px-4 sm:px-8 max-w-7xl mx-auto">
                     <button
                         onClick={() => {
-                            if (window.history.length > 1) {
-                                window.history.back();
+                            if (typeof document !== 'undefined' && document.referrer && document.referrer.includes(window.location.host) && !document.referrer.includes('/detail/')) {
+                                window.location.href = document.referrer;
                             } else {
                                 router.visit('/');
                             }
                         }}
-                        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer backdrop-blur-md mb-4 active:scale-95 shadow-md"
+                        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer backdrop-blur-md mb-4 active:scale-95 shadow-md group"
                     >
-                        <ArrowLeft className="w-4 h-4 text-red-500" />
+                        <ArrowLeft className="w-4 h-4 text-red-500 group-hover:text-white transition-colors" />
                         <span>Kembali</span>
                     </button>
                 </div>
