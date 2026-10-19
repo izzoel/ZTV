@@ -45,6 +45,7 @@ export default function WatchPage({
     const [zetwareStreams, setZetwareStreams] = useState<ZetwareStreamOption[]>([]);
     const [isCheckingZetware, setIsCheckingZetware] = useState<boolean>(true);
     const [showResolutionMenu, setShowResolutionMenu] = useState<boolean>(false);
+    const [videoError, setVideoError] = useState<boolean>(false);
 
     // Zetware Cloud Subtitles State (Opsi B: Auto-fetch API)
     const [subtitles, setSubtitles] = useState<SubtitleTrack[]>([]);
@@ -487,6 +488,7 @@ export default function WatchPage({
         setResolutionNotice(`⚡ Berpindah ke ${resInfo.label} • Menit ${timeFormatted}`);
         setTimeout(() => setResolutionNotice(null), 3500);
 
+        setVideoError(false);
         setZetwareDirectUrl(newUrl);
         setUseStreambertEmbed(false);
         setShowResolutionMenu(false);
@@ -1061,14 +1063,62 @@ export default function WatchPage({
                                     </div>
                                 )}
 
+                                {/* Video Error Fallback Overlay */}
+                                {videoError && (
+                                    <div className="absolute inset-0 z-20 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3">
+                                        <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
+                                            <AlertCircle className="w-8 h-8" />
+                                        </div>
+                                        <h4 className="text-white font-extrabold text-sm sm:text-base">
+                                            Resolusi ini sedang membutuhkan waktu buffer
+                                        </h4>
+                                        <p className="text-xs text-slate-400 max-w-sm">
+                                            Koneksi ke server cloud sedang menyesuaikan bitrate file video. Anda dapat memuat ulang atau memilih resolusi alternatif.
+                                        </p>
+                                        <div className="flex items-center gap-2 pt-2">
+                                            <button
+                                                type="button"
+                                                onClick={() => {
+                                                    setVideoError(false);
+                                                    if (videoRef.current) {
+                                                        videoRef.current.load();
+                                                        videoRef.current.play().catch(() => {});
+                                                    }
+                                                }}
+                                                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition active:scale-95 shadow-lg shadow-amber-500/25"
+                                            >
+                                                Muat Ulang Resolusi
+                                            </button>
+                                            {zetwareStreams.length > 1 && (
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        const other = zetwareStreams.find((s) => s.url !== zetwareDirectUrl) || zetwareStreams[0];
+                                                        if (other) {
+                                                            handleSelectZetwareResolution(other.url);
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition active:scale-95"
+                                                >
+                                                    Pindah Resolusi Lain
+                                                </button>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 <video
                                     ref={videoRef}
                                     key={zetwareDirectUrl || media.videoUrl}
                                     src={zetwareDirectUrl || media.videoUrl}
                                     autoPlay
+                                    preload="auto"
+                                    playsInline
                                     controls
                                     className="w-full h-full object-contain"
+                                    onError={() => setVideoError(true)}
                                     onLoadedMetadata={(e) => {
+                                        setVideoError(false);
                                         const video = e.currentTarget;
                                         if (savedPlaybackPositionRef.current > 0) {
                                             video.currentTime = savedPlaybackPositionRef.current;

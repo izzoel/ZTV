@@ -266,25 +266,26 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         if (! empty($streams)) {
             // Dapatkan pattern prefix dari stream pertama yang ditemukan
             $firstUrl = $streams[0]['url'];
+            $decodedFirstUrl = rawurldecode($firstUrl);
             $dirPath = dirname($firstUrl);
-            $fileName = basename($firstUrl);
-            // Ekstrak nama dasar file sebelum resolusi (misal: "LANTERNS - S1E2" dari "LANTERNS - S1E2_1920x960.mp4")
-            $baseName = preg_replace('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', '', $fileName);
-            $baseName = preg_replace('/\.mp4$/i', '', $baseName);
+            $rawFileName = basename($decodedFirstUrl);
+            // Ekstrak nama dasar file sebelum resolusi (misal: "THE ODYSSEY" dari "THE ODYSSEY_1280x666.mp4")
+            $rawBaseName = preg_replace('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', '', $rawFileName);
+            $rawBaseName = preg_replace('/\.mp4$/i', '', $rawBaseName);
 
-            if (! empty($baseName)) {
+            if (! empty($rawBaseName)) {
                 $targetResList = [
-                    '_1920x1080', '_1920x960', '_1920x800', '_1920x804', '_1920x1000',
-                    '_1280x720', '_1280x640', '_1280x534', '_1280x536', '_1280x666',
-                    '_854x480', '_640x360', '_640x320', '_640x266', '_640x268', '_640x334',
-                    '_3840x2160', '_1080p', '_720p', '_480p', '_360p', '_4K'
+                    '_1920x1080', '_1920x1000', '_1920x960', '_1920x804', '_1920x800',
+                    '_1280x720', '_1280x666', '_1280x640', '_1280x536', '_1280x534',
+                    '_854x480', '_854x356', '_640x360', '_640x334', '_640x320', '_640x268', '_640x266',
+                    '_3840x2160', '_1080p', '_720p', '_480p', '_360p', '_4K', '_4k'
                 ];
 
                 $probeUrls = [];
                 $existingUrls = array_column($streams, 'url');
 
                 foreach ($targetResList as $tr) {
-                    $testUrl = "$dirPath/" . rawurlencode("{$baseName}{$tr}.mp4");
+                    $testUrl = "$dirPath/" . rawurlencode("{$rawBaseName}{$tr}.mp4");
                     if (! in_array($testUrl, $existingUrls)) {
                         $probeUrls[] = $testUrl;
                     }
@@ -297,8 +298,8 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
                         $pch = curl_init($pUrl);
                         curl_setopt($pch, CURLOPT_NOBODY, true);
                         curl_setopt($pch, CURLOPT_FOLLOWLOCATION, true);
-                        curl_setopt($pch, CURLOPT_CONNECTTIMEOUT, 3);
-                        curl_setopt($pch, CURLOPT_TIMEOUT, 5);
+                        curl_setopt($pch, CURLOPT_CONNECTTIMEOUT, 4);
+                        curl_setopt($pch, CURLOPT_TIMEOUT, 7);
                         curl_setopt($pch, CURLOPT_SSL_VERIFYPEER, false);
                         curl_setopt($pch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
                         curl_multi_add_handle($pmh, $pch);
