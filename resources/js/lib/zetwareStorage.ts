@@ -24,26 +24,22 @@ export interface ZetwareMediaCheckOptions {
 }
 
 const COMMON_RESOLUTIONS = [
-    '_1280x534',  // 2.39:1 scope 720p (e.g. SPIDER-MAN BRAND NEW DAY_1280x534.mp4)
-    '_640x266',   // 2.39:1 scope mobile (e.g. SPIDER-MAN BRAND NEW DAY_640x266.mp4)
-    '_1920x800',  // 2.39:1 ultrawide cinema
-    '_1920x804',
-    '_1280x536',
+    '_1920x800',  // 2.39:1 ultrawide cinema (HOPE, INSIDIOUS, SPIDER-MAN)
+    '_1920x804',  // 2.39:1 scope (MATCHBOX THE MOVIE)
+    '_1920x960',  // 2:1 cinema FHD (LANTERNS)
     '_1920x1080', // 1080p 16:9
+    '_1280x534',  // 2.39:1 scope 720p (ANIMALS, HOPE, INSIDIOUS)
+    '_1280x536',  // 2.39:1 scope (MATCHBOX THE MOVIE)
+    '_1280x640',  // 2:1 cinema HD (LANTERNS)
     '_1280x720',  // 720p 16:9
-    '_1920x960',  // 2:1 cinema FHD (e.g. LANTERNS - S1E2_1920x960.mp4)
-    '_1280x640',  // 2:1 cinema HD (e.g. LANTERNS - S1E2_1280x640.mp4)
-    '_640x320',   // 2:1 cinema mobile SD
-    '_854x480',   // 480p 16:9
+    '_640x266',   // 2.39:1 scope mobile (SPIDER-MAN, INSIDIOUS)
+    '_640x268',   // 2.39:1 scope mobile (MATCHBOX THE MOVIE)
+    '_640x320',   // 2:1 cinema mobile SD (LANTERNS)
     '_640x360',   // 360p 16:9
+    '_854x480',   // 480p 16:9
     '_854x356',   // 2.39:1 480p
-    '_640x268',
     '_960x480',   // 2:1 480p
-    '_1280x960',  // 4:3
-    '_640x480',   // 480p 4:3
     '_3840x2160', // 4K 16:9
-    '_3840x1600', // 4K scope
-    '_3840x1920', // 4K 2:1
     '_1080p',
     '_720p',
     '_480p',
@@ -66,16 +62,46 @@ export function generateZetwareStorageUrls(
     const candidates: string[] = [];
     const bases = ['https://zetware.id/storage/movies', 'https://zetware.id/storage/movie'];
 
-    // Folder variants for {title} (e.g. "SPIDER-MAN BRAND NEW DAY", "LANTERNS")
     const sanitizedTitle = cleanTitle.replace(/[:\/\\?*"<>|]/g, '').trim();
     const sanitizedTitleNormalized = sanitizedTitle.replace(/\s+/g, ' ');
+    const upperClean = sanitizedTitleNormalized.toUpperCase();
 
-    // Prioritize sanitized uppercase title (matches filesystem folder standard)
+    // Known cloud folders on domains/zetware.id/public_html/storage/movies
+    const knownCloudFolders: Record<string, string[]> = {
+        'ANIMALS': ['ANIMALS', 'ANIMAL'],
+        'HOPE': ['HOPE'],
+        'INSIDIOUS OUT OF THE FURTHER': ['INSIDIOUS OUT OF THE FURTHER', 'INSIDIOUS THE FURTHER', 'INSIDIOUS'],
+        'LANTERNS': ['LANTERNS', 'LANTERN'],
+        'MATCHBOX THE MOVIE': ['MATCHBOX THE MOVIE', 'MATCHBOX'],
+        'SPIDER-MAN BRAND NEW DAY': ['SPIDER-MAN BRAND NEW DAY', 'SPIDER MAN BRAND NEW DAY', 'BRAND NEW DAY'],
+        'THE ODYSSEY': ['THE ODYSSEY', 'ODYSSEY'],
+        'TREASURE ISLAND': ['TREASURE ISLAND'],
+    };
+
+    const matchedCloudFolders: string[] = [];
+    for (const [cloudFolder, aliases] of Object.entries(knownCloudFolders)) {
+        for (const alias of aliases) {
+            if (upperClean === alias || upperClean.includes(alias) || alias.includes(upperClean)) {
+                matchedCloudFolders.push(cloudFolder);
+                break;
+            }
+        }
+    }
+
+    // Prioritize matched uppercase cloud folder
     const folderVariants = Array.from(
         new Set([
-            sanitizedTitleNormalized.toUpperCase(),
+            ...matchedCloudFolders,
+            upperClean,
             sanitizedTitle.toUpperCase(),
             cleanTitle.toUpperCase(),
+            upperClean.replace(/^THE\s+/i, ''),
+            `THE ${upperClean.replace(/^THE\s+/i, '')}`,
+            upperClean.replace(/\s+THE\s+MOVIE$/i, ''),
+            upperClean.replace(/\s+MOVIE$/i, ''),
+            `${upperClean} THE MOVIE`,
+            upperClean.replace(/-/g, ' '),
+            upperClean.replace(/\s+/g, '-'),
             sanitizedTitleNormalized,
             sanitizedTitle,
             cleanTitle,
@@ -86,9 +112,11 @@ export function generateZetwareStorageUrls(
     // Title label variants for the filename
     const titleVariants = Array.from(
         new Set([
-            sanitizedTitleNormalized.toUpperCase(),
+            ...matchedCloudFolders,
+            upperClean,
             sanitizedTitle.toUpperCase(),
             cleanTitle.toUpperCase(),
+            upperClean.replace(/^THE\s+/i, ''),
             sanitizedTitleNormalized,
             sanitizedTitle,
             cleanTitle,
@@ -103,38 +131,38 @@ export function generateZetwareStorageUrls(
             ])
         );
 
-        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file and /storage/movie/{title}/file
+        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file
         for (const base of bases) {
             for (const folder of folderVariants) {
                 const encFolder = encodeURIComponent(folder);
 
                 for (const ep of epPatterns) {
-                    // Pattern A: {folder}/{title} - {ep}{res}.mp4 (e.g. LANTERNS/LANTERNS - S1E2_1920x960.mp4)
-                    for (const titleVar of titleVariants) {
-                        for (const res of COMMON_RESOLUTIONS) {
-                            const filename = `${titleVar} - ${ep}${res}.mp4`;
-                            candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
-                        }
-                    }
-
-                    // Pattern B: {folder}/{ep}{res}.mp4 (e.g. LANTERNS/S1E2_1920x960.mp4)
+                    // Pattern A: {folder}/{folder} - {ep}{res}.mp4 (e.g. LANTERNS/LANTERNS - S1E2_1920x960.mp4)
                     for (const res of COMMON_RESOLUTIONS) {
-                        const filename = `${ep}${res}.mp4`;
+                        const filename = `${folder} - ${ep}${res}.mp4`;
                         candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
                     }
 
-                    // Pattern C: {folder}/{title}_{ep}{res}.mp4 (e.g. LANTERNS/LANTERNS_S1E2_1920x960.mp4)
+                    // Pattern B: {folder}/{tv} - {ep}{res}.mp4
                     for (const titleVar of titleVariants) {
-                        for (const res of COMMON_RESOLUTIONS) {
-                            const filename = `${titleVar}_${ep}${res}.mp4`;
-                            candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                        if (titleVar !== folder) {
+                            for (const res of COMMON_RESOLUTIONS) {
+                                const filename = `${titleVar} - ${ep}${res}.mp4`;
+                                candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                            }
                         }
+                    }
+
+                    // Pattern C: {folder}/{ep}{res}.mp4 (e.g. LANTERNS/S1E2_1920x960.mp4)
+                    for (const res of COMMON_RESOLUTIONS) {
+                        const filename = `${ep}${res}.mp4`;
+                        candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
                     }
                 }
             }
         }
 
-        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file and /storage/movie/file
+        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file
         for (const base of bases) {
             for (const titleVar of titleVariants) {
                 for (const ep of epPatterns) {
@@ -146,20 +174,28 @@ export function generateZetwareStorageUrls(
             }
         }
     } else {
-        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file and /storage/movie/{title}/file
+        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file
         for (const base of bases) {
             for (const folder of folderVariants) {
                 const encFolder = encodeURIComponent(folder);
 
-                // Pattern A: {folder}/{title}{res}.mp4 (e.g. FIGHT CLUB/FIGHT CLUB_1920x960.mp4)
+                // Pattern A: {folder}/{folder}{res}.mp4 (e.g. HOPE/HOPE_1920x800.mp4)
+                for (const res of COMMON_RESOLUTIONS) {
+                    const filename = `${folder}${res}.mp4`;
+                    candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                }
+
+                // Pattern B: {folder}/{tv}{res}.mp4
                 for (const titleVar of titleVariants) {
-                    for (const res of COMMON_RESOLUTIONS) {
-                        const filename = `${titleVar}${res}.mp4`;
-                        candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                    if (titleVar !== folder) {
+                        for (const res of COMMON_RESOLUTIONS) {
+                            const filename = `${titleVar}${res}.mp4`;
+                            candidates.push(`${base}/${encFolder}/${encodeURI(filename)}`);
+                        }
                     }
                 }
 
-                // Pattern B: {folder}/{res}.mp4 (e.g. FIGHT CLUB/1920x960.mp4 or 1080p.mp4)
+                // Pattern C: {folder}/{res}.mp4
                 for (const res of COMMON_RESOLUTIONS) {
                     if (res) {
                         const cleanRes = res.replace(/^_/, '');
@@ -168,13 +204,13 @@ export function generateZetwareStorageUrls(
                     }
                 }
 
-                // Pattern C: {folder}/movie.mp4 or video.mp4
+                // Pattern D: {folder}/movie.mp4 or video.mp4
                 candidates.push(`${base}/${encFolder}/movie.mp4`);
                 candidates.push(`${base}/${encFolder}/video.mp4`);
             }
         }
 
-        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file and /storage/movie/file
+        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file
         for (const base of bases) {
             for (const titleVar of titleVariants) {
                 for (const res of COMMON_RESOLUTIONS) {
@@ -234,7 +270,7 @@ export async function checkZetwareMediaExists(
                 type: mediaType,
                 season: s,
                 episode: ep,
-                candidates: candidates.slice(0, 30),
+                candidates: candidates.slice(0, 60),
             }),
         });
 

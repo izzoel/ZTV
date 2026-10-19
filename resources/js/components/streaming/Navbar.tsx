@@ -51,6 +51,42 @@ export default function Navbar({
         const list: NotificationItem[] = [];
         const pool = catalogMedia && catalogMedia.length > 0 ? catalogMedia : ALL_MEDIA;
 
+        // ⚡ Notifikasi Film Terbaru Tersedia di Zetware Cloud (berdasarkan waktu upload terakhir di cloud)
+        const hopeCloudItem: MediaItem = (catalogMedia && catalogMedia.find((m) => m.tmdbId === 1058424 || m.title.toUpperCase().includes('HOPE'))) || {
+            id: 'tmdb-mov-1058424',
+            tmdbId: 1058424,
+            title: 'HOPE',
+            type: 'movie',
+            rating: '8.8',
+            matchScore: '98% Cocok',
+            year: 2026,
+            ageRating: '16+',
+            duration: '2j 10m',
+            quality: '4K Ultra HD',
+            genres: ['Horor & Misteri', 'Aksi & Sci-Fi'],
+            synopsis: 'Sebuah penemuan misterius terjadi di pinggiran kota pelabuhan kecil. Para penduduk mendapati diri mereka dalam kondisi perjuangan putus asa untuk bertahan hidup melawan sesuatu yang belum pernah mereka temui sebelumnya.',
+            synopsisEn: 'A mysterious discovery takes place on the outskirts of a small port town. Residents find themselves in a desperate fight for survival against something never before encountered.',
+            cast: ['Hwang Jung-min', 'Zo In-sung', 'Jung Ho-yeon', 'Michael Fassbender', 'Alicia Vikander'],
+            director: 'Na Hong-jin',
+            posterUrl: 'https://image.tmdb.org/t/p/w500/ptqlN6mDIAqJjVA86J5eOoG82zc.jpg',
+            backdropUrl: 'https://image.tmdb.org/t/p/w1280/qqHFLg90IUSoTmSMpKOOW5RyqN3.jpg',
+            videoUrl: 'https://zetware.id/storage/movies/HOPE/HOPE_1920x800.mp4',
+            isOriginal: true,
+            isTrending: true,
+            top10Rank: 1,
+        };
+
+        list.push({
+            id: 'notif-zetware-cloud-latest',
+            badge: '⚡ ZETWARE CLOUD',
+            badgeColor: 'bg-emerald-500/30 text-emerald-300 border-emerald-500/40 ring-1 ring-emerald-500/30',
+            title: 'Tersedia di Zetware Cloud: HOPE (2026)',
+            message: 'Film blockbuster sci-fi/thriller "HOPE" karya Na Hong-jin kini resmi tersedia di Zetware Cloud! Nikmati streaming super cepat beresolusi FHD 1920x800 & HD 1280x534 tanpa iklan.',
+            time: 'Baru Saja',
+            media: hopeCloudItem,
+            isRead: false,
+        });
+
         if (pool.length > 0) {
             const item0 = pool[0];
             list.push({
