@@ -26,14 +26,17 @@ export interface ZetwareMediaCheckOptions {
 const COMMON_RESOLUTIONS = [
     '_1920x800',  // 2.39:1 ultrawide cinema (HOPE, INSIDIOUS, SPIDER-MAN)
     '_1920x804',  // 2.39:1 scope (MATCHBOX THE MOVIE)
+    '_1920x1000', // 1.92:1 cinema (THE ODYSSEY)
     '_1920x960',  // 2:1 cinema FHD (LANTERNS)
     '_1920x1080', // 1080p 16:9
     '_1280x534',  // 2.39:1 scope 720p (ANIMALS, HOPE, INSIDIOUS)
     '_1280x536',  // 2.39:1 scope (MATCHBOX THE MOVIE)
+    '_1280x666',  // 1.92:1 cinema (THE ODYSSEY)
     '_1280x640',  // 2:1 cinema HD (LANTERNS)
     '_1280x720',  // 720p 16:9
     '_640x266',   // 2.39:1 scope mobile (SPIDER-MAN, INSIDIOUS)
     '_640x268',   // 2.39:1 scope mobile (MATCHBOX THE MOVIE)
+    '_640x334',   // 1.92:1 cinema mobile (THE ODYSSEY)
     '_640x320',   // 2:1 cinema mobile SD (LANTERNS)
     '_640x360',   // 360p 16:9
     '_854x480',   // 480p 16:9
