@@ -172,6 +172,16 @@ export default function WatchPage({
         }
     };
 
+    const handleGoBack = () => {
+        if (typeof document !== 'undefined' && document.referrer && document.referrer.includes(window.location.host) && !document.referrer.includes('/watch/')) {
+            window.location.href = document.referrer;
+        } else if (media?.id) {
+            router.visit(`/detail/${media.id}`);
+        } else {
+            router.visit('/');
+        }
+    };
+
     // HTML5 Video State (Fallback)
     const [isPlaying, setIsPlaying] = useState<boolean>(true);
 
@@ -579,9 +589,9 @@ export default function WatchPage({
                     myListCount={myList.length}
                     showMyListOnly={false}
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
-                    showCategories={false}
+                    showCategories={true}
                 />
-                <div className="pt-24 px-4 sm:px-8 max-w-7xl mx-auto">
+                <div className="pt-28 px-4 sm:px-8 max-w-7xl mx-auto">
                     <StreamingSkeleton />
                 </div>
             </div>
@@ -620,27 +630,22 @@ export default function WatchPage({
                     myListCount={myList.length}
                     showMyListOnly={false}
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
-                    showCategories={false}
+                    showCategories={true}
                 />
 
                 {/* CINEMA PLAYER CONTAINER */}
-                <div className="pt-24 sm:pt-24 max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12 space-y-4">
+                <div className="pt-28 sm:pt-28 max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12 space-y-4">
                     {/* PLAYER HEADER BAR */}
                     <div className="relative z-30 p-3 sm:p-4 bg-slate-900/90 border border-white/10 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xl backdrop-blur-xl">
                         {/* Left: Back & Title */}
-                        <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
                             <button
-                                onClick={() => {
-                                    if (window.history.length > 1) {
-                                        window.history.back();
-                                    } else {
-                                        router.visit(`/detail/${media.id}`);
-                                    }
-                                }}
-                                className="p-2 rounded-xl bg-white/10 hover:bg-red-600 text-white transition active:scale-95 shrink-0"
-                                title="Kembali (Back)"
+                                onClick={handleGoBack}
+                                className="px-2.5 py-1.5 sm:px-3 sm:py-2 rounded-xl bg-slate-800/90 hover:bg-red-600 border border-white/15 text-white transition active:scale-95 shrink-0 flex items-center gap-1.5 shadow-md cursor-pointer group"
+                                title="Kembali"
                             >
-                                <ArrowLeft className="w-4 h-4" />
+                                <ArrowLeft className="w-4 h-4 text-red-400 group-hover:text-white transition-colors" />
+                                <span className="text-xs font-semibold">Kembali</span>
                             </button>
 
                             <div className="min-w-0">
