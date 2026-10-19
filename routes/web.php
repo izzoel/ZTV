@@ -262,8 +262,85 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         }
         curl_multi_close($mh);
 
-        // Stop as soon as valid streams are found in the prioritized batch
+        // Jika stream valid ditemukan, langsung lakukan targeted probe untuk semua varian resolusi file tersebut
         if (! empty($streams)) {
+            // Dapatkan pattern prefix dari stream pertama yang ditemukan
+            $firstUrl = $streams[0]['url'];
+            $dirPath = dirname($firstUrl);
+            $fileName = basename($firstUrl);
+            // Ekstrak nama dasar file sebelum resolusi (misal: "LANTERNS - S1E2" dari "LANTERNS - S1E2_1920x960.mp4")
+            $baseName = preg_replace('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', '', $fileName);
+            $baseName = preg_replace('/\.mp4$/i', '', $baseName);
+
+            if (! empty($baseName)) {
+                $targetResList = [
+                    '_1920x1080', '_1920x960', '_1920x800', '_1920x804', '_1920x1000',
+                    '_1280x720', '_1280x640', '_1280x534', '_1280x536', '_1280x666',
+                    '_854x480', '_640x360', '_640x320', '_640x266', '_640x268', '_640x334',
+                    '_3840x2160', '_1080p', '_720p', '_480p', '_360p', '_4K'
+                ];
+
+                $probeUrls = [];
+                $existingUrls = array_column($streams, 'url');
+
+                foreach ($targetResList as $tr) {
+                    $testUrl = "$dirPath/" . rawurlencode("{$baseName}{$tr}.mp4");
+                    if (! in_array($testUrl, $existingUrls)) {
+                        $probeUrls[] = $testUrl;
+                    }
+                }
+
+                if (! empty($probeUrls)) {
+                    $pmh = curl_multi_init();
+                    $pHandles = [];
+                    foreach ($probeUrls as $pUrl) {
+                        $pch = curl_init($pUrl);
+                        curl_setopt($pch, CURLOPT_NOBODY, true);
+                        curl_setopt($pch, CURLOPT_FOLLOWLOCATION, true);
+                        curl_setopt($pch, CURLOPT_CONNECTTIMEOUT, 3);
+                        curl_setopt($pch, CURLOPT_TIMEOUT, 5);
+                        curl_setopt($pch, CURLOPT_SSL_VERIFYPEER, false);
+                        curl_setopt($pch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
+                        curl_multi_add_handle($pmh, $pch);
+                        $pHandles[$pUrl] = $pch;
+                    }
+
+                    $pActive = null;
+                    do {
+                        $pmrc = curl_multi_exec($pmh, $pActive);
+                    } while ($pmrc == CURLM_CALL_MULTI_PERFORM);
+
+                    while ($pActive && $pmrc == CURLM_OK) {
+                        if (curl_multi_select($pmh, 0.1) == -1) {
+                            usleep(10000);
+                        }
+                        do {
+                            $pmrc = curl_multi_exec($pmh, $pActive);
+                        } while ($pmrc == CURLM_CALL_MULTI_PERFORM);
+                    }
+
+                    foreach ($pHandles as $pUrl => $pch) {
+                        $pCode = curl_getinfo($pch, CURLINFO_HTTP_CODE);
+                        curl_multi_remove_handle($pmh, $pch);
+                        curl_close($pch);
+
+                        if ($pCode >= 200 && $pCode < 400) {
+                            $pRes = 'Direct MP4';
+                            if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $pUrl, $pm)) {
+                                $pRes = $pm[1];
+                            }
+                            $streams[] = [
+                                'url' => $pUrl,
+                                'resolution' => $pRes,
+                                'label' => $pRes,
+                                'http_code' => $pCode,
+                            ];
+                        }
+                    }
+                    curl_multi_close($pmh);
+                }
+            }
+
             break;
         }
 
@@ -272,6 +349,41 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
             break;
         }
     }
+
+    // Deduplikasi stream berdasarkan resolusi dan URL
+    $uniqueStreams = [];
+    $seenKeys = [];
+    foreach ($streams as $st) {
+        $key = $st['resolution'] . '_' . $st['url'];
+        if (! isset($seenKeys[$key])) {
+            $seenKeys[$key] = true;
+            // Format label resolusi yang ramah pengguna
+            $rawRes = $st['resolution'];
+            $badge = $rawRes;
+            $userLabel = $rawRes;
+            if (preg_match('/1920x\d+|1080p?/i', $rawRes)) {
+                $badge = '1080p';
+                $userLabel = "1080p (FHD)";
+            } elseif (preg_match('/1280x\d+|720p?/i', $rawRes)) {
+                $badge = '720p';
+                $userLabel = "720p (HD)";
+            } elseif (preg_match('/(640x\d+|360p?)/i', $rawRes)) {
+                $badge = '360p';
+                $userLabel = "360p (SD)";
+            } elseif (preg_match('/(854x\d+|960x\d+|480p?)/i', $rawRes)) {
+                $badge = '480p';
+                $userLabel = "480p (SD)";
+            } elseif (preg_match('/(3840x\d+|2160p?|4k)/i', $rawRes)) {
+                $badge = '4K';
+                $userLabel = "4K (UHD)";
+            }
+
+            $st['badge'] = $badge;
+            $st['user_label'] = $userLabel;
+            $uniqueStreams[] = $st;
+        }
+    }
+    $streams = $uniqueStreams;
 
     usort($streams, function ($a, $b) {
         $numA = 0;

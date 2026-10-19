@@ -9,7 +9,7 @@ import {
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
 import { fetchMediaById, fetchTmdbEpisodes, fetchTmdbTvSeasons, translateText, isEngText } from '@/lib/tmdbService';
 import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
-import { checkZetwareMediaExists, ZetwareStreamOption, isZetwareDefaultEnabled } from '@/lib/zetwareStorage';
+import { checkZetwareMediaExists, ZetwareStreamOption, isZetwareDefaultEnabled, formatZetwareResolution } from '@/lib/zetwareStorage';
 import { fetchSubtitlesForMedia, convertSrtToVttBlob, SubtitleTrack } from '@/lib/subtitleService';
 import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
 import Navbar from '@/components/streaming/Navbar';
@@ -457,24 +457,40 @@ export default function WatchPage({
         ? `${zetwareDirectUrl.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1]} MP4`
         : 'Direct MP4';
 
+    const formatTime = (seconds: number) => {
+        if (isNaN(seconds)) return '00:00';
+        const mins = Math.floor(seconds / 60);
+        const secs = Math.floor(seconds % 60);
+        return `${mins < 10 ? '0' : ''}${mins}:${secs < 10 ? '0' : ''}${secs}`;
+    };
+
+    // Seamless resolution switching state
+    const savedPlaybackPositionRef = useRef<number>(0);
+    const shouldResumePlaybackRef = useRef<boolean>(true);
+    const isSwitchingResolutionRef = useRef<boolean>(false);
+    const [resolutionNotice, setResolutionNotice] = useState<string | null>(null);
+
     const handleSelectZetwareResolution = (newUrl: string) => {
         const videoEl = videoRef.current;
         const curTime = videoEl ? videoEl.currentTime : 0;
-        const isPaused = videoEl ? videoEl.paused : false;
+        const isPlayingNow = videoEl ? !videoEl.paused : true;
+
+        savedPlaybackPositionRef.current = curTime;
+        shouldResumePlaybackRef.current = isPlayingNow;
+        isSwitchingResolutionRef.current = true;
+
+        const targetStream = zetwareStreams.find((s) => s.url === newUrl);
+        const resInfo = formatZetwareResolution(
+            targetStream?.resolution || newUrl.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1]
+        );
+        const timeFormatted = formatTime(curTime);
+        setResolutionNotice(`⚡ Berpindah ke ${resInfo.label} • Menit ${timeFormatted}`);
+        setTimeout(() => setResolutionNotice(null), 3500);
 
         setZetwareDirectUrl(newUrl);
         setUseStreambertEmbed(false);
         setShowResolutionMenu(false);
         setShowSourceMenu(false);
-
-        setTimeout(() => {
-            if (videoRef.current) {
-                videoRef.current.currentTime = curTime;
-                if (!isPaused) {
-                    videoRef.current.play().catch(() => {});
-                }
-            }
-        }, 50);
     };
 
     const handleBaseUrlChange = (val: string) => {
@@ -784,12 +800,13 @@ export default function WatchPage({
                                                                         <span>Pilih Resolusi Video:</span>
                                                                     </span>
                                                                     <span className="text-slate-400 text-[11px]">
-                                                                        {detectedResolution}
+                                                                        {zetwareStreams.length} Opsi Tersedia
                                                                     </span>
                                                                 </div>
-                                                                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                                                                     {zetwareStreams.map((st) => {
                                                                         const isSelectedStream = !useStreambertEmbed && zetwareDirectUrl === st.url;
+                                                                        const resInfo = formatZetwareResolution(st.resolution);
                                                                         return (
                                                                             <button
                                                                                 key={st.url}
@@ -797,18 +814,22 @@ export default function WatchPage({
                                                                                 onClick={(e) => {
                                                                                     e.stopPropagation();
                                                                                     handleSelectZetwareResolution(st.url);
-                                                                                    setUseStreambertEmbed(false);
-                                                                                    setShowSourceMenu(false);
                                                                                 }}
-                                                                                className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 ${
+                                                                                className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer active:scale-95 border ${
                                                                                     isSelectedStream
-                                                                                        ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 font-black shadow-md shadow-amber-400/30 ring-1 ring-white/50'
-                                                                                        : 'bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border border-white/5'
+                                                                                        ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 border-amber-300 font-black shadow-md shadow-amber-400/30'
+                                                                                        : 'bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border-white/5'
                                                                                 }`}
                                                                             >
-                                                                                <Zap className={`w-3 h-3 ${isSelectedStream ? 'fill-slate-950 text-slate-950' : 'text-amber-400'}`} />
-                                                                                <span>{st.label} MP4</span>
-                                                                                {isSelectedStream && <Check className="w-3 h-3 stroke-[3]" />}
+                                                                                <span className="flex items-center gap-2 min-w-0">
+                                                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-black shrink-0 ${
+                                                                                        isSelectedStream ? 'bg-slate-950 text-amber-300' : 'bg-black/30 text-amber-400'
+                                                                                    }`}>
+                                                                                        {resInfo.badge}
+                                                                                    </span>
+                                                                                    <span className="truncate">{resInfo.label}</span>
+                                                                                </span>
+                                                                                {isSelectedStream && <Check className="w-3.5 h-3.5 stroke-[3] shrink-0" />}
                                                                             </button>
                                                                         );
                                                                     })}
@@ -1031,7 +1052,15 @@ export default function WatchPage({
                                 />
                             </>
                         ) : (
-                            <div className="relative w-full h-full flex items-center justify-center bg-black">
+                            <div className="relative w-full h-full flex items-center justify-center bg-black group">
+                                {/* Seamless Resolution Switch Notification Toast */}
+                                {resolutionNotice && (
+                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-2xl bg-slate-950/90 border border-amber-400/60 shadow-[0_0_20px_rgba(250,204,21,0.35)] backdrop-blur-xl flex items-center gap-2 text-xs font-bold text-amber-300 animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-none">
+                                        <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                                        <span>{resolutionNotice}</span>
+                                    </div>
+                                )}
+
                                 <video
                                     ref={videoRef}
                                     key={zetwareDirectUrl || media.videoUrl}
@@ -1039,6 +1068,24 @@ export default function WatchPage({
                                     autoPlay
                                     controls
                                     className="w-full h-full object-contain"
+                                    onLoadedMetadata={(e) => {
+                                        const video = e.currentTarget;
+                                        if (savedPlaybackPositionRef.current > 0) {
+                                            video.currentTime = savedPlaybackPositionRef.current;
+                                        }
+                                        if (shouldResumePlaybackRef.current) {
+                                            video.play().catch(() => {});
+                                        }
+                                    }}
+                                    onCanPlay={(e) => {
+                                        const video = e.currentTarget;
+                                        if (isSwitchingResolutionRef.current && savedPlaybackPositionRef.current > 0) {
+                                            if (Math.abs(video.currentTime - savedPlaybackPositionRef.current) > 1.5) {
+                                                video.currentTime = savedPlaybackPositionRef.current;
+                                            }
+                                            isSwitchingResolutionRef.current = false;
+                                        }
+                                    }}
                                 >
                                     {subtitles.map((sub) => (
                                         <track

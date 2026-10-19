@@ -7,6 +7,36 @@ export interface ZetwareStreamOption {
     url: string;
     resolution: string;
     label: string;
+    badge?: string;
+    user_label?: string;
+}
+
+export function formatZetwareResolution(res?: string | null): {
+    badge: string;
+    label: string;
+    detail: string;
+    raw: string;
+} {
+    if (!res) {
+        return { badge: 'MP4', label: 'Direct MP4', detail: 'Standar Kualitas', raw: '' };
+    }
+    const clean = res.trim();
+    if (/1920x\d+|1080p?/i.test(clean)) {
+        return { badge: '1080p', label: '1080p (FHD)', detail: 'Jernih Maksimal (Full HD)', raw: clean };
+    }
+    if (/1280x\d+|720p?/i.test(clean)) {
+        return { badge: '720p', label: '720p (HD)', detail: 'Definisi Tinggi (Seimbang)', raw: clean };
+    }
+    if (/640x\d+|360p?/i.test(clean)) {
+        return { badge: '360p', label: '360p (SD)', detail: 'Hemat Kuota & Cepat', raw: clean };
+    }
+    if (/854x\d+|960x\d+|480p?/i.test(clean)) {
+        return { badge: '480p', label: '480p (SD)', detail: 'Standar Definisi', raw: clean };
+    }
+    if (/3840x\d+|2160p?|4k/i.test(clean)) {
+        return { badge: '4K', label: '4K (UHD)', detail: 'Ultra High Definition Cinema', raw: clean };
+    }
+    return { badge: clean, label: `${clean} MP4`, detail: 'Direct Cloud MP4', raw: clean };
 }
 
 export interface ZetwareMediaCheckResult {
