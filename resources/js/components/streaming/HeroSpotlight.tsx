@@ -99,9 +99,6 @@ export default function HeroSpotlight({
                         <span className="px-2 py-0.5 rounded bg-white/10 text-white text-xs font-semibold backdrop-blur-md">
                             {currentItem.ageRating}
                         </span>
-                        <span className="px-2 py-0.5 rounded bg-white/10 text-white text-xs font-semibold backdrop-blur-md">
-                            {currentItem.quality}
-                        </span>
                     </div>
 
                     {/* Title */}

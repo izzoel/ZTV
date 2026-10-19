@@ -86,8 +86,6 @@ export default function MovieCard({
                         <span className="text-emerald-400 font-semibold">{item.matchScore}</span>
                         <span>•</span>
                         <span>{item.ageRating}</span>
-                        <span>•</span>
-                        <span>{item.quality}</span>
                     </div>
                     <div className="text-[10px] text-slate-400 mt-0.5 truncate">
                         {item.genres.slice(0, 2).join(' • ')}

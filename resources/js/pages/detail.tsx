@@ -393,6 +393,7 @@ export default function DetailPage({ id }: DetailPageProps) {
                     myListCount={myList.length}
                     showMyListOnly={false}
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
+                    showCategories={false}
                 />
                 <div className="pt-24 px-4 sm:px-8 max-w-7xl mx-auto">
                     <StreamingSkeleton />
@@ -433,10 +434,11 @@ export default function DetailPage({ id }: DetailPageProps) {
                     myListCount={myList.length}
                     showMyListOnly={false}
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
+                    showCategories={false}
                 />
 
                 {/* Back to Home Quick Floating Bar */}
-                <div className="pt-20 sm:pt-24 px-4 sm:px-8 max-w-7xl mx-auto">
+                <div className="pt-24 sm:pt-24 px-4 sm:px-8 max-w-7xl mx-auto">
                     <button
                         onClick={() => {
                             if (window.history.length > 1) {
@@ -504,10 +506,6 @@ export default function DetailPage({ id }: DetailPageProps) {
                                         {media.ageRating}
                                     </span>
                                     <span>•</span>
-                                    <span className="px-1.5 py-0.5 rounded bg-red-600/20 text-red-400 text-xs border border-red-500/30 font-bold">
-                                        {media.quality}
-                                    </span>
-                                    <span>•</span>
                                     <span>{media.duration}</span>
                                 </div>
 
@@ -531,7 +529,7 @@ export default function DetailPage({ id }: DetailPageProps) {
                                         className="px-6 py-3 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-sm sm:text-base flex items-center gap-2 shadow-xl shadow-red-600/40 hover:shadow-red-600/60 transition active:scale-95"
                                     >
                                         <Play className="w-5 h-5 fill-white" />
-                                        <span>Putar Sekarang</span>
+                                        <span>Putar</span>
                                     </Link>
 
                                     {/* Zetware Storage Available Badge */}
@@ -572,15 +570,7 @@ export default function DetailPage({ id }: DetailPageProps) {
                                         </span>
                                     </button>
 
-                                    {/* Target API Button */}
-                                    <button
-                                        onClick={() => setShowApiTargetModal(true)}
-                                        className="p-3 rounded-2xl bg-amber-500/20 hover:bg-amber-500/30 border border-amber-500/40 text-amber-300 transition active:scale-95 flex items-center gap-2 text-sm font-semibold"
-                                        title="Preview Query Parameter TMDb (tmdb_id, m3u8_url, title)"
-                                    >
-                                        <Code className="w-5 h-5 text-amber-400" />
-                                        <span className="hidden sm:inline">Target API</span>
-                                    </button>
+                                  
                                 </div>
                             </div>
                         </div>
@@ -668,12 +658,7 @@ export default function DetailPage({ id }: DetailPageProps) {
                                 </div>
                             )}
 
-                            <div>
-                                <span className="text-xs text-slate-400 uppercase tracking-wider block">TMDB ID:</span>
-                                <p className="text-xs font-mono text-amber-400 font-bold mt-0.5">
-                                    {targetTmdbId || 'N/A'}
-                                </p>
-                            </div>
+                           
                         </div>
                     </div>
 

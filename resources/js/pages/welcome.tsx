@@ -299,7 +299,7 @@ export default function Welcome() {
 
                         {/* Category & Genre Filter Pills (Always accessible on page) */}
                         {!showMyListOnly && (
-                            <div className={activeCategory !== 'Semua' || activeGenre !== 'Semua' ? 'pt-24 sm:pt-28' : ''}>
+                            <div className={activeCategory !== 'Semua' || activeGenre !== 'Semua' ? 'pt-28 sm:pt-28' : ''}>
                                 <CategoryPillFilter
                                     activeCategory={activeCategory}
                                     onSelectCategory={handleSelectCategory}
@@ -385,7 +385,7 @@ export default function Welcome() {
                                                 </span>
                                             </h1>
                                             <p className="text-sm text-slate-400 mt-1">
-                                                Menampilkan {filteredMedia.length} tayangan {isFilmCategory ? 'film' : isSeriesCategory ? 'series TV' : ''} berkualitas HD & 4K Ultra HD
+                                                Menampilkan {filteredMedia.length} tayangan {isFilmCategory ? 'film' : isSeriesCategory ? 'series TV' : ''}
                                             </p>
                                         </div>
                                         {activeCategory !== 'Semua' && (

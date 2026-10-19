@@ -129,10 +129,10 @@ export default function ZetwareGlowingBadge({
                         }`}
                     />
                 </div>
-                <span className="text-white font-extrabold text-xs">⚡ Zetware Cloud</span>
-                <span className="text-[10px] text-amber-300/80 font-semibold">
+                {/* <span className="text-white font-extrabold text-xs">⚡ Zetware Cloud</span> */}
+                {/* <span className="text-[10px] text-amber-300/80 font-semibold">
                     {isDefault ? 'Default ON' : 'Pilih'}
-                </span>
+                </span> */}
             </button>
         );
     }

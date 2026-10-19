@@ -171,11 +171,7 @@ export default function MovieDetailModal({
                     <div className="absolute inset-0 bg-gradient-to-r from-slate-950/90 via-slate-950/40 to-transparent" />
 
                     <div className="absolute bottom-4 left-4 right-4 sm:bottom-6 sm:left-6 sm:right-6 space-y-2.5 sm:space-y-3">
-                        <div className="flex items-center gap-2">
-                            <span className="px-2.5 py-0.5 rounded bg-white/10 text-white text-xs font-semibold backdrop-blur-md">
-                                {item.quality}
-                            </span>
-                        </div>
+
 
                         <h2 className="text-2xl sm:text-4xl font-black text-white uppercase tracking-tight drop-shadow-lg leading-tight">
                             {item.title}

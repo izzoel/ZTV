@@ -13,6 +13,7 @@ interface NavbarProps {
     showMyListOnly: boolean;
     onToggleMyListOnly: (show: boolean) => void;
     catalogMedia?: MediaItem[];
+    showCategories?: boolean;
 }
 
 export interface NotificationItem {
@@ -34,7 +35,8 @@ export default function Navbar({
     myListCount,
     showMyListOnly,
     onToggleMyListOnly,
-    catalogMedia = []
+    catalogMedia = [],
+    showCategories = true,
 }: NavbarProps) {
     const { language, setLanguage, t } = useLanguage();
     const { auth } = usePage().props as any;
@@ -81,7 +83,7 @@ export default function Navbar({
             badge: '⚡ ZETWARE CLOUD',
             badgeColor: 'bg-emerald-500/30 text-emerald-300 border-emerald-500/40 ring-1 ring-emerald-500/30',
             title: 'Tersedia di Zetware Cloud: HOPE (2026)',
-            message: 'Film blockbuster sci-fi/thriller "HOPE" karya Na Hong-jin kini resmi tersedia di Zetware Cloud! Nikmati streaming super cepat beresolusi FHD 1920x800 & HD 1280x534 tanpa iklan.',
+            message: 'Film blockbuster sci-fi/thriller "HOPE" karya Na Hong-jin kini resmi tersedia di Zetware Cloud! Nikmati streaming super cepat tanpa iklan.',
             time: 'Baru Saja',
             media: hopeCloudItem,
             isRead: false,
@@ -91,10 +93,10 @@ export default function Navbar({
             const item0 = pool[0];
             list.push({
                 id: 'notif-1',
-                badge: 'RILIS 4K',
+                badge: 'RILIS TERBARU',
                 badgeColor: 'bg-red-600/30 text-red-400 border-red-500/30',
                 title: item0.title,
-                message: `Tayangan terbaru kini tersedia dalam kualitas ${item0.quality}. Tonton aksi seru ${item0.title} sekarang!`,
+                message: `Tayangan terbaru kini tersedia. Tonton aksi seru ${item0.title} sekarang!`,
                 time: '10m lalu',
                 media: item0,
                 isRead: false
@@ -214,12 +216,12 @@ export default function Navbar({
         <header
             className={`fixed top-0 left-0 right-0 z-40 transition-all duration-300 ${
                 isScrolled
-                    ? 'bg-slate-950/90 backdrop-blur-xl border-b border-white/10 shadow-2xl py-3'
-                    : 'bg-gradient-to-b from-slate-950/90 via-slate-950/50 to-transparent py-5'
+                    ? 'bg-slate-950/95 backdrop-blur-xl border-b border-white/10 shadow-2xl py-1.5 sm:py-3'
+                    : 'bg-gradient-to-b from-slate-950/95 via-slate-950/80 to-transparent py-2 sm:py-5'
             }`}
         >
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
-                {/* Left side: Brand Logo & Navigation */}
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 flex items-center justify-between gap-2 sm:gap-4">
+                {/* Left side: Brand Logo & Desktop Navigation */}
                 <div className="flex items-center gap-2 sm:gap-6 lg:gap-8 min-w-0">
                     <button
                         onClick={() => {
@@ -227,100 +229,102 @@ export default function Navbar({
                         }}
                         className="flex items-center gap-2 group text-left cursor-pointer shrink-0"
                     >
-                        <div className="relative flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 shadow-lg shadow-red-600/30 group-hover:scale-105 transition-transform duration-300">
-                            <span className="font-black text-white text-lg sm:text-xl tracking-wider">Z</span>
-                            {/* <div className="absolute -top-1 -right-1 w-2.5 h-2.5 sm:w-3 sm:h-3 bg-cyan-400 rounded-full animate-ping opacity-75" /> */}
+                        <div className="relative flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-gradient-to-br from-red-600 via-rose-600 to-amber-500 shadow-md shadow-red-600/30 group-hover:scale-105 transition-transform duration-300">
+                            <span className="font-black text-white text-base sm:text-xl tracking-wider">Z</span>
                         </div>
                         <div className="flex flex-col">
-                            <span className="font-extrabold text-xl sm:text-2xl tracking-tighter text-white drop-shadow-sm flex items-center gap-1">
-                                ZTV <span className="text-[10px] sm:text-xs font-semibold px-1 sm:px-1.5 py-0.5 rounded bg-red-600/30 border border-red-500/50 text-red-400">STREAM</span>
+                            <span className="font-extrabold text-base sm:text-2xl tracking-tighter text-white drop-shadow-sm flex items-center gap-1 leading-none">
+                                ZTV <span className="text-[9px] sm:text-xs font-semibold px-1 sm:px-1.5 py-0.5 rounded bg-red-600/30 border border-red-500/50 text-red-400 leading-none">STREAM</span>
                             </span>
-                            <span className="hidden sm:block text-[10px] text-slate-400 -mt-1 font-medium tracking-widest uppercase">Premium Cinema</span>
+                            <span className="hidden sm:block text-[10px] text-slate-400 mt-0.5 font-medium tracking-widest uppercase">Premium Cinema</span>
                         </div>
                     </button>
 
-                    {/* Primary Links - Always visible across mobile, tablet, and desktop */}
-                    <nav className="flex items-center gap-1 sm:gap-1.5 lg:gap-2 overflow-x-auto no-scrollbar py-0.5">
-                        <button
-                            onClick={() => {
-                                onSelectCategory('Semua');
-                            }}
-                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all shrink-0 ${
-                                activeCategory === 'Semua' && !showMyListOnly
-                                    ? 'bg-white text-slate-950 shadow-md font-semibold'
-                                    : 'text-slate-300 hover:text-white hover:bg-white/10'
-                            }`}
-                        >
-                            {t('nav_home')}
-                        </button>
-                        <button
-                            onClick={() => {
-                                onSelectCategory('Film');
-                            }}
-                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
-                                (activeCategory === 'Film' || activeCategory === 'Movies') && !showMyListOnly
-                                    ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-semibold'
-                                    : 'text-slate-300 hover:text-white hover:bg-white/10'
-                            }`}
-                        >
-                            <Film className="w-3.5 h-3.5" />
-                            <span>{t('nav_movies')}</span>
-                        </button>
-                        <button
-                            onClick={() => {
-                                onSelectCategory('Series TV');
-                            }}
-                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
-                                (activeCategory === 'Series TV' || activeCategory === 'Serial TV' || activeCategory === 'TV Series') && !showMyListOnly
-                                    ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-semibold'
-                                    : 'text-slate-300 hover:text-white hover:bg-white/10'
-                            }`}
-                        >
-                            <Tv className="w-3.5 h-3.5" />
-                            <span>{t('nav_series')}</span>
-                        </button>
-                        <button
-                            onClick={() => onToggleMyListOnly(true)}
-                            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
-                                showMyListOnly
-                                    ? 'bg-amber-500 text-slate-950 font-semibold shadow-md'
-                                    : 'text-slate-300 hover:text-white hover:bg-white/10'
-                            }`}
-                        >
-                            <Bookmark className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">{t('nav_my_list')}</span>
-                            {myListCount > 0 && (
-                                <span className="ml-0.5 sm:ml-1 px-1.5 py-0.2 text-[10px] bg-red-600 text-white rounded-full font-bold">
-                                    {myListCount}
-                                </span>
-                            )}
-                        </button>
-                    </nav>
+                    {/* Primary Links - Visible on tablet and desktop */}
+                    {showCategories && (
+                        <nav className="hidden sm:flex items-center gap-1 sm:gap-1.5 lg:gap-2 overflow-x-auto no-scrollbar py-0.5">
+                            <button
+                                onClick={() => {
+                                    onSelectCategory('Semua');
+                                }}
+                                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all shrink-0 ${
+                                    activeCategory === 'Semua' && !showMyListOnly
+                                        ? 'bg-white text-slate-950 shadow-md font-semibold'
+                                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                {t('nav_home')}
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onSelectCategory('Film');
+                                }}
+                                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
+                                    (activeCategory === 'Film' || activeCategory === 'Movies') && !showMyListOnly
+                                        ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-semibold'
+                                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                <Film className="w-3.5 h-3.5" />
+                                <span>{t('nav_movies')}</span>
+                            </button>
+                            <button
+                                onClick={() => {
+                                    onSelectCategory('Series TV');
+                                }}
+                                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
+                                    (activeCategory === 'Series TV' || activeCategory === 'Serial TV' || activeCategory === 'TV Series') && !showMyListOnly
+                                        ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-semibold'
+                                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                <Tv className="w-3.5 h-3.5" />
+                                <span>{t('nav_series')}</span>
+                            </button>
+                            <button
+                                onClick={() => onToggleMyListOnly(true)}
+                                className={`px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-xs sm:text-sm font-medium transition-all flex items-center gap-1 sm:gap-1.5 shrink-0 ${
+                                    showMyListOnly
+                                        ? 'bg-amber-500 text-slate-950 font-semibold shadow-md'
+                                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                                }`}
+                            >
+                                <Bookmark className="w-3.5 h-3.5" />
+                                <span className="hidden sm:inline">{t('nav_my_list')}</span>
+                                {myListCount > 0 && (
+                                    <span className="ml-0.5 sm:ml-1 px-1.5 py-0.2 text-[10px] bg-red-600 text-white rounded-full font-bold">
+                                        {myListCount}
+                                    </span>
+                                )}
+                            </button>
+                        </nav>
+                    )}
                 </div>
 
                 {/* Right side: Search, Notifications, Language, Profile */}
-                <div className="flex items-center gap-2 sm:gap-3">
+                <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
                     {/* Language Switcher Pill */}
                     <button
                         onClick={() => setLanguage(language === 'id' ? 'en' : 'id')}
-                        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-slate-900/90 hover:bg-slate-800 border border-white/15 text-xs text-white transition-all cursor-pointer shadow-md active:scale-95 shrink-0"
+                        className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 text-xs text-slate-300 hover:text-white transition-all cursor-pointer shadow-sm active:scale-95 shrink-0"
                         title={language === 'id' ? 'Switch to English' : 'Ganti ke Bahasa Indonesia'}
                     >
                         <Globe className="w-3.5 h-3.5 text-red-400" />
-                        <span className="font-bold uppercase text-[11px] tracking-wider">{language === 'id' ? 'ID' : 'EN'}</span>
+                        <span className="font-bold uppercase text-[10px] sm:text-[11px] tracking-wider">{language === 'id' ? 'ID' : 'EN'}</span>
                     </button>
+
                     {/* Search Bar */}
                     <div className="relative">
                         {isSearchOpen ? (
-                            <div className="flex items-center bg-slate-900/90 border border-white/20 rounded-full px-3 py-1.5 w-48 sm:w-64 md:w-80 shadow-xl transition-all">
-                                <Search className="w-4 h-4 text-slate-400 mr-2 shrink-0" />
+                            <div className="flex items-center bg-slate-900/95 border border-white/20 rounded-full px-2.5 py-1 sm:px-3 sm:py-1.5 w-40 sm:w-64 md:w-80 shadow-xl transition-all">
+                                <Search className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-slate-400 mr-1.5 shrink-0" />
                                 <input
                                     type="text"
                                     placeholder={t('nav_search_placeholder')}
                                     value={searchQuery}
                                     onChange={(e) => setSearchQuery(e.target.value)}
                                     autoFocus
-                                    className="bg-transparent text-sm text-white focus:outline-none w-full placeholder:text-slate-400"
+                                    className="bg-transparent text-xs sm:text-sm text-white focus:outline-none w-full placeholder:text-slate-400"
                                 />
                                 <button
                                     onClick={() => {
@@ -329,22 +333,22 @@ export default function Navbar({
                                     }}
                                     className="text-slate-400 hover:text-white ml-1 p-0.5 rounded-full"
                                 >
-                                    <X className="w-4 h-4" />
+                                    <X className="w-3.5 h-3.5" />
                                 </button>
                             </div>
                         ) : (
                             <button
                                 onClick={() => setIsSearchOpen(true)}
-                                className="p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition"
+                                className="p-1.5 sm:p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition"
                                 title="Cari Film"
                             >
-                                <Search className="w-5 h-5" />
+                                <Search className="w-4 h-4 sm:w-5 sm:h-5" />
                             </button>
                         )}
 
                         {/* Search Autocomplete Results Overlay */}
                         {isSearchOpen && searchResults.length > 0 && (
-                            <div className="fixed sm:absolute top-16 sm:top-12 left-3 right-3 sm:left-auto sm:right-0 w-auto sm:w-96 bg-slate-950/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-2 z-50 max-h-[75vh] overflow-y-auto divide-y divide-white/5 animate-in fade-in duration-200">
+                            <div className="fixed sm:absolute top-24 sm:top-12 left-3 right-3 sm:left-auto sm:right-0 w-auto sm:w-96 bg-slate-950/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl p-2 z-50 max-h-[75vh] overflow-y-auto divide-y divide-white/5 animate-in fade-in duration-200">
                                 <div className="px-3 py-1.5 text-xs font-semibold text-slate-400 uppercase tracking-wider">
                                     Hasil Pencarian ({searchResults.length})
                                 </div>
@@ -395,20 +399,20 @@ export default function Navbar({
                                 setShowNotifications(!showNotifications);
                                 setShowProfileMenu(false);
                             }}
-                            className="p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition relative active:scale-95 cursor-pointer"
+                            className="p-1.5 sm:p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition relative active:scale-95 cursor-pointer"
                             title="Notifikasi & Rilis Baru"
                             aria-label="Notifikasi"
                         >
-                            <Bell className="w-5 h-5" />
+                            <Bell className="w-4 h-4 sm:w-5 sm:h-5" />
                             {unreadCount > 0 && (
-                                <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-600 text-white font-extrabold text-[10px] rounded-full flex items-center justify-center ring-2 ring-slate-950 animate-pulse">
+                                <span className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 sm:w-4 sm:h-4 bg-red-600 text-white font-extrabold text-[9px] sm:text-[10px] rounded-full flex items-center justify-center ring-2 ring-slate-950 animate-pulse">
                                     {unreadCount}
                                 </span>
                             )}
                         </button>
 
                         {showNotifications && (
-                            <div className="fixed sm:absolute top-16 sm:top-14 left-3 right-3 sm:left-auto sm:right-0 w-auto sm:w-[400px] md:w-[440px] bg-slate-950/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl shadow-black/80 p-4 sm:p-5 z-50 text-slate-200 text-sm max-h-[80vh] sm:max-h-[520px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 border-t-2 border-t-red-600">
+                            <div className="fixed sm:absolute top-24 sm:top-14 left-3 right-3 sm:left-auto sm:right-0 w-auto sm:w-[400px] md:w-[440px] bg-slate-950/95 backdrop-blur-2xl border border-white/15 rounded-2xl shadow-2xl shadow-black/80 p-4 sm:p-5 z-50 text-slate-200 text-sm max-h-[80vh] sm:max-h-[520px] overflow-y-auto animate-in fade-in zoom-in-95 duration-200 border-t-2 border-t-red-600">
                                 {/* Header */}
                                 <div className="flex items-center justify-between pb-3.5 border-b border-white/10">
                                     <div className="flex items-center gap-2">
@@ -536,15 +540,15 @@ export default function Navbar({
                         ) : (
                             <Link
                                 href="/login"
-                                className="px-4 py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-medium text-sm shadow-lg shadow-red-600/30 transition-all flex items-center gap-1.5"
+                                className="px-2.5 py-1 sm:px-4 sm:py-1.5 rounded-full bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-semibold text-xs sm:text-sm shadow-md shadow-red-600/30 transition-all flex items-center gap-1.5 shrink-0"
                             >
-                                <User className="w-4 h-4" />
-                                Masuk
+                                <User className="w-3.5 h-3.5" />
+                                <span>Masuk</span>
                             </Link>
                         )}
 
                         {showProfileMenu && auth?.user && (
-                            <div className="absolute top-12 right-0 w-56 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-2 z-50">
+                            <div className="fixed sm:absolute top-24 sm:top-12 right-3 sm:right-0 w-56 bg-slate-900/95 backdrop-blur-2xl border border-white/10 rounded-2xl shadow-2xl p-2 z-50">
                                 <div className="px-3 py-2 border-b border-white/10">
                                     <p className="text-sm font-semibold text-white truncate">{auth.user.name}</p>
                                     <p className="text-xs text-slate-400 truncate">{auth.user.email}</p>
@@ -581,6 +585,63 @@ export default function Navbar({
                     </div>
                 </div>
             </div>
+
+            {/* Mobile Sub-Navigation Bar: Beranda, Film, Series TV, Daftar Saya */}
+            {showCategories && (
+                <div className="sm:hidden max-w-7xl mx-auto px-3 pt-1.5 pb-1 border-t border-white/5 bg-slate-950/40 backdrop-blur-md">
+                    <nav className="flex items-center justify-between gap-1 overflow-x-auto no-scrollbar py-0.5">
+                        <button
+                            onClick={() => {
+                                onSelectCategory('Semua');
+                            }}
+                            className={`flex-1 py-1 px-1.5 rounded-full text-xs font-medium transition-all text-center whitespace-nowrap ${
+                                activeCategory === 'Semua' && !showMyListOnly
+                                    ? 'bg-white/15 text-white font-bold border border-white/20 shadow-sm'
+                                    : 'text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            {t('nav_home')}
+                        </button>
+                        <button
+                            onClick={() => {
+                                onSelectCategory('Film');
+                            }}
+                            className={`flex-1 py-1 px-1.5 rounded-full text-xs font-medium transition-all text-center whitespace-nowrap ${
+                                (activeCategory === 'Film' || activeCategory === 'Movies') && !showMyListOnly
+                                    ? 'bg-red-600/30 text-red-400 font-bold border border-red-500/40 shadow-sm'
+                                    : 'text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            {t('nav_movies')}
+                        </button>
+                        <button
+                            onClick={() => {
+                                onSelectCategory('Series TV');
+                            }}
+                            className={`flex-1 py-1 px-1.5 rounded-full text-xs font-medium transition-all text-center whitespace-nowrap ${
+                                (activeCategory === 'Series TV' || activeCategory === 'Serial TV' || activeCategory === 'TV Series') && !showMyListOnly
+                                    ? 'bg-red-600/30 text-red-400 font-bold border border-red-500/40 shadow-sm'
+                                    : 'text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            {t('nav_series')}
+                        </button>
+                        <button
+                            onClick={() => onToggleMyListOnly(true)}
+                            className={`flex-1 py-1 px-1.5 rounded-full text-xs font-medium transition-all text-center whitespace-nowrap flex items-center justify-center gap-1 ${
+                                showMyListOnly
+                                    ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/30 shadow-sm'
+                                    : 'text-slate-400 hover:text-white'
+                            }`}
+                        >
+                            <span>{t('nav_my_list')}</span>
+                            {myListCount > 0 && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 inline-block animate-pulse" />
+                            )}
+                        </button>
+                    </nav>
+                </div>
+            )}
         </header>
     );
 }

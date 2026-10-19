@@ -579,6 +579,7 @@ export default function WatchPage({
                     myListCount={myList.length}
                     showMyListOnly={false}
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
+                    showCategories={false}
                 />
                 <div className="pt-24 px-4 sm:px-8 max-w-7xl mx-auto">
                     <StreamingSkeleton />
@@ -619,10 +620,11 @@ export default function WatchPage({
                     myListCount={myList.length}
                     showMyListOnly={false}
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
+                    showCategories={false}
                 />
 
                 {/* CINEMA PLAYER CONTAINER */}
-                <div className="pt-20 sm:pt-24 max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12 space-y-4">
+                <div className="pt-24 sm:pt-24 max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12 space-y-4">
                     {/* PLAYER HEADER BAR */}
                     <div className="relative z-30 p-3 sm:p-4 bg-slate-900/90 border border-white/10 rounded-2xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-3 shadow-xl backdrop-blur-xl">
                         {/* Left: Back & Title */}
