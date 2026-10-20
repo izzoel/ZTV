@@ -71,9 +71,6 @@ export default function Top10Row({
                     <div className="w-2 h-8 bg-gradient-to-b from-red-500 to-rose-600 rounded-full shadow-lg shadow-red-600/50 animate-pulse" />
                     <h2 className="text-lg sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
                         Top 10 Hari Ini di Indonesia
-                        <span className="hidden sm:inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full bg-red-600/20 border border-red-500/30 text-red-400 font-mono">
-                            <Sparkles className="w-3 h-3 text-red-400 animate-spin" /> LIVE RANKING
-                        </span>
                     </h2>
                 </div>
 
