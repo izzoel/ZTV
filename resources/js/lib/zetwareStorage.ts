@@ -21,21 +21,53 @@ export function formatZetwareResolution(res?: string | null): {
         return { badge: 'MP4', label: 'Direct MP4', detail: 'Standar Kualitas', raw: '' };
     }
     const clean = res.trim();
-    if (/1920x\d+|1080p?/i.test(clean)) {
-        return { badge: '1080p', label: '1080p (FHD)', detail: 'Jernih Maksimal (Full HD)', raw: clean };
-    }
-    if (/1280x\d+|720p?/i.test(clean)) {
-        return { badge: '720p', label: '720p (HD)', detail: 'Definisi Tinggi (Seimbang)', raw: clean };
-    }
-    if (/640x\d+|360p?/i.test(clean)) {
-        return { badge: '360p', label: '360p (SD)', detail: 'Hemat Kuota & Cepat', raw: clean };
-    }
-    if (/854x\d+|960x\d+|480p?/i.test(clean)) {
-        return { badge: '480p', label: '480p (SD)', detail: 'Standar Definisi', raw: clean };
-    }
-    if (/3840x\d+|2160p?|4k/i.test(clean)) {
+
+    // Hanya mencek angka resolusi pertama (misal: 640x268 -> hanya mencek 640 saja)
+    // agar semua varian resolusi dapat terdeteksi dengan tepat
+    const firstNumMatch = clean.match(/(\d+)/);
+    const firstNum = firstNumMatch ? parseInt(firstNumMatch[1], 10) : null;
+    const is4k = /4k/i.test(clean) || (firstNum !== null && (firstNum === 3840 || firstNum === 2160 || firstNum >= 3840));
+
+    if (is4k) {
         return { badge: '4K', label: '4K (UHD)', detail: 'Ultra High Definition Cinema', raw: clean };
     }
+
+    if (firstNum !== null) {
+        // 1920 (FHD / 1080p)
+        if (firstNum === 1920 || firstNum === 1080 || (firstNum >= 1400 && firstNum < 3840)) {
+            return { badge: '1080p', label: '1080p (FHD)', detail: 'Jernih Maksimal (Full HD)', raw: clean };
+        }
+        // 1280 (HD / 720p)
+        if (firstNum === 1280 || firstNum === 720 || (firstNum >= 1000 && firstNum < 1400)) {
+            return { badge: '720p', label: '720p (HD)', detail: 'Definisi Tinggi (Seimbang)', raw: clean };
+        }
+        // 854 / 960 / 480 (SD / 480p)
+        if (firstNum === 854 || firstNum === 960 || firstNum === 480 || (firstNum >= 700 && firstNum < 1000)) {
+            return { badge: '480p', label: '480p (SD)', detail: 'Standar Definisi', raw: clean };
+        }
+        // 640 / 360 (SD / 360p - misal 640x268, 640x360, 640x320, 640x266, 640)
+        if (firstNum === 640 || firstNum === 360 || (firstNum >= 300 && firstNum < 700)) {
+            return { badge: '360p', label: '360p (SD)', detail: 'Hemat Kuota & Cepat', raw: clean };
+        }
+        // Resolusi rendah (< 300)
+        if (firstNum < 300) {
+            return { badge: '240p', label: '240p (SD)', detail: 'Hemat Kuota', raw: clean };
+        }
+    }
+
+    if (/1080p?/i.test(clean)) {
+        return { badge: '1080p', label: '1080p (FHD)', detail: 'Jernih Maksimal (Full HD)', raw: clean };
+    }
+    if (/720p?/i.test(clean)) {
+        return { badge: '720p', label: '720p (HD)', detail: 'Definisi Tinggi (Seimbang)', raw: clean };
+    }
+    if (/480p?/i.test(clean)) {
+        return { badge: '480p', label: '480p (SD)', detail: 'Standar Definisi', raw: clean };
+    }
+    if (/360p?/i.test(clean)) {
+        return { badge: '360p', label: '360p (SD)', detail: 'Hemat Kuota & Cepat', raw: clean };
+    }
+
     return { badge: clean, label: `${clean} MP4`, detail: 'Direct Cloud MP4', raw: clean };
 }
 
@@ -73,6 +105,12 @@ const COMMON_RESOLUTIONS = [
     '_854x356',   // 2.39:1 480p
     '_960x480',   // 2:1 480p
     '_3840x2160', // 4K 16:9
+    '_1920',
+    '_1280',
+    '_960',
+    '_854',
+    '_640',
+    '_3840',
     '_1080p',
     '_720p',
     '_480p',

@@ -44,12 +44,12 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         $season = (int) ($request->input('season') ?? $request->query('season') ?? 1);
         $episode = (int) ($request->input('episode') ?? $request->query('episode') ?? 1);
 
-        // Prioritize resolutions matching actual files on Zetware Cloud
         $resolutions = [
             '_1920x800', '_1920x804', '_1920x1000', '_1920x960', '_1920x1080',
             '_1280x534', '_1280x536', '_1280x666', '_1280x640', '_1280x720',
             '_640x266', '_640x268', '_640x334', '_640x320', '_640x360',
-            '_854x480', '_854x356', '_3840x2160',
+            '_854x480', '_854x356', '_960x480', '_3840x2160',
+            '_1920', '_1280', '_960', '_854', '_640', '_3840',
             '_1080p', '_720p', '_480p', '_360p', '_4K', ''
         ];
 
@@ -277,8 +277,9 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
                 $targetResList = [
                     '_1920x1080', '_1920x1000', '_1920x960', '_1920x804', '_1920x800',
                     '_1280x720', '_1280x666', '_1280x640', '_1280x536', '_1280x534',
-                    '_854x480', '_854x356', '_640x360', '_640x334', '_640x320', '_640x268', '_640x266',
-                    '_3840x2160', '_1080p', '_720p', '_480p', '_360p', '_4K', '_4k'
+                    '_854x480', '_854x356', '_960x480', '_640x360', '_640x334', '_640x320', '_640x268', '_640x266',
+                    '_3840x2160', '_1920', '_1280', '_960', '_854', '_640', '_3840',
+                    '_1080p', '_720p', '_480p', '_360p', '_4K', '_4k'
                 ];
 
                 $probeUrls = [];
@@ -358,25 +359,50 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         $key = $st['resolution'] . '_' . $st['url'];
         if (! isset($seenKeys[$key])) {
             $seenKeys[$key] = true;
-            // Format label resolusi yang ramah pengguna
+            // Format label resolusi: hanya mencek angka resolusi pertama (misal: 640x268 -> hanya mencek 640 saja)
             $rawRes = $st['resolution'];
             $badge = $rawRes;
             $userLabel = $rawRes;
-            if (preg_match('/1920x\d+|1080p?/i', $rawRes)) {
-                $badge = '1080p';
-                $userLabel = "1080p (FHD)";
-            } elseif (preg_match('/1280x\d+|720p?/i', $rawRes)) {
-                $badge = '720p';
-                $userLabel = "720p (HD)";
-            } elseif (preg_match('/(640x\d+|360p?)/i', $rawRes)) {
-                $badge = '360p';
-                $userLabel = "360p (SD)";
-            } elseif (preg_match('/(854x\d+|960x\d+|480p?)/i', $rawRes)) {
-                $badge = '480p';
-                $userLabel = "480p (SD)";
-            } elseif (preg_match('/(3840x\d+|2160p?|4k)/i', $rawRes)) {
+
+            $firstNum = null;
+            if (preg_match('/(\d+)/', $rawRes, $numMatch)) {
+                $firstNum = (int) $numMatch[1];
+            }
+            $is4k = (stripos($rawRes, '4k') !== false) || ($firstNum !== null && ($firstNum >= 3840 || $firstNum === 2160));
+
+            if ($is4k) {
                 $badge = '4K';
                 $userLabel = "4K (UHD)";
+            } elseif ($firstNum !== null) {
+                // 1920 (FHD / 1080p)
+                if ($firstNum === 1920 || $firstNum === 1080 || ($firstNum >= 1400 && $firstNum < 3840)) {
+                    $badge = '1080p';
+                    $userLabel = "1080p (FHD)";
+                } elseif ($firstNum === 1280 || $firstNum === 720 || ($firstNum >= 1000 && $firstNum < 1400)) {
+                    $badge = '720p';
+                    $userLabel = "720p (HD)";
+                } elseif ($firstNum === 854 || $firstNum === 960 || $firstNum === 480 || ($firstNum >= 700 && $firstNum < 1000)) {
+                    $badge = '480p';
+                    $userLabel = "480p (SD)";
+                } elseif ($firstNum === 640 || $firstNum === 360 || ($firstNum >= 300 && $firstNum < 700)) {
+                    $badge = '360p';
+                    $userLabel = "360p (SD)";
+                } elseif ($firstNum < 300) {
+                    $badge = '240p';
+                    $userLabel = "240p (SD)";
+                }
+            } elseif (preg_match('/1080p?/i', $rawRes)) {
+                $badge = '1080p';
+                $userLabel = "1080p (FHD)";
+            } elseif (preg_match('/720p?/i', $rawRes)) {
+                $badge = '720p';
+                $userLabel = "720p (HD)";
+            } elseif (preg_match('/480p?/i', $rawRes)) {
+                $badge = '480p';
+                $userLabel = "480p (SD)";
+            } elseif (preg_match('/360p?/i', $rawRes)) {
+                $badge = '360p';
+                $userLabel = "360p (SD)";
             }
 
             $st['badge'] = $badge;
@@ -387,26 +413,33 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
     $streams = $uniqueStreams;
 
     usort($streams, function ($a, $b) {
-        $numA = 0;
-        $numB = 0;
-        if (preg_match('/(\d+)x(\d+)/i', $a['resolution'], $ma)) {
-            $numA = (int) $ma[1] * (int) $ma[2];
-        } elseif (preg_match('/(\d+)p?/i', $a['resolution'], $ma)) {
-            $numA = (int) $ma[1] * 1000;
+        $firstNumA = 0;
+        $firstNumB = 0;
+        if (preg_match('/(\d+)/', $a['resolution'], $ma)) {
+            $firstNumA = (int) $ma[1];
         } elseif (stripos($a['resolution'], '4k') !== false) {
-            $numA = 4000 * 1000;
+            $firstNumA = 3840;
         }
 
-        if (preg_match('/(\d+)x(\d+)/i', $b['resolution'], $mb)) {
-            $numB = (int) $mb[1] * (int) $mb[2];
-        } elseif (preg_match('/(\d+)p?/i', $b['resolution'], $mb)) {
-            $numB = (int) $mb[1] * 1000;
+        if (preg_match('/(\d+)/', $b['resolution'], $mb)) {
+            $firstNumB = (int) $mb[1];
         } elseif (stripos($b['resolution'], '4k') !== false) {
-            $numB = 4000 * 1000;
+            $firstNumB = 3840;
         }
 
-        if ($numB !== $numA) {
-            return $numB <=> $numA;
+        $mapWidth = function ($num) {
+            if ($num === 1080) return 1920;
+            if ($num === 720) return 1280;
+            if ($num === 480) return 854;
+            if ($num === 360) return 640;
+            return $num;
+        };
+
+        $wA = $mapWidth($firstNumA);
+        $wB = $mapWidth($firstNumB);
+
+        if ($wB !== $wA) {
+            return $wB <=> $wA;
         }
 
         // Prioritize subfolder URLs (more slashes after /storage/movies/)
