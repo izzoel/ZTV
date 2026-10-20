@@ -74,6 +74,10 @@ export async function fetchSubtitlesForMedia(
  */
 export function convertSrtToVttBlob(srtText: string): string {
     let clean = srtText.replace(/^\uFEFF/, '').replace(/\r\n|\r/g, '\n');
+    // Strip ASS/SSA tags like {\lan8}, {\an8}, {\pos(...)}, {\c&H...}, {\b1}, etc.
+    clean = clean.replace(/\{[^}\r\n]*\}/g, '');
+    clean = clean.replace(/<\/?font[^>]*>/gi, '');
+
     let vtt = clean;
 
     if (!clean.trim().startsWith('WEBVTT')) {

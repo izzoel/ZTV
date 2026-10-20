@@ -45,10 +45,13 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         $episode = (int) ($request->input('episode') ?? $request->query('episode') ?? 1);
 
         $resolutions = [
-            '_1920x800', '_1920x804', '_1920x1000', '_1920x960', '_1920x1080',
-            '_1280x534', '_1280x536', '_1280x666', '_1280x640', '_1280x720',
-            '_640x266', '_640x268', '_640x334', '_640x320', '_640x360',
-            '_854x480', '_854x356', '_960x480', '_3840x2160',
+            '_1920x800', '_1920x802', '_1920x804', '_1920x806', '_1920x808', '_1920x810', '_1920x812', '_1920x816', '_1920x820',
+            '_1920x960', '_1920x1000', '_1920x1080',
+            '_1280x532', '_1280x534', '_1280x536', '_1280x538', '_1280x540', '_1280x542', '_1280x544',
+            '_1280x640', '_1280x666', '_1280x720',
+            '_640x264', '_640x266', '_640x268', '_640x270', '_640x272', '_640x320', '_640x334', '_640x360',
+            '_854x356', '_854x358', '_854x360', '_854x480', '_960x480',
+            '_3840x2160', '_3840x1600', '_3840x1604',
             '_1920', '_1280', '_960', '_854', '_640', '_3840',
             '_1080p', '_720p', '_480p', '_360p', '_4K', ''
         ];
@@ -208,14 +211,81 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         ]);
     }
 
-    // Chunk checking into batches (16 URLs at a time) for speed and to avoid timeouts
-    $batches = array_chunk($validCandidates, 16);
     $streams = [];
 
-    foreach ($batches as $batchIndex => $batch) {
-        $mh = curl_multi_init();
-        $handles = [];
-        foreach ($batch as $url) {
+    // 0. PRIMARY LOCAL STORAGE SCAN (HOSTINGER / CPANEL):
+    // Jika aplikasi berjalan di server Hostinger yang sama dengan zetware.id (u834748983),
+    // langsung baca direktori storage lokal agar 100% mendeteksi semua resolusi (seperti ANIMALS_1920x802.mp4)
+    $possibleStorageDirs = [
+        '/home/u834748983/domains/zetware.id/public_html/storage/movies',
+        '/home/u834748983/domains/zetware.id/public_html/storage/movie',
+        '/home/u834748983/public_html/storage/movies',
+        public_path('storage/movies'),
+        dirname(base_path()) . '/domains/zetware.id/public_html/storage/movies',
+        dirname(dirname(base_path())) . '/domains/zetware.id/public_html/storage/movies',
+        dirname(base_path()) . '/zetware.id/public_html/storage/movies',
+        dirname(dirname(base_path())) . '/zetware.id/public_html/storage/movies',
+    ];
+
+    $localBaseDir = null;
+    foreach ($possibleStorageDirs as $pDir) {
+        if (is_dir($pDir)) {
+            $localBaseDir = $pDir;
+            break;
+        }
+    }
+
+    if ($localBaseDir && ! empty($folderVariants)) {
+        foreach ($folderVariants as $folder) {
+            $targetDirPath = "$localBaseDir/$folder";
+            if (is_dir($targetDirPath)) {
+                $scanned = scandir($targetDirPath);
+                if ($scanned !== false) {
+                    foreach ($scanned as $fn) {
+                        if (! str_ends_with(strtolower($fn), '.mp4')) continue;
+
+                        if ($type === 'series') {
+                            $matchEp = false;
+                            foreach ($epPatterns as $ep) {
+                                if (stripos($fn, $ep) !== false) {
+                                    $matchEp = true;
+                                    break;
+                                }
+                            }
+                            if (! $matchEp) continue;
+                        }
+
+                        $res = 'Direct MP4';
+                        if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $fn, $m)) {
+                            $res = $m[1];
+                        }
+
+                        $encF = rawurlencode($folder);
+                        $encFn = rawurlencode($fn);
+                        $streams[] = [
+                            'url' => "https://zetware.id/storage/movies/{$encF}/{$encFn}",
+                            'resolution' => $res,
+                            'label' => $res,
+                            'http_code' => 200,
+                        ];
+                    }
+                }
+                if (! empty($streams)) {
+                    break;
+                }
+            }
+        }
+    }
+
+    // Jika belum ditemukan dari direktori lokal, lakukan probing via HTTP curl
+    if (empty($streams)) {
+        // Chunk checking into batches (16 URLs at a time) for speed and to avoid timeouts
+        $batches = array_chunk($validCandidates, 16);
+
+        foreach ($batches as $batchIndex => $batch) {
+            $mh = curl_multi_init();
+            $handles = [];
+            foreach ($batch as $url) {
             $ch = curl_init($url);
             curl_setopt($ch, CURLOPT_NOBODY, true);
             curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -275,10 +345,14 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
 
             if (! empty($rawBaseName)) {
                 $targetResList = [
-                    '_1920x1080', '_1920x1000', '_1920x960', '_1920x804', '_1920x800',
-                    '_1280x720', '_1280x666', '_1280x640', '_1280x536', '_1280x534',
-                    '_854x480', '_854x356', '_960x480', '_640x360', '_640x334', '_640x320', '_640x268', '_640x266',
-                    '_3840x2160', '_1920', '_1280', '_960', '_854', '_640', '_3840',
+                    '_1920x800', '_1920x802', '_1920x804', '_1920x806', '_1920x808', '_1920x810', '_1920x812', '_1920x816', '_1920x820',
+                    '_1920x960', '_1920x1000', '_1920x1080',
+                    '_1280x532', '_1280x534', '_1280x536', '_1280x538', '_1280x540', '_1280x542', '_1280x544',
+                    '_1280x640', '_1280x666', '_1280x720',
+                    '_640x264', '_640x266', '_640x268', '_640x270', '_640x272', '_640x320', '_640x334', '_640x360',
+                    '_854x356', '_854x358', '_854x360', '_854x480', '_960x480',
+                    '_3840x2160', '_3840x1600', '_3840x1604',
+                    '_1920', '_1280', '_960', '_854', '_640', '_3840',
                     '_1080p', '_720p', '_480p', '_360p', '_4K', '_4k'
                 ];
 
@@ -351,6 +425,7 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
             break;
         }
     }
+}
 
     // Deduplikasi stream berdasarkan resolusi dan URL
     $uniqueStreams = [];
@@ -623,7 +698,7 @@ $subtitlesVttProxyHandler = function (\Illuminate\Http\Request $request) {
         return response("WEBVTT\n\n", 400, ['Content-Type' => 'text/vtt; charset=utf-8']);
     }
 
-    $cacheKey = 'vtt_' . md5($targetUrl);
+    $cacheKey = 'vtt_clean_' . md5($targetUrl);
     $vttContent = \Illuminate\Support\Facades\Cache::remember($cacheKey, 86400, function () use ($targetUrl) {
         $ch = curl_init($targetUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -641,6 +716,11 @@ $subtitlesVttProxyHandler = function (\Illuminate\Http\Request $request) {
         // Clean UTF-8 BOM
         $clean = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
         $clean = str_replace(["\r\n", "\r"], "\n", $clean);
+
+        // Strip ASS/SSA tags like {\lan8}, {\an8}, {\pos(...)}, {\c&H...}, {\b1}, etc.
+        $clean = preg_replace('/\{[^}\r\n]*\}/', '', $clean);
+        // Strip residual font tags
+        $clean = preg_replace('/<\/?font[^>]*>/i', '', $clean);
 
         // Check if already WebVTT
         if (str_starts_with(trim($clean), 'WEBVTT')) {
