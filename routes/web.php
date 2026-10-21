@@ -776,6 +776,8 @@ Route::get('/api/subtitles/vtt', $subtitlesVttProxyHandler);
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::inertia('dashboard/cloud-media', 'cloud-media')->name('dashboard.cloud-media');
+    Route::inertia('dashboard/database-media', 'database-media')->name('dashboard.database-media');
 });
 
 require __DIR__.'/settings.php';

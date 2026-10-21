@@ -1,10 +1,12 @@
 import { Link } from '@inertiajs/react';
 import {
     BookOpen,
+    Cloud,
+    Film,
     FolderGit2,
     LayoutGrid,
-    Tv,
     ShieldCheck,
+    Tv,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -27,6 +29,16 @@ const mainNavItems: NavItem[] = [
         title: 'Dashboard Admin',
         href: dashboard(),
         icon: LayoutGrid,
+    },
+    {
+        title: 'Zetware Media Cloud',
+        href: '/dashboard/cloud-media',
+        icon: Cloud,
+    },
+    {
+        title: 'Database Media',
+        href: '/dashboard/database-media',
+        icon: Film,
     },
     {
         title: 'Beranda Streaming',
