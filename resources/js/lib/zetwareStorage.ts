@@ -9,6 +9,7 @@ export interface ZetwareStreamOption {
     label: string;
     badge?: string;
     user_label?: string;
+    http_code?: number;
 }
 
 export function formatZetwareResolution(res?: string | null): {
