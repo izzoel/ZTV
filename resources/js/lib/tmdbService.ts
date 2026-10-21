@@ -47,14 +47,17 @@ const GENRE_MAP: Record<number, string> = {
  * Perform authorized request to TMDB API
  */
 
-export async function fetchFromTmdb(endpoint: string, params: Record<string, string> = {}): Promise<any> {
+export async function fetchFromTmdb(
+    endpoint: string,
+    params: Record<string, string> = {},
+): Promise<any> {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
 
     try {
         const url = new URL(`${TMDB_BASE_URL}${endpoint}`);
         url.searchParams.set('language', 'id-ID'); // Preferred Indonesian language metadata
-        
+
         Object.entries(params).forEach(([key, val]) => {
             url.searchParams.set(key, val);
         });
@@ -91,13 +94,33 @@ const translationCache = new Map<string, string>();
 export const isEngText = (text: string): boolean => {
     if (!text) return false;
     const lower = ` ${text.toLowerCase()} `;
-    return [' the ', ' and ', ' with ', ' from ', ' after ', ' that ', ' when ', ' in a ', ' of ', ' to ', ' his ', ' her ', ' their ', ' he ', ' she '].some(w => lower.includes(w));
+    return [
+        ' the ',
+        ' and ',
+        ' with ',
+        ' from ',
+        ' after ',
+        ' that ',
+        ' when ',
+        ' in a ',
+        ' of ',
+        ' to ',
+        ' his ',
+        ' her ',
+        ' their ',
+        ' he ',
+        ' she ',
+    ].some((w) => lower.includes(w));
 };
 
 /**
  * Translate text between English and Indonesian using free Google Translate service
  */
-export async function translateText(text: string, from: 'en' | 'id' = 'en', to: 'id' | 'en' = 'id'): Promise<string> {
+export async function translateText(
+    text: string,
+    from: 'en' | 'id' = 'en',
+    to: 'id' | 'en' = 'id',
+): Promise<string> {
     if (!text || text.trim().length === 0) return '';
     if (from === to) return text;
 
@@ -107,7 +130,9 @@ export async function translateText(text: string, from: 'en' | 'id' = 'en', to: 
     }
 
     try {
-        const url = new URL('https://translate.googleapis.com/translate_a/single');
+        const url = new URL(
+            'https://translate.googleapis.com/translate_a/single',
+        );
         url.searchParams.set('client', 'gtx');
         url.searchParams.set('sl', from);
         url.searchParams.set('tl', to);
@@ -137,15 +162,23 @@ export function formatTmdbItemToMedia(
     item: any,
     forceType?: 'movie' | 'series',
     isOriginal: boolean = false,
-    enOverviewMap?: Map<number | string, string>
+    enOverviewMap?: Map<number | string, string>,
 ): MediaItem | null {
     if (!item || (!item.poster_path && !item.backdrop_path)) return null;
 
-    const isMovie = forceType ? forceType === 'movie' : (item.media_type === 'movie' || Boolean(item.release_date));
-    const title = item.title || item.name || item.original_title || item.original_name || 'Judul Film';
-    const releaseDate = item.release_date || item.first_air_date || '2025-01-01';
+    const isMovie = forceType
+        ? forceType === 'movie'
+        : item.media_type === 'movie' || Boolean(item.release_date);
+    const title =
+        item.title ||
+        item.name ||
+        item.original_title ||
+        item.original_name ||
+        'Judul Film';
+    const releaseDate =
+        item.release_date || item.first_air_date || '2025-01-01';
     const year = parseInt(releaseDate.split('-')[0]) || 2025;
-    
+
     // Map genres directly from genre_ids or genre objects
     const genreNames: string[] = [];
     if (item.genres && Array.isArray(item.genres)) {
@@ -165,7 +198,10 @@ export function formatTmdbItemToMedia(
     }
 
     const voteAvg = item.vote_average ? item.vote_average.toFixed(1) : '8.5';
-    const matchVal = Math.min(99, Math.max(82, Math.round((item.vote_average || 8) * 10)));
+    const matchVal = Math.min(
+        99,
+        Math.max(82, Math.round((item.vote_average || 8) * 10)),
+    );
 
     const posterUrl = item.poster_path
         ? `${TMDB_IMG_POSTER}${item.poster_path}`
@@ -209,7 +245,7 @@ export function formatTmdbItemToMedia(
         rating: voteAvg,
         matchScore: `${matchVal}% Cocok`,
         year: year,
-        ageRating: item.adult ? '18+' : (item.vote_average > 7.8 ? '16+' : '13+'),
+        ageRating: item.adult ? '18+' : item.vote_average > 7.8 ? '16+' : '13+',
         duration: isMovie ? '2j 15m' : '1 Musim (10 Episode)',
         quality: item.vote_average > 8.0 ? '4K Ultra HD' : 'HD',
         genres: genreNames,
@@ -219,27 +255,32 @@ export function formatTmdbItemToMedia(
         director: '',
         posterUrl: posterUrl,
         backdropUrl: backdropUrl,
-        videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
+        videoUrl:
+            'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/TearsOfSteel.mp4',
         isOriginal: isOriginal,
         isTrending: true,
-        episodes: !isMovie ? [
-            {
-                id: `ep-1-${item.id}`,
-                episodeNumber: 1,
-                title: 'Eps 1: Permulaan',
-                duration: '45m',
-                thumbnail: backdropUrl,
-                synopsis: 'Episode pertama memperkenalkan karakter utama dan konflik mendasar cerita.'
-            },
-            {
-                id: `ep-2-${item.id}`,
-                episodeNumber: 2,
-                title: 'Eps 2: Konflik Utama',
-                duration: '50m',
-                thumbnail: backdropUrl,
-                synopsis: 'Ketegangan semakin memuncak saat rahasia tersembunyi mulai terungkap.'
-            }
-        ] : undefined
+        episodes: !isMovie
+            ? [
+                  {
+                      id: `ep-1-${item.id}`,
+                      episodeNumber: 1,
+                      title: 'Eps 1: Permulaan',
+                      duration: '45m',
+                      thumbnail: backdropUrl,
+                      synopsis:
+                          'Episode pertama memperkenalkan karakter utama dan konflik mendasar cerita.',
+                  },
+                  {
+                      id: `ep-2-${item.id}`,
+                      episodeNumber: 2,
+                      title: 'Eps 2: Konflik Utama',
+                      duration: '50m',
+                      thumbnail: backdropUrl,
+                      synopsis:
+                          'Ketegangan semakin memuncak saat rahasia tersembunyi mulai terungkap.',
+                  },
+              ]
+            : undefined,
     };
 }
 
@@ -250,8 +291,14 @@ export async function searchTmdbContent(query: string): Promise<MediaItem[]> {
     if (!query || query.trim().length < 2) return [];
     try {
         const [resId, resEn] = await Promise.all([
-            fetchFromTmdb('/search/multi', { query: query.trim(), language: 'id-ID' }),
-            fetchFromTmdb('/search/multi', { query: query.trim(), language: 'en-US' }),
+            fetchFromTmdb('/search/multi', {
+                query: query.trim(),
+                language: 'id-ID',
+            }),
+            fetchFromTmdb('/search/multi', {
+                query: query.trim(),
+                language: 'en-US',
+            }),
         ]);
 
         const enMap = new Map<number | string, string>();
@@ -263,10 +310,15 @@ export async function searchTmdbContent(query: string): Promise<MediaItem[]> {
             });
         }
 
-        if (!resId || !resId.results || !Array.isArray(resId.results)) return [];
+        if (!resId || !resId.results || !Array.isArray(resId.results))
+            return [];
         return resId.results
-            .map((item: any) => formatTmdbItemToMedia(item, undefined, false, enMap))
-            .filter((item: MediaItem | null): item is MediaItem => item !== null)
+            .map((item: any) =>
+                formatTmdbItemToMedia(item, undefined, false, enMap),
+            )
+            .filter(
+                (item: MediaItem | null): item is MediaItem => item !== null,
+            )
             .slice(0, 10);
     } catch {
         return [];
@@ -286,11 +338,16 @@ export async function fetchLiveTmdbCatalog(): Promise<{
     all: MediaItem[];
 }> {
     const [
-        trendingRes, trendingEnRes,
-        popularMoviesRes, popularMoviesEnRes,
-        popularTvRes, popularTvEnRes,
-        actionRes, actionEnRes,
-        horrorRes, horrorEnRes
+        trendingRes,
+        trendingEnRes,
+        popularMoviesRes,
+        popularMoviesEnRes,
+        popularTvRes,
+        popularTvEnRes,
+        actionRes,
+        actionEnRes,
+        horrorRes,
+        horrorEnRes,
     ] = await Promise.all([
         fetchFromTmdb('/trending/all/day', { language: 'id-ID' }),
         fetchFromTmdb('/trending/all/day', { language: 'en-US' }),
@@ -298,10 +355,26 @@ export async function fetchLiveTmdbCatalog(): Promise<{
         fetchFromTmdb('/movie/popular', { language: 'en-US' }),
         fetchFromTmdb('/tv/popular', { language: 'id-ID' }),
         fetchFromTmdb('/tv/popular', { language: 'en-US' }),
-        fetchFromTmdb('/discover/movie', { with_genres: '28,878', sort_by: 'popularity.desc', language: 'id-ID' }),
-        fetchFromTmdb('/discover/movie', { with_genres: '28,878', sort_by: 'popularity.desc', language: 'en-US' }),
-        fetchFromTmdb('/discover/movie', { with_genres: '27,53', sort_by: 'popularity.desc', language: 'id-ID' }),
-        fetchFromTmdb('/discover/movie', { with_genres: '27,53', sort_by: 'popularity.desc', language: 'en-US' }),
+        fetchFromTmdb('/discover/movie', {
+            with_genres: '28,878',
+            sort_by: 'popularity.desc',
+            language: 'id-ID',
+        }),
+        fetchFromTmdb('/discover/movie', {
+            with_genres: '28,878',
+            sort_by: 'popularity.desc',
+            language: 'en-US',
+        }),
+        fetchFromTmdb('/discover/movie', {
+            with_genres: '27,53',
+            sort_by: 'popularity.desc',
+            language: 'id-ID',
+        }),
+        fetchFromTmdb('/discover/movie', {
+            with_genres: '27,53',
+            sort_by: 'popularity.desc',
+            language: 'en-US',
+        }),
     ]);
 
     const enOverviewMap = new Map<number | string, string>();
@@ -312,15 +385,31 @@ export async function fetchLiveTmdbCatalog(): Promise<{
         ...(actionEnRes?.results || []),
         ...(horrorEnRes?.results || []),
     ].forEach((item: any) => {
-        if (item && item.id && item.overview && item.overview.trim().length > 5) {
+        if (
+            item &&
+            item.id &&
+            item.overview &&
+            item.overview.trim().length > 5
+        ) {
             enOverviewMap.set(item.id, item.overview.trim());
         }
     });
 
-    const formatList = (results: any[], forceType?: 'movie' | 'series', isOriginal: boolean = false) => {
+    const formatList = (
+        results: any[],
+        forceType?: 'movie' | 'series',
+        isOriginal: boolean = false,
+    ) => {
         if (!results || !Array.isArray(results)) return [];
         return results
-            .map((item) => formatTmdbItemToMedia(item, forceType, isOriginal, enOverviewMap))
+            .map((item) =>
+                formatTmdbItemToMedia(
+                    item,
+                    forceType,
+                    isOriginal,
+                    enOverviewMap,
+                ),
+            )
             .filter((item): item is MediaItem => item !== null);
     };
 
@@ -332,7 +421,10 @@ export async function fetchLiveTmdbCatalog(): Promise<{
 
     // Build Featured Items for Hero Carousel (top 5 rated/trending items)
     const featured = [...trending, ...popularMovies]
-        .filter((item, index, self) => index === self.findIndex((t) => t.tmdbId === item.tmdbId))
+        .filter(
+            (item, index, self) =>
+                index === self.findIndex((t) => t.tmdbId === item.tmdbId),
+        )
         .slice(0, 5);
 
     // Build Top 10 with rank numbers 1..10
@@ -342,7 +434,14 @@ export async function fetchLiveTmdbCatalog(): Promise<{
 
     // Combined catalog deduplicated by tmdbId
     const allMap = new Map<string | number, MediaItem>();
-    [...featured, ...trending, ...popularMovies, ...popularTv, ...actionMovies, ...horrorMovies].forEach((item) => {
+    [
+        ...featured,
+        ...trending,
+        ...popularMovies,
+        ...popularTv,
+        ...actionMovies,
+        ...horrorMovies,
+    ].forEach((item) => {
         if (item.tmdbId && !allMap.has(item.tmdbId)) {
             allMap.set(item.tmdbId, item);
         }
@@ -354,9 +453,16 @@ export async function fetchLiveTmdbCatalog(): Promise<{
         return {
             featured: FALLBACK_MOVIES.slice(0, 3),
             trending: FALLBACK_MOVIES,
-            top10: FALLBACK_MOVIES.slice(0, 10).map((m, idx) => ({ ...m, top10Rank: idx + 1 })),
-            action: FALLBACK_MOVIES.filter((m) => m.genres.some((g) => g.includes('Aksi'))),
-            horror: FALLBACK_MOVIES.filter((m) => m.genres.some((g) => g.includes('Horor'))),
+            top10: FALLBACK_MOVIES.slice(0, 10).map((m, idx) => ({
+                ...m,
+                top10Rank: idx + 1,
+            })),
+            action: FALLBACK_MOVIES.filter((m) =>
+                m.genres.some((g) => g.includes('Aksi')),
+            ),
+            horror: FALLBACK_MOVIES.filter((m) =>
+                m.genres.some((g) => g.includes('Horor')),
+            ),
             series: FALLBACK_MOVIES.filter((m) => m.type === 'series'),
             all: FALLBACK_MOVIES,
         };
@@ -365,10 +471,19 @@ export async function fetchLiveTmdbCatalog(): Promise<{
     return {
         featured: featured.length > 0 ? featured : FALLBACK_MOVIES.slice(0, 3),
         trending: trending.length > 0 ? trending : FALLBACK_MOVIES,
-        top10: top10.length > 0 ? top10 : FALLBACK_MOVIES.slice(0, 10).map((m, idx) => ({ ...m, top10Rank: idx + 1 })),
+        top10:
+            top10.length > 0
+                ? top10
+                : FALLBACK_MOVIES.slice(0, 10).map((m, idx) => ({
+                      ...m,
+                      top10Rank: idx + 1,
+                  })),
         action: actionMovies.length > 0 ? actionMovies : FALLBACK_MOVIES,
         horror: horrorMovies.length > 0 ? horrorMovies : FALLBACK_MOVIES,
-        series: popularTv.length > 0 ? popularTv : FALLBACK_MOVIES.filter((m) => m.type === 'series'),
+        series:
+            popularTv.length > 0
+                ? popularTv
+                : FALLBACK_MOVIES.filter((m) => m.type === 'series'),
         all: all,
     };
 }
@@ -378,7 +493,7 @@ export async function fetchLiveTmdbCatalog(): Promise<{
  */
 export async function fetchMoreTmdbContent(
     type: 'movie' | 'series',
-    page: number
+    page: number,
 ): Promise<MediaItem[]> {
     try {
         const endpoint = type === 'movie' ? '/movie/popular' : '/tv/popular';
@@ -396,10 +511,15 @@ export async function fetchMoreTmdbContent(
             });
         }
 
-        if (!resId || !resId.results || !Array.isArray(resId.results)) return [];
+        if (!resId || !resId.results || !Array.isArray(resId.results))
+            return [];
         return resId.results
-            .map((item: any) => formatTmdbItemToMedia(item, type, type === 'series', enMap))
-            .filter((item: MediaItem | null): item is MediaItem => item !== null);
+            .map((item: any) =>
+                formatTmdbItemToMedia(item, type, type === 'series', enMap),
+            )
+            .filter(
+                (item: MediaItem | null): item is MediaItem => item !== null,
+            );
     } catch {
         return [];
     }
@@ -410,28 +530,39 @@ export async function fetchMoreTmdbContent(
  */
 export async function fetchTmdbCredits(
     tmdbId: number | string,
-    type: 'movie' | 'series'
+    type: 'movie' | 'series',
 ): Promise<{ cast: string[]; director: string }> {
     if (!tmdbId) return { cast: [], director: '' };
     try {
-        const endpoint = type === 'movie' ? `/movie/${tmdbId}/credits` : `/tv/${tmdbId}/credits`;
+        const endpoint =
+            type === 'movie'
+                ? `/movie/${tmdbId}/credits`
+                : `/tv/${tmdbId}/credits`;
         const res = await fetchFromTmdb(endpoint);
         if (!res) return { cast: [], director: '' };
 
-        const castNames: string[] = res.cast && Array.isArray(res.cast)
-            ? res.cast.slice(0, 5).map((c: any) => c.name)
-            : [];
+        const castNames: string[] =
+            res.cast && Array.isArray(res.cast)
+                ? res.cast.slice(0, 5).map((c: any) => c.name)
+                : [];
 
         let directorName = '';
         if (res.crew && Array.isArray(res.crew)) {
-            const dirObj = res.crew.find((c: any) => c.job === 'Director' || c.known_for_department === 'Directing');
+            const dirObj = res.crew.find(
+                (c: any) =>
+                    c.job === 'Director' ||
+                    c.known_for_department === 'Directing',
+            );
             if (dirObj) {
                 directorName = dirObj.name;
             }
         }
         if (!directorName && res.cast && res.cast.length > 0) {
             // For series, creators are sometimes listed under created_by, or first cast lead
-            const createdObj = res.crew?.find((c: any) => c.job === 'Executive Producer' || c.job === 'Producer');
+            const createdObj = res.crew?.find(
+                (c: any) =>
+                    c.job === 'Executive Producer' || c.job === 'Producer',
+            );
             if (createdObj) {
                 directorName = createdObj.name;
             } else {
@@ -441,7 +572,7 @@ export async function fetchTmdbCredits(
 
         return {
             cast: castNames,
-            director: directorName || 'Sutradara Utama'
+            director: directorName || 'Sutradara Utama',
         };
     } catch {
         return { cast: [], director: '' };
@@ -453,7 +584,7 @@ export async function fetchTmdbCredits(
  */
 export async function fetchTmdbEpisodes(
     tmdbId: number | string,
-    seasonNumber: number = 1
+    seasonNumber: number = 1,
 ): Promise<Episode[]> {
     if (!tmdbId) return [];
     try {
@@ -463,14 +594,17 @@ export async function fetchTmdbEpisodes(
         return res.episodes.map((ep: any) => ({
             id: `ep-${ep.id || ep.episode_number}-${tmdbId}`,
             episodeNumber: ep.episode_number || 1,
-            title: ep.name ? `Eps ${ep.episode_number}: ${ep.name}` : `Episode ${ep.episode_number}`,
+            title: ep.name
+                ? `Eps ${ep.episode_number}: ${ep.name}`
+                : `Episode ${ep.episode_number}`,
             duration: ep.runtime ? `${ep.runtime}m` : '45m',
             thumbnail: ep.still_path
                 ? `${TMDB_IMG_POSTER}${ep.still_path}`
                 : 'https://images.unsplash.com/photo-1534447677768-be436bb09401?q=80&w=1000&auto=format&fit=crop',
-            synopsis: ep.overview && ep.overview.trim().length > 5
-                ? ep.overview
-                : 'Sinopsis belum tersedia'
+            synopsis:
+                ep.overview && ep.overview.trim().length > 5
+                    ? ep.overview
+                    : 'Sinopsis belum tersedia',
         }));
     } catch {
         return [];
@@ -481,9 +615,10 @@ export async function fetchTmdbEpisodes(
  * Fetch real TV Series Season list & metadata from TMDB API
  */
 export async function fetchTmdbTvSeasons(
-    tmdbId: number | string
+    tmdbId: number | string,
 ): Promise<{ seasonNumber: number; name: string; episodeCount: number }[]> {
-    if (!tmdbId) return [{ seasonNumber: 1, name: 'Musim 1', episodeCount: 10 }];
+    if (!tmdbId)
+        return [{ seasonNumber: 1, name: 'Musim 1', episodeCount: 10 }];
     try {
         const res = await fetchFromTmdb(`/tv/${tmdbId}`);
         if (!res || !res.seasons || !Array.isArray(res.seasons)) {
@@ -498,7 +633,9 @@ export async function fetchTmdbTvSeasons(
                 episodeCount: s.episode_count || 10,
             }));
 
-        return filtered.length > 0 ? filtered : [{ seasonNumber: 1, name: 'Musim 1', episodeCount: 10 }];
+        return filtered.length > 0
+            ? filtered
+            : [{ seasonNumber: 1, name: 'Musim 1', episodeCount: 10 }];
     } catch {
         return [{ seasonNumber: 1, name: 'Musim 1', episodeCount: 10 }];
     }
@@ -507,13 +644,15 @@ export async function fetchTmdbTvSeasons(
 /**
  * Fetch a single MediaItem by ID (from FALLBACK_MOVIES or TMDB Live API)
  */
-export async function fetchMediaById(id: string | number): Promise<MediaItem | null> {
+export async function fetchMediaById(
+    id: string | number,
+): Promise<MediaItem | null> {
     const strId = String(id).trim();
     if (!strId) return null;
 
     // 1. Check in FALLBACK_MOVIES
     const foundFallback = FALLBACK_MOVIES.find(
-        (m) => m.id === strId || String(m.tmdbId) === strId
+        (m) => m.id === strId || String(m.tmdbId) === strId,
     );
     if (foundFallback) {
         return foundFallback;
@@ -545,10 +684,18 @@ export async function fetchMediaById(id: string | number): Promise<MediaItem | n
 
                 // Jika overview Indonesia kosong atau masih bahasa Inggris, terjemahkan dari overview EN
                 if ((!idOverview || isEngText(idOverview)) && enOverview) {
-                    const translatedId = await translateText(enOverview, 'en', 'id');
+                    const translatedId = await translateText(
+                        enOverview,
+                        'en',
+                        'id',
+                    );
                     if (translatedId) idOverview = translatedId;
                 } else if (!enOverview && idOverview) {
-                    const translatedEn = await translateText(idOverview, 'id', 'en');
+                    const translatedEn = await translateText(
+                        idOverview,
+                        'id',
+                        'en',
+                    );
                     if (translatedEn) enOverview = translatedEn;
                 }
 
@@ -571,10 +718,18 @@ export async function fetchMediaById(id: string | number): Promise<MediaItem | n
 
             // Jika overview Indonesia kosong atau masih bahasa Inggris, terjemahkan dari overview EN
             if ((!idOverview || isEngText(idOverview)) && enOverview) {
-                const translatedId = await translateText(enOverview, 'en', 'id');
+                const translatedId = await translateText(
+                    enOverview,
+                    'en',
+                    'id',
+                );
                 if (translatedId) idOverview = translatedId;
             } else if (!enOverview && idOverview) {
-                const translatedEn = await translateText(idOverview, 'id', 'en');
+                const translatedEn = await translateText(
+                    idOverview,
+                    'id',
+                    'en',
+                );
                 if (translatedEn) enOverview = translatedEn;
             }
 
@@ -596,10 +751,18 @@ export async function fetchMediaById(id: string | number): Promise<MediaItem | n
                 let enOverview = tvEn?.overview?.trim() || '';
 
                 if ((!idOverview || isEngText(idOverview)) && enOverview) {
-                    const translatedId = await translateText(enOverview, 'en', 'id');
+                    const translatedId = await translateText(
+                        enOverview,
+                        'en',
+                        'id',
+                    );
                     if (translatedId) idOverview = translatedId;
                 } else if (!enOverview && idOverview) {
-                    const translatedEn = await translateText(idOverview, 'id', 'en');
+                    const translatedEn = await translateText(
+                        idOverview,
+                        'id',
+                        'en',
+                    );
                     if (translatedEn) enOverview = translatedEn;
                 }
 
@@ -615,4 +778,3 @@ export async function fetchMediaById(id: string | number): Promise<MediaItem | n
 
     return null;
 }
-

@@ -20,19 +20,22 @@ export const PLAYER_SOURCES: PlayerSource[] = [
     {
         id: 'vidsrc',
         label: 'VidSrc (VsEmbed)',
-        description: 'Server utama tercepat dengan kualitas hingga 4K Ultra HD & subtitle otomatis',
+        description:
+            'Server utama tercepat dengan kualitas hingga 4K Ultra HD & subtitle otomatis',
         tag: '4K',
         supportsProgress: true,
         colorParam: null,
         langParam: 'ds_lang',
         params: {},
         movieUrl: (id) => `https://vsembed.su/embed/movie/${id}`,
-        tvUrl: (id, season, ep) => `https://vsembed.su/embed/tv/${id}/${season}/${ep}`,
+        tvUrl: (id, season, ep) =>
+            `https://vsembed.su/embed/tv/${id}/${season}/${ep}`,
     },
     {
         id: 'videasy',
         label: 'Videasy Engine',
-        description: 'Server streaming HD cepat dengan dukungan subtitle otomatis',
+        description:
+            'Server streaming HD cepat dengan dukungan subtitle otomatis',
         tag: 'HD',
         supportsProgress: true,
         colorParam: 'color',
@@ -41,7 +44,8 @@ export const PLAYER_SOURCES: PlayerSource[] = [
             overlay: 'true',
         },
         movieUrl: (id) => `https://player.videasy.to/movie/${id}`,
-        tvUrl: (id, season, ep) => `https://player.videasy.to/tv/${id}/${season}/${ep}`,
+        tvUrl: (id, season, ep) =>
+            `https://player.videasy.to/tv/${id}/${season}/${ep}`,
     },
     {
         id: 'vidking',
@@ -55,7 +59,8 @@ export const PLAYER_SOURCES: PlayerSource[] = [
             autoPlay: 'true',
         },
         movieUrl: (id) => `https://www.vidking.net/embed/movie/${id}`,
-        tvUrl: (id, season, ep) => `https://www.vidking.net/embed/tv/${id}/${season}/${ep}`,
+        tvUrl: (id, season, ep) =>
+            `https://www.vidking.net/embed/tv/${id}/${season}/${ep}`,
     },
     {
         id: 'vidlink',
@@ -69,7 +74,8 @@ export const PLAYER_SOURCES: PlayerSource[] = [
             autoplay: 'false',
         },
         movieUrl: (id) => `https://vidlink.pro/movie/${id}`,
-        tvUrl: (id, season, ep) => `https://vidlink.pro/tv/${id}/${season}/${ep}`,
+        tvUrl: (id, season, ep) =>
+            `https://vidlink.pro/tv/${id}/${season}/${ep}`,
     },
     {
         id: '2embed',
@@ -81,7 +87,8 @@ export const PLAYER_SOURCES: PlayerSource[] = [
         langParam: null,
         params: {},
         movieUrl: (id) => `https://www.2embed.cc/embed/${id}`,
-        tvUrl: (id, season, ep) => `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${ep}`,
+        tvUrl: (id, season, ep) =>
+            `https://www.2embed.cc/embedtv/${id}&s=${season}&e=${ep}`,
     },
     {
         id: 'autoembed',
@@ -93,7 +100,8 @@ export const PLAYER_SOURCES: PlayerSource[] = [
         langParam: null,
         params: {},
         movieUrl: (id) => `https://player.autoembed.cc/embed/movie/${id}`,
-        tvUrl: (id, season, ep) => `https://player.autoembed.cc/embed/tv/${id}/${season}/${ep}`,
+        tvUrl: (id, season, ep) =>
+            `https://player.autoembed.cc/embed/tv/${id}/${season}/${ep}`,
     },
 ];
 
@@ -108,11 +116,15 @@ export const getSourceUrl = (
     episode: number = 1,
     accentColor: string = 'e50914',
     subtitleLang: string = 'id',
-    extraParams: Record<string, string> = {}
+    extraParams: Record<string, string> = {},
 ): string => {
-    const src = PLAYER_SOURCES.find((s) => s.id === sourceId) ?? PLAYER_SOURCES[0];
-    const baseUrl = type === 'movie' ? src.movieUrl(tmdbId) : src.tvUrl(tmdbId, season, episode);
-    
+    const src =
+        PLAYER_SOURCES.find((s) => s.id === sourceId) ?? PLAYER_SOURCES[0];
+    const baseUrl =
+        type === 'movie'
+            ? src.movieUrl(tmdbId)
+            : src.tvUrl(tmdbId, season, episode);
+
     try {
         const url = new URL(baseUrl);
 
@@ -149,17 +161,20 @@ export const DEFAULT_TMDB_IDS: Record<string, number> = {
     'ztv-mov-03': 157336, // Interstellar
     'ztv-mov-04': 299536, // Avengers: Infinity War
     'ztv-series-05': 62560, // Mr. Robot (TV)
-    'ztv-mov-06': 550,    // Fight Club
+    'ztv-mov-06': 550, // Fight Club
     'ztv-mov-07': 438631, // Dune
     'ztv-series-08': 92685, // Demon Slayer (TV)
-    'ztv-mov-09': 597,    // Titanic
+    'ztv-mov-09': 597, // Titanic
     'ztv-series-10': 66732, // Stranger Things (TV)
 };
 
 /**
  * Helper to get TMDB ID for a media item
  */
-export const getTmdbIdForMedia = (mediaId: string, itemTmdbId?: number | string): number | string => {
+export const getTmdbIdForMedia = (
+    mediaId: string,
+    itemTmdbId?: number | string,
+): number | string => {
     if (itemTmdbId) return itemTmdbId;
     return DEFAULT_TMDB_IDS[mediaId] || 27205;
 };

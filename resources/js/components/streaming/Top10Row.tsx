@@ -1,5 +1,12 @@
 import { useState, useEffect, useRef } from 'react';
-import { Play, Plus, Check, ChevronLeft, ChevronRight, Sparkles } from 'lucide-react';
+import {
+    Play,
+    Plus,
+    Check,
+    ChevronLeft,
+    ChevronRight,
+    Sparkles,
+} from 'lucide-react';
 import { MediaItem } from '@/data/movies';
 
 interface Top10RowProps {
@@ -15,19 +22,22 @@ export default function Top10Row({
     onPlay,
     onOpenDetail,
     myList,
-    onToggleMyList
+    onToggleMyList,
 }: Top10RowProps) {
     const scrollContainerRef = useRef<HTMLDivElement>(null);
     const [isHovered, setIsHovered] = useState(false);
     const [canScrollLeft, setCanScrollLeft] = useState(false);
     const [canScrollRight, setCanScrollRight] = useState(true);
 
-    const top10 = items.filter((item) => item.top10Rank !== undefined).sort((a, b) => (a.top10Rank || 0) - (b.top10Rank || 0));
+    const top10 = items
+        .filter((item) => item.top10Rank !== undefined)
+        .sort((a, b) => (a.top10Rank || 0) - (b.top10Rank || 0));
 
     // Scroll buttons check
     const checkScrollPosition = () => {
         if (!scrollContainerRef.current) return;
-        const { scrollLeft, scrollWidth, clientWidth } = scrollContainerRef.current;
+        const { scrollLeft, scrollWidth, clientWidth } =
+            scrollContainerRef.current;
         setCanScrollLeft(scrollLeft > 10);
         setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 10);
     };
@@ -41,7 +51,10 @@ export default function Top10Row({
             const container = scrollContainerRef.current;
             const scrollAmount = 300; // Approx card width + gap
 
-            if (container.scrollLeft + container.clientWidth >= container.scrollWidth - 20) {
+            if (
+                container.scrollLeft + container.clientWidth >=
+                container.scrollWidth - 20
+            ) {
                 // Loop back smoothly to start
                 container.scrollTo({ left: 0, behavior: 'smooth' });
             } else {
@@ -57,19 +70,19 @@ export default function Top10Row({
         const scrollAmount = 320;
         scrollContainerRef.current.scrollBy({
             left: direction === 'left' ? -scrollAmount : scrollAmount,
-            behavior: 'smooth'
+            behavior: 'smooth',
         });
     };
 
     if (top10.length === 0) return null;
 
     return (
-        <section className="my-12 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto group/section relative">
+        <section className="group/section relative mx-auto my-12 max-w-7xl px-4 sm:px-6 lg:px-8">
             {/* Header */}
-            <div className="flex items-center justify-between mb-6">
+            <div className="mb-6 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <div className="w-2 h-8 bg-gradient-to-b from-red-500 to-rose-600 rounded-full shadow-lg shadow-red-600/50 animate-pulse" />
-                    <h2 className="text-lg sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+                    <div className="h-8 w-2 animate-pulse rounded-full bg-gradient-to-b from-red-500 to-rose-600 shadow-lg shadow-red-600/50" />
+                    <h2 className="flex items-center gap-2 text-lg font-black tracking-tight text-white sm:text-3xl">
                         Top 10 Hari Ini di Indonesia
                     </h2>
                 </div>
@@ -79,18 +92,18 @@ export default function Top10Row({
                     <button
                         onClick={() => handleScroll('left')}
                         disabled={!canScrollLeft}
-                        className="p-2 rounded-xl bg-slate-900/80 hover:bg-red-600 text-white border border-white/10 disabled:opacity-30 disabled:hover:bg-slate-900/80 transition cursor-pointer"
+                        className="cursor-pointer rounded-xl border border-white/10 bg-slate-900/80 p-2 text-white transition hover:bg-red-600 disabled:opacity-30 disabled:hover:bg-slate-900/80"
                         title="Scroll Kiri"
                     >
-                        <ChevronLeft className="w-5 h-5" />
+                        <ChevronLeft className="h-5 w-5" />
                     </button>
                     <button
                         onClick={() => handleScroll('right')}
                         disabled={!canScrollRight}
-                        className="p-2 rounded-xl bg-slate-900/80 hover:bg-red-600 text-white border border-white/10 disabled:opacity-30 disabled:hover:bg-slate-900/80 transition cursor-pointer"
+                        className="cursor-pointer rounded-xl border border-white/10 bg-slate-900/80 p-2 text-white transition hover:bg-red-600 disabled:opacity-30 disabled:hover:bg-slate-900/80"
                         title="Scroll Kanan"
                     >
-                        <ChevronRight className="w-5 h-5" />
+                        <ChevronRight className="h-5 w-5" />
                     </button>
                 </div>
             </div>
@@ -101,7 +114,7 @@ export default function Top10Row({
                 onScroll={checkScrollPosition}
                 onMouseEnter={() => setIsHovered(true)}
                 onMouseLeave={() => setIsHovered(false)}
-                className="flex items-center gap-6 sm:gap-8 overflow-x-auto pb-6 pt-2 px-2 custom-top10-scrollbar scroll-smooth"
+                className="custom-top10-scrollbar flex items-center gap-6 overflow-x-auto scroll-smooth px-2 pt-2 pb-6 sm:gap-8"
             >
                 {top10.map((item, index) => {
                     const isSaved = myList.includes(item.id);
@@ -110,48 +123,56 @@ export default function Top10Row({
                     return (
                         <div
                             key={item.id}
-                            className="group relative flex-none flex items-end w-64 sm:w-72 cursor-pointer select-none py-2"
+                            className="group relative flex w-64 flex-none cursor-pointer items-end py-2 select-none sm:w-72"
                             onClick={() => onOpenDetail(item)}
                         >
                             {/* Huge Rank Number */}
-                            <span className="font-black text-[120px] sm:text-[140px] leading-none tracking-tighter text-transparent stroke-text font-mono select-none -mr-8 z-0 transition-all duration-300 group-hover:scale-110 group-hover:-translate-x-1">
+                            <span className="stroke-text z-0 -mr-8 font-mono text-[120px] leading-none font-black tracking-tighter text-transparent transition-all duration-300 select-none group-hover:-translate-x-1 group-hover:scale-110 sm:text-[140px]">
                                 {rank}
                             </span>
 
                             {/* Card Poster Overlap */}
-                            <div className="relative z-10 w-40 sm:w-48 aspect-[2/3] rounded-2xl overflow-hidden bg-slate-900 border border-white/10 shadow-2xl transition-all duration-300 group-hover:scale-105 group-hover:shadow-red-600/30 group-hover:border-red-500/40">
+                            <div className="relative z-10 aspect-[2/3] w-40 overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-2xl transition-all duration-300 group-hover:scale-105 group-hover:border-red-500/40 group-hover:shadow-red-600/30 sm:w-48">
                                 <img
                                     src={item.posterUrl}
                                     alt={item.title}
-                                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
+                                    className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
                                 />
 
                                 {/* Overlay on Hover */}
-                                <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex flex-col justify-end p-3">
-                                    <div className="flex items-center gap-2 mb-2">
+                                <div className="absolute inset-0 flex flex-col justify-end bg-gradient-to-t from-slate-950 via-slate-950/50 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                                    <div className="mb-2 flex items-center gap-2">
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 onPlay(item);
                                             }}
-                                            className="w-9 h-9 rounded-full bg-red-600 hover:bg-red-500 text-white flex items-center justify-center shadow-lg transition transform hover:scale-105"
+                                            className="flex h-9 w-9 transform items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition hover:scale-105 hover:bg-red-500"
                                         >
-                                            <Play className="w-4 h-4 fill-white ml-0.5" />
+                                            <Play className="ml-0.5 h-4 w-4 fill-white" />
                                         </button>
                                         <button
                                             onClick={(e) => {
                                                 e.stopPropagation();
                                                 onToggleMyList(item.id);
                                             }}
-                                            className={`w-8 h-8 rounded-full flex items-center justify-center border backdrop-blur-md transition transform hover:scale-105 ${
-                                                isSaved ? 'bg-emerald-600 text-white border-emerald-400' : 'bg-white/20 text-white border-white/20'
+                                            className={`flex h-8 w-8 transform items-center justify-center rounded-full border backdrop-blur-md transition hover:scale-105 ${
+                                                isSaved
+                                                    ? 'border-emerald-400 bg-emerald-600 text-white'
+                                                    : 'border-white/20 bg-white/20 text-white'
                                             }`}
                                         >
-                                            {isSaved ? <Check className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
+                                            {isSaved ? (
+                                                <Check className="h-4 w-4" />
+                                            ) : (
+                                                <Plus className="h-4 w-4" />
+                                            )}
                                         </button>
                                     </div>
-                                    <h4 className="text-xs font-bold text-white truncate">{item.title}</h4>
-                                    <span className="text-[10px] text-amber-400 font-semibold">
+                                    <h4 className="truncate text-xs font-bold text-white">
+                                        {item.title}
+                                    </h4>
+                                    <span className="text-[10px] font-semibold text-amber-400">
                                         ★ {item.rating} • {item.genres[0]}
                                     </span>
                                 </div>

@@ -1,5 +1,7 @@
 <?php
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
@@ -21,7 +23,7 @@ Route::get('/watch/{id}', function ($id) {
     ]);
 })->name('watch');
 
-$checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
+$checkZetwareMediaHandler = function (Request $request) {
     $rawCandidates = $request->input('candidates') ?? $request->query('candidates');
     if (is_array($rawCandidates)) {
         $candidates = $rawCandidates;
@@ -39,8 +41,10 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
     // Auto-generate candidates if title is provided
     $title = trim((string) ($request->input('title') ?? $request->query('title') ?? ''));
     $generatedCandidates = [];
+    $folderVariants = [];
+    $type = (string) ($request->input('type') ?? $request->query('type') ?? 'movie');
+    $epPatterns = [];
     if (! empty($title)) {
-        $type = (string) ($request->input('type') ?? $request->query('type') ?? 'movie');
         $season = (int) ($request->input('season') ?? $request->query('season') ?? 1);
         $episode = (int) ($request->input('episode') ?? $request->query('episode') ?? 1);
 
@@ -53,7 +57,7 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
             '_854x356', '_854x358', '_854x360', '_854x480', '_960x480',
             '_3840x2160', '_3840x1600', '_3840x1604',
             '_1920', '_1280', '_960', '_854', '_640', '_3840',
-            '_1080p', '_720p', '_480p', '_360p', '_4K', ''
+            '_1080p', '_720p', '_480p', '_360p', '_4K', '',
         ];
 
         $bases = ['https://zetware.id/storage/movies', 'https://zetware.id/storage/movie'];
@@ -95,10 +99,10 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
                 strtoupper($sanitizedTitle),
                 strtoupper($title),
                 preg_replace('/^THE\s+/i', '', $upperTitle),
-                'THE ' . preg_replace('/^THE\s+/i', '', $upperTitle),
+                'THE '.preg_replace('/^THE\s+/i', '', $upperTitle),
                 preg_replace('/\s+THE\s+MOVIE$/i', '', $upperTitle),
                 preg_replace('/\s+MOVIE$/i', '', $upperTitle),
-                $upperTitle . ' THE MOVIE',
+                $upperTitle.' THE MOVIE',
                 str_replace('-', ' ', $upperTitle),
                 str_replace(' ', '-', $upperTitle),
                 $sanitizedTitleNormalized,
@@ -133,26 +137,26 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
                     foreach ($epPatterns as $ep) {
                         // Pattern 1: {folder} - {ep}{res}.mp4 (matches LANTERNS - S1E2_1920x960.mp4)
                         foreach ($resolutions as $res) {
-                            $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$folder} - {$ep}{$res}.mp4");
+                            $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$folder} - {$ep}{$res}.mp4");
                         }
                         // Pattern 2: {titleVariant} - {ep}{res}.mp4
                         foreach ($titleVariants as $tv) {
                             if ($tv !== $folder) {
                                 foreach ($resolutions as $res) {
-                                    $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$tv} - {$ep}{$res}.mp4");
+                                    $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$tv} - {$ep}{$res}.mp4");
                                 }
                             }
                         }
                         // Pattern 3: {ep}{res}.mp4
                         foreach ($resolutions as $res) {
-                            $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$ep}{$res}.mp4");
+                            $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$ep}{$res}.mp4");
                         }
                     }
                 }
                 foreach ($titleVariants as $tv) {
                     foreach ($epPatterns as $ep) {
                         foreach ($resolutions as $res) {
-                            $generatedCandidates[] = "$base/" . rawurlencode("{$tv} - {$ep}{$res}.mp4");
+                            $generatedCandidates[] = "$base/".rawurlencode("{$tv} - {$ep}{$res}.mp4");
                         }
                     }
                 }
@@ -163,20 +167,20 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
                     $encFolder = rawurlencode($folder);
                     // Primary pattern: {folder}/{folder}{res}.mp4 (e.g. HOPE/HOPE_1920x800.mp4)
                     foreach ($resolutions as $res) {
-                        $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$folder}{$res}.mp4");
+                        $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$folder}{$res}.mp4");
                     }
                     // Secondary pattern: {folder}/{tv}{res}.mp4
                     foreach ($titleVariants as $tv) {
                         if ($tv !== $folder) {
                             foreach ($resolutions as $res) {
-                                $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$tv}{$res}.mp4");
+                                $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$tv}{$res}.mp4");
                             }
                         }
                     }
                     foreach ($resolutions as $res) {
                         if ($res) {
                             $cleanRes = ltrim($res, '_');
-                            $generatedCandidates[] = "$base/$encFolder/" . rawurlencode("{$cleanRes}.mp4");
+                            $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$cleanRes}.mp4");
                         }
                     }
                     $generatedCandidates[] = "$base/$encFolder/movie.mp4";
@@ -184,7 +188,7 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
                 }
                 foreach ($titleVariants as $tv) {
                     foreach ($resolutions as $res) {
-                        $generatedCandidates[] = "$base/" . rawurlencode("{$tv}{$res}.mp4");
+                        $generatedCandidates[] = "$base/".rawurlencode("{$tv}{$res}.mp4");
                     }
                 }
             }
@@ -221,10 +225,10 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         '/home/u834748983/domains/zetware.id/public_html/storage/movie',
         '/home/u834748983/public_html/storage/movies',
         public_path('storage/movies'),
-        dirname(base_path()) . '/domains/zetware.id/public_html/storage/movies',
-        dirname(dirname(base_path())) . '/domains/zetware.id/public_html/storage/movies',
-        dirname(base_path()) . '/zetware.id/public_html/storage/movies',
-        dirname(dirname(base_path())) . '/zetware.id/public_html/storage/movies',
+        dirname(base_path()).'/domains/zetware.id/public_html/storage/movies',
+        dirname(dirname(base_path())).'/domains/zetware.id/public_html/storage/movies',
+        dirname(base_path()).'/zetware.id/public_html/storage/movies',
+        dirname(dirname(base_path())).'/zetware.id/public_html/storage/movies',
     ];
 
     $localBaseDir = null;
@@ -242,7 +246,9 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
                 $scanned = scandir($targetDirPath);
                 if ($scanned !== false) {
                     foreach ($scanned as $fn) {
-                        if (! str_ends_with(strtolower($fn), '.mp4')) continue;
+                        if (! str_ends_with(strtolower($fn), '.mp4')) {
+                            continue;
+                        }
 
                         if ($type === 'series') {
                             $matchEp = false;
@@ -252,7 +258,9 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
                                     break;
                                 }
                             }
-                            if (! $matchEp) continue;
+                            if (! $matchEp) {
+                                continue;
+                            }
                         }
 
                         $res = 'Direct MP4';
@@ -286,152 +294,152 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
             $mh = curl_multi_init();
             $handles = [];
             foreach ($batch as $url) {
-            $ch = curl_init($url);
-            curl_setopt($ch, CURLOPT_NOBODY, true);
-            curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-            curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
-            curl_setopt($ch, CURLOPT_TIMEOUT, 4);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
-            curl_multi_add_handle($mh, $ch);
-            $handles[$url] = $ch;
-        }
-
-        $active = null;
-        do {
-            $mrc = curl_multi_exec($mh, $active);
-        } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-
-        while ($active && $mrc == CURLM_OK) {
-            if (curl_multi_select($mh, 0.1) == -1) {
-                usleep(10000);
+                $ch = curl_init($url);
+                curl_setopt($ch, CURLOPT_NOBODY, true);
+                curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+                curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 3);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+                curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                curl_setopt($ch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
+                curl_multi_add_handle($mh, $ch);
+                $handles[$url] = $ch;
             }
+
+            $active = null;
             do {
                 $mrc = curl_multi_exec($mh, $active);
             } while ($mrc == CURLM_CALL_MULTI_PERFORM);
-        }
 
-        foreach ($handles as $url => $ch) {
-            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            curl_multi_remove_handle($mh, $ch);
-            curl_close($ch);
-
-            if ($httpCode >= 200 && $httpCode < 400) {
-                $res = 'Direct MP4';
-                if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $url, $m)) {
-                    $res = $m[1];
+            while ($active && $mrc == CURLM_OK) {
+                if (curl_multi_select($mh, 0.1) == -1) {
+                    usleep(10000);
                 }
-
-                $streams[] = [
-                    'url' => $url,
-                    'resolution' => $res,
-                    'label' => $res,
-                    'http_code' => $httpCode,
-                ];
+                do {
+                    $mrc = curl_multi_exec($mh, $active);
+                } while ($mrc == CURLM_CALL_MULTI_PERFORM);
             }
-        }
-        curl_multi_close($mh);
 
-        // Jika stream valid ditemukan, langsung lakukan targeted probe untuk semua varian resolusi file tersebut
-        if (! empty($streams)) {
-            // Dapatkan pattern prefix dari stream pertama yang ditemukan
-            $firstUrl = $streams[0]['url'];
-            $decodedFirstUrl = rawurldecode($firstUrl);
-            $dirPath = dirname($firstUrl);
-            $rawFileName = basename($decodedFirstUrl);
-            // Ekstrak nama dasar file sebelum resolusi (misal: "THE ODYSSEY" dari "THE ODYSSEY_1280x666.mp4")
-            $rawBaseName = preg_replace('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', '', $rawFileName);
-            $rawBaseName = preg_replace('/\.mp4$/i', '', $rawBaseName);
+            foreach ($handles as $url => $ch) {
+                $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+                curl_multi_remove_handle($mh, $ch);
+                curl_close($ch);
 
-            if (! empty($rawBaseName)) {
-                $targetResList = [
-                    '_1920x800', '_1920x802', '_1920x804', '_1920x806', '_1920x808', '_1920x810', '_1920x812', '_1920x816', '_1920x820',
-                    '_1920x960', '_1920x1000', '_1920x1080',
-                    '_1280x532', '_1280x534', '_1280x536', '_1280x538', '_1280x540', '_1280x542', '_1280x544',
-                    '_1280x640', '_1280x666', '_1280x720',
-                    '_640x264', '_640x266', '_640x268', '_640x270', '_640x272', '_640x320', '_640x334', '_640x360',
-                    '_854x356', '_854x358', '_854x360', '_854x480', '_960x480',
-                    '_3840x2160', '_3840x1600', '_3840x1604',
-                    '_1920', '_1280', '_960', '_854', '_640', '_3840',
-                    '_1080p', '_720p', '_480p', '_360p', '_4K', '_4k'
-                ];
-
-                $probeUrls = [];
-                $existingUrls = array_column($streams, 'url');
-
-                foreach ($targetResList as $tr) {
-                    $testUrl = "$dirPath/" . rawurlencode("{$rawBaseName}{$tr}.mp4");
-                    if (! in_array($testUrl, $existingUrls)) {
-                        $probeUrls[] = $testUrl;
+                if ($httpCode >= 200 && $httpCode < 400) {
+                    $res = 'Direct MP4';
+                    if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $url, $m)) {
+                        $res = $m[1];
                     }
+
+                    $streams[] = [
+                        'url' => $url,
+                        'resolution' => $res,
+                        'label' => $res,
+                        'http_code' => $httpCode,
+                    ];
                 }
+            }
+            curl_multi_close($mh);
 
-                if (! empty($probeUrls)) {
-                    $pmh = curl_multi_init();
-                    $pHandles = [];
-                    foreach ($probeUrls as $pUrl) {
-                        $pch = curl_init($pUrl);
-                        curl_setopt($pch, CURLOPT_NOBODY, true);
-                        curl_setopt($pch, CURLOPT_FOLLOWLOCATION, true);
-                        curl_setopt($pch, CURLOPT_CONNECTTIMEOUT, 4);
-                        curl_setopt($pch, CURLOPT_TIMEOUT, 7);
-                        curl_setopt($pch, CURLOPT_SSL_VERIFYPEER, false);
-                        curl_setopt($pch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
-                        curl_multi_add_handle($pmh, $pch);
-                        $pHandles[$pUrl] = $pch;
+            // Jika stream valid ditemukan, langsung lakukan targeted probe untuk semua varian resolusi file tersebut
+            if (! empty($streams)) {
+                // Dapatkan pattern prefix dari stream pertama yang ditemukan
+                $firstUrl = $streams[0]['url'];
+                $decodedFirstUrl = rawurldecode($firstUrl);
+                $dirPath = dirname($firstUrl);
+                $rawFileName = basename($decodedFirstUrl);
+                // Ekstrak nama dasar file sebelum resolusi (misal: "THE ODYSSEY" dari "THE ODYSSEY_1280x666.mp4")
+                $rawBaseName = preg_replace('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', '', $rawFileName);
+                $rawBaseName = preg_replace('/\.mp4$/i', '', $rawBaseName);
+
+                if (! empty($rawBaseName)) {
+                    $targetResList = [
+                        '_1920x800', '_1920x802', '_1920x804', '_1920x806', '_1920x808', '_1920x810', '_1920x812', '_1920x816', '_1920x820',
+                        '_1920x960', '_1920x1000', '_1920x1080',
+                        '_1280x532', '_1280x534', '_1280x536', '_1280x538', '_1280x540', '_1280x542', '_1280x544',
+                        '_1280x640', '_1280x666', '_1280x720',
+                        '_640x264', '_640x266', '_640x268', '_640x270', '_640x272', '_640x320', '_640x334', '_640x360',
+                        '_854x356', '_854x358', '_854x360', '_854x480', '_960x480',
+                        '_3840x2160', '_3840x1600', '_3840x1604',
+                        '_1920', '_1280', '_960', '_854', '_640', '_3840',
+                        '_1080p', '_720p', '_480p', '_360p', '_4K', '_4k',
+                    ];
+
+                    $probeUrls = [];
+                    $existingUrls = array_column($streams, 'url');
+
+                    foreach ($targetResList as $tr) {
+                        $testUrl = "$dirPath/".rawurlencode("{$rawBaseName}{$tr}.mp4");
+                        if (! in_array($testUrl, $existingUrls)) {
+                            $probeUrls[] = $testUrl;
+                        }
                     }
 
-                    $pActive = null;
-                    do {
-                        $pmrc = curl_multi_exec($pmh, $pActive);
-                    } while ($pmrc == CURLM_CALL_MULTI_PERFORM);
-
-                    while ($pActive && $pmrc == CURLM_OK) {
-                        if (curl_multi_select($pmh, 0.1) == -1) {
-                            usleep(10000);
+                    if (! empty($probeUrls)) {
+                        $pmh = curl_multi_init();
+                        $pHandles = [];
+                        foreach ($probeUrls as $pUrl) {
+                            $pch = curl_init($pUrl);
+                            curl_setopt($pch, CURLOPT_NOBODY, true);
+                            curl_setopt($pch, CURLOPT_FOLLOWLOCATION, true);
+                            curl_setopt($pch, CURLOPT_CONNECTTIMEOUT, 4);
+                            curl_setopt($pch, CURLOPT_TIMEOUT, 7);
+                            curl_setopt($pch, CURLOPT_SSL_VERIFYPEER, false);
+                            curl_setopt($pch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
+                            curl_multi_add_handle($pmh, $pch);
+                            $pHandles[$pUrl] = $pch;
                         }
+
+                        $pActive = null;
                         do {
                             $pmrc = curl_multi_exec($pmh, $pActive);
                         } while ($pmrc == CURLM_CALL_MULTI_PERFORM);
-                    }
 
-                    foreach ($pHandles as $pUrl => $pch) {
-                        $pCode = curl_getinfo($pch, CURLINFO_HTTP_CODE);
-                        curl_multi_remove_handle($pmh, $pch);
-                        curl_close($pch);
-
-                        if ($pCode >= 200 && $pCode < 400) {
-                            $pRes = 'Direct MP4';
-                            if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $pUrl, $pm)) {
-                                $pRes = $pm[1];
+                        while ($pActive && $pmrc == CURLM_OK) {
+                            if (curl_multi_select($pmh, 0.1) == -1) {
+                                usleep(10000);
                             }
-                            $streams[] = [
-                                'url' => $pUrl,
-                                'resolution' => $pRes,
-                                'label' => $pRes,
-                                'http_code' => $pCode,
-                            ];
+                            do {
+                                $pmrc = curl_multi_exec($pmh, $pActive);
+                            } while ($pmrc == CURLM_CALL_MULTI_PERFORM);
                         }
+
+                        foreach ($pHandles as $pUrl => $pch) {
+                            $pCode = curl_getinfo($pch, CURLINFO_HTTP_CODE);
+                            curl_multi_remove_handle($pmh, $pch);
+                            curl_close($pch);
+
+                            if ($pCode >= 200 && $pCode < 400) {
+                                $pRes = 'Direct MP4';
+                                if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $pUrl, $pm)) {
+                                    $pRes = $pm[1];
+                                }
+                                $streams[] = [
+                                    'url' => $pUrl,
+                                    'resolution' => $pRes,
+                                    'label' => $pRes,
+                                    'http_code' => $pCode,
+                                ];
+                            }
+                        }
+                        curl_multi_close($pmh);
                     }
-                    curl_multi_close($pmh);
                 }
+
+                break;
             }
 
-            break;
-        }
-
-        // Check up to 4 batches (64 prioritized URLs)
-        if ($batchIndex >= 3) {
-            break;
+            // Check up to 4 batches (64 prioritized URLs)
+            if ($batchIndex >= 3) {
+                break;
+            }
         }
     }
-}
 
     // Deduplikasi stream berdasarkan resolusi dan URL
     $uniqueStreams = [];
     $seenKeys = [];
     foreach ($streams as $st) {
-        $key = $st['resolution'] . '_' . $st['url'];
+        $key = $st['resolution'].'_'.$st['url'];
         if (! isset($seenKeys[$key])) {
             $seenKeys[$key] = true;
             // Format label resolusi: hanya mencek angka resolusi pertama (misal: 640x268 -> hanya mencek 640 saja)
@@ -447,37 +455,37 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
 
             if ($is4k) {
                 $badge = '4K';
-                $userLabel = "4K (UHD)";
+                $userLabel = '4K (UHD)';
             } elseif ($firstNum !== null) {
                 // 1920 (FHD / 1080p)
                 if ($firstNum === 1920 || $firstNum === 1080 || ($firstNum >= 1400 && $firstNum < 3840)) {
                     $badge = '1080p';
-                    $userLabel = "1080p (FHD)";
+                    $userLabel = '1080p (FHD)';
                 } elseif ($firstNum === 1280 || $firstNum === 720 || ($firstNum >= 1000 && $firstNum < 1400)) {
                     $badge = '720p';
-                    $userLabel = "720p (HD)";
+                    $userLabel = '720p (HD)';
                 } elseif ($firstNum === 854 || $firstNum === 960 || $firstNum === 480 || ($firstNum >= 700 && $firstNum < 1000)) {
                     $badge = '480p';
-                    $userLabel = "480p (SD)";
+                    $userLabel = '480p (SD)';
                 } elseif ($firstNum === 640 || $firstNum === 360 || ($firstNum >= 300 && $firstNum < 700)) {
                     $badge = '360p';
-                    $userLabel = "360p (SD)";
+                    $userLabel = '360p (SD)';
                 } elseif ($firstNum < 300) {
                     $badge = '240p';
-                    $userLabel = "240p (SD)";
+                    $userLabel = '240p (SD)';
                 }
             } elseif (preg_match('/1080p?/i', $rawRes)) {
                 $badge = '1080p';
-                $userLabel = "1080p (FHD)";
+                $userLabel = '1080p (FHD)';
             } elseif (preg_match('/720p?/i', $rawRes)) {
                 $badge = '720p';
-                $userLabel = "720p (HD)";
+                $userLabel = '720p (HD)';
             } elseif (preg_match('/480p?/i', $rawRes)) {
                 $badge = '480p';
-                $userLabel = "480p (SD)";
+                $userLabel = '480p (SD)';
             } elseif (preg_match('/360p?/i', $rawRes)) {
                 $badge = '360p';
-                $userLabel = "360p (SD)";
+                $userLabel = '360p (SD)';
             }
 
             $st['badge'] = $badge;
@@ -503,10 +511,19 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         }
 
         $mapWidth = function ($num) {
-            if ($num === 1080) return 1920;
-            if ($num === 720) return 1280;
-            if ($num === 480) return 854;
-            if ($num === 360) return 640;
+            if ($num === 1080) {
+                return 1920;
+            }
+            if ($num === 720) {
+                return 1280;
+            }
+            if ($num === 480) {
+                return 854;
+            }
+            if ($num === 360) {
+                return 640;
+            }
+
             return $num;
         };
 
@@ -520,6 +537,7 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
         // Prioritize subfolder URLs (more slashes after /storage/movies/)
         $depthA = substr_count($a['url'], '/');
         $depthB = substr_count($b['url'], '/');
+
         return $depthB <=> $depthA;
     });
 
@@ -530,7 +548,7 @@ $checkZetwareMediaHandler = function (\Illuminate\Http\Request $request) {
     ]);
 };
 
-$subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
+$subtitlesSearchHandler = function (Request $request) {
     $tmdbId = $request->query('tmdb_id');
     $type = $request->query('type', 'movie');
     $season = (int) $request->query('season', 1);
@@ -541,12 +559,12 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
         return response()->json(['success' => false, 'subtitles' => []]);
     }
 
-    $token = env('TMDB_READ_TOKEN', 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhZjNiOGQ3ZTAyZGViZjMzMDJkZTkyNzM2M2Y5MDVhNSIsIm5iZiI6MTc5MTMxNjg4Ny40MjUsInN1YiI6IjZhYzU1Mzk3N2ZhZGRlYzkyZGJiYzM2ZiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.1QPNbFQVmR2xtf4vAh0Cb0I0XfuEM2uyQo0ksHE0NTs');
+    $token = (string) config('services.tmdb.read_token', 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhZjNiOGQ3ZTAyZGViZjMzMDJkZTkyNzM2M2Y5MDVhNSIsIm5iZiI6MTc5MTMxNjg4Ny40MjUsInN1YiI6IjZhYzU1Mzk3N2ZhZGRlYzkyZGJiYzM2ZiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.1QPNbFQVmR2xtf4vAh0Cb0I0XfuEM2uyQo0ksHE0NTs');
 
     // 1. Resolve IMDb ID from TMDB if not provided
-    if (! $imdbId && $tmdbId) {
+    if (empty($imdbId)) {
         $cacheKey = "tmdb_imdb_{$type}_{$tmdbId}";
-        $imdbId = \Illuminate\Support\Facades\Cache::remember($cacheKey, 604800, function () use ($tmdbId, $type, $token) {
+        $imdbId = Cache::remember($cacheKey, 604800, function () use ($tmdbId, $type, $token) {
             $endpoint = ($type === 'series' || $type === 'tv') ? 'tv' : 'movie';
             $ch = curl_init("https://api.themoviedb.org/3/{$endpoint}/{$tmdbId}/external_ids");
             curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -555,10 +573,12 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
             curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
             $res = curl_exec($ch);
             curl_close($ch);
-            if ($res) {
+            if (is_string($res)) {
                 $data = json_decode($res, true);
-                return $data['imdb_id'] ?? null;
+
+                return is_array($data) ? ($data['imdb_id'] ?? null) : null;
             }
+
             return null;
         });
     }
@@ -569,7 +589,7 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
 
     // 2. Query Subtitles via OpenSubtitles / Stremio API
     $cacheKeySubs = "subs_{$imdbId}_{$type}_{$season}_{$episode}";
-    $rawSubtitles = \Illuminate\Support\Facades\Cache::remember($cacheKeySubs, 43200, function () use ($imdbId, $type, $season, $episode) {
+    $rawSubtitles = Cache::remember($cacheKeySubs, 43200, function () use ($imdbId, $type, $season, $episode) {
         $url = ($type === 'series' || $type === 'tv')
             ? "https://opensubtitles-v3.strem.io/subtitles/series/{$imdbId}:{$season}:{$episode}.json"
             : "https://opensubtitles-v3.strem.io/subtitles/movie/{$imdbId}.json";
@@ -582,10 +602,12 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
         curl_setopt($ch, CURLOPT_USERAGENT, 'ZTV-Stream/1.0');
         $res = curl_exec($ch);
         curl_close($ch);
-        if ($res) {
+        if (is_string($res)) {
             $data = json_decode($res, true);
-            return $data['subtitles'] ?? [];
+
+            return is_array($data) ? ($data['subtitles'] ?? []) : [];
         }
+
         return [];
     });
 
@@ -629,7 +651,7 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
         $standardCode = ($langCode === 'ind') ? 'id' : (($langCode === 'eng') ? 'en' : $langCode);
         $baseLabel = $langLabels[$langCode] ?? ucfirst($langCode);
 
-        $vttProxyUrl = '/api/subtitles/vtt?url=' . urlencode($downloadUrl);
+        $vttProxyUrl = '/api/subtitles/vtt?url='.urlencode($downloadUrl);
 
         $processed[] = [
             'id' => (string) ($sub['id'] ?? uniqid()),
@@ -646,8 +668,13 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
     // Sort: Indonesian first, then English, then others
     usort($processed, function ($a, $b) {
         $priority = function ($item) {
-            if ($item['lang'] === 'id') return 1;
-            if ($item['lang'] === 'en') return 2;
+            if ($item['lang'] === 'id') {
+                return 1;
+            }
+            if ($item['lang'] === 'en') {
+                return 2;
+            }
+
             return 3;
         };
         $pA = $priority($a);
@@ -655,6 +682,7 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
         if ($pA !== $pB) {
             return $pA <=> $pB;
         }
+
         return strcmp($a['baseLabel'], $b['baseLabel']);
     });
 
@@ -692,14 +720,14 @@ $subtitlesSearchHandler = function (\Illuminate\Http\Request $request) {
     ]);
 };
 
-$subtitlesVttProxyHandler = function (\Illuminate\Http\Request $request) {
+$subtitlesVttProxyHandler = function (Request $request) {
     $targetUrl = $request->query('url');
     if (! $targetUrl || ! filter_var($targetUrl, FILTER_VALIDATE_URL)) {
         return response("WEBVTT\n\n", 400, ['Content-Type' => 'text/vtt; charset=utf-8']);
     }
 
-    $cacheKey = 'vtt_clean_' . md5($targetUrl);
-    $vttContent = \Illuminate\Support\Facades\Cache::remember($cacheKey, 86400, function () use ($targetUrl) {
+    $cacheKey = 'vtt_clean_'.md5($targetUrl);
+    $vttContent = Cache::remember($cacheKey, 86400, function () use ($targetUrl) {
         $ch = curl_init($targetUrl);
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
@@ -709,12 +737,12 @@ $subtitlesVttProxyHandler = function (\Illuminate\Http\Request $request) {
         $raw = curl_exec($ch);
         curl_close($ch);
 
-        if (! $raw) {
+        if (! is_string($raw) || empty($raw)) {
             return "WEBVTT\n\n";
         }
 
         // Clean UTF-8 BOM
-        $clean = preg_replace('/^\xEF\xBB\xBF/', '', $raw);
+        $clean = preg_replace('/^\xEF\xBB\xBF/', '', $raw) ?? $raw;
         $clean = str_replace(["\r\n", "\r"], "\n", $clean);
 
         // Strip ASS/SSA tags like {\lan8}, {\an8}, {\pos(...)}, {\c&H...}, {\b1}, etc.
@@ -730,7 +758,7 @@ $subtitlesVttProxyHandler = function (\Illuminate\Http\Request $request) {
         // Convert SRT to WebVTT
         $converted = preg_replace('/(\d{2}:\d{2}:\d{2}),(\d{3})/', '$1.$2', $clean);
 
-        return "WEBVTT\n\n" . trim($converted) . "\n";
+        return "WEBVTT\n\n".trim($converted)."\n";
     });
 
     return response($vttContent, 200, [
@@ -745,7 +773,6 @@ Route::match(['get', 'post'], '/check-zetware-media', $checkZetwareMediaHandler)
 
 Route::get('/api/subtitles', $subtitlesSearchHandler);
 Route::get('/api/subtitles/vtt', $subtitlesVttProxyHandler);
-
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');

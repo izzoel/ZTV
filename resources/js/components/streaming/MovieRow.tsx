@@ -22,7 +22,7 @@ export default function MovieRow({
     myList,
     onToggleMyList,
     showProgress = false,
-    badge
+    badge,
 }: MovieRowProps) {
     const rowRef = useRef<HTMLDivElement>(null);
 
@@ -31,8 +31,11 @@ export default function MovieRow({
             const { scrollLeft, clientWidth } = rowRef.current;
             const scrollAmount = clientWidth * 0.75;
             rowRef.current.scrollTo({
-                left: direction === 'left' ? scrollLeft - scrollAmount : scrollLeft + scrollAmount,
-                behavior: 'smooth'
+                left:
+                    direction === 'left'
+                        ? scrollLeft - scrollAmount
+                        : scrollLeft + scrollAmount,
+                behavior: 'smooth',
             });
         }
     };
@@ -40,15 +43,15 @@ export default function MovieRow({
     if (items.length === 0) return null;
 
     return (
-        <section className="relative my-8 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto group/row">
+        <section className="group/row relative mx-auto my-8 max-w-7xl px-4 sm:px-6 lg:px-8">
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
+            <div className="mb-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                    <h2 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+                    <h2 className="flex items-center gap-2 text-xl font-bold tracking-tight text-white sm:text-2xl">
                         {title}
                     </h2>
                     {badge && (
-                        <span className="px-2.5 py-0.5 rounded-full bg-red-600/20 border border-red-500/30 text-red-400 text-xs font-semibold uppercase">
+                        <span className="rounded-full border border-red-500/30 bg-red-600/20 px-2.5 py-0.5 text-xs font-semibold text-red-400 uppercase">
                             {badge}
                         </span>
                     )}
@@ -60,25 +63,25 @@ export default function MovieRow({
                 {/* Left Arrow */}
                 <button
                     onClick={() => handleScroll('left')}
-                    className="absolute left-0 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-r-2xl bg-slate-950/80 border border-l-0 border-white/20 text-white flex items-center justify-center backdrop-blur-md opacity-0 group-hover/row:opacity-100 hover:bg-red-600 transition-all duration-300 shadow-xl cursor-pointer"
+                    className="absolute top-1/2 left-0 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-r-2xl border border-l-0 border-white/20 bg-slate-950/80 text-white opacity-0 shadow-xl backdrop-blur-md transition-all duration-300 group-hover/row:opacity-100 hover:bg-red-600"
                     aria-label="Previous"
                 >
-                    <ChevronLeft className="w-6 h-6" />
+                    <ChevronLeft className="h-6 w-6" />
                 </button>
 
                 {/* Right Arrow */}
                 <button
                     onClick={() => handleScroll('right')}
-                    className="absolute right-0 top-1/2 -translate-y-1/2 z-30 w-10 h-10 rounded-l-2xl bg-slate-950/80 border border-r-0 border-white/20 text-white flex items-center justify-center backdrop-blur-md opacity-0 group-hover/row:opacity-100 hover:bg-red-600 transition-all duration-300 shadow-xl cursor-pointer"
+                    className="absolute top-1/2 right-0 z-30 flex h-10 w-10 -translate-y-1/2 cursor-pointer items-center justify-center rounded-l-2xl border border-r-0 border-white/20 bg-slate-950/80 text-white opacity-0 shadow-xl backdrop-blur-md transition-all duration-300 group-hover/row:opacity-100 hover:bg-red-600"
                     aria-label="Next"
                 >
-                    <ChevronRight className="w-6 h-6" />
+                    <ChevronRight className="h-6 w-6" />
                 </button>
 
                 {/* Cards Scroll */}
                 <div
                     ref={rowRef}
-                    className="flex items-center gap-4 overflow-x-auto py-4 px-1 scroll-smooth no-scrollbar"
+                    className="no-scrollbar flex items-center gap-4 overflow-x-auto scroll-smooth px-1 py-4"
                 >
                     {items.map((item) => (
                         <MovieCard

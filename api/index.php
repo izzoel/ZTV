@@ -4,5 +4,4 @@
 $_SERVER['SCRIPT_NAME'] = '/index.php';
 
 // Forward Vercel serverless function requests to Laravel's public/index.php
-require __DIR__ . '/../public/index.php';
-
+require __DIR__.'/../public/index.php';

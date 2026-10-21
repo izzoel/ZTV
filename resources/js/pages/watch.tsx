@@ -1,16 +1,59 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Head, Link, router } from '@inertiajs/react';
-import { 
-    Play, Pause, ArrowLeft, Server, Tv, Search, Layers, RefreshCw, AlertCircle, Film,
-    Maximize, X, ChevronRight, ChevronLeft, Share2, ExternalLink, Copy, Check, Send, Globe, Code, CheckCircle2,
-    Zap, Monitor, ChevronDown, Subtitles, Upload
+import {
+    Play,
+    Pause,
+    ArrowLeft,
+    Server,
+    Tv,
+    Search,
+    Layers,
+    RefreshCw,
+    AlertCircle,
+    Film,
+    Maximize,
+    X,
+    ChevronRight,
+    ChevronLeft,
+    Share2,
+    ExternalLink,
+    Copy,
+    Check,
+    Send,
+    Globe,
+    Code,
+    CheckCircle2,
+    Zap,
+    Monitor,
+    ChevronDown,
+    Subtitles,
+    Upload,
 } from 'lucide-react';
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
-import { fetchMediaById, fetchTmdbEpisodes, fetchTmdbTvSeasons, translateText, isEngText } from '@/lib/tmdbService';
-import { PLAYER_SOURCES, getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
-import { checkZetwareMediaExists, ZetwareStreamOption, isZetwareDefaultEnabled, formatZetwareResolution } from '@/lib/zetwareStorage';
-import { fetchSubtitlesForMedia, convertSrtToVttBlob, SubtitleTrack } from '@/lib/subtitleService';
+import {
+    fetchMediaById,
+    fetchTmdbEpisodes,
+    fetchTmdbTvSeasons,
+    translateText,
+    isEngText,
+} from '@/lib/tmdbService';
+import {
+    PLAYER_SOURCES,
+    getSourceUrl,
+    getTmdbIdForMedia,
+} from '@/lib/streambertApi';
+import {
+    checkZetwareMediaExists,
+    ZetwareStreamOption,
+    isZetwareDefaultEnabled,
+    formatZetwareResolution,
+} from '@/lib/zetwareStorage';
+import {
+    fetchSubtitlesForMedia,
+    convertSrtToVttBlob,
+    SubtitleTrack,
+} from '@/lib/subtitleService';
 import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
 import Navbar from '@/components/streaming/Navbar';
 import StreamingFooter from '@/components/streaming/StreamingFooter';
@@ -26,7 +69,7 @@ interface WatchPageProps {
 export default function WatchPage({
     id,
     initialSeason = 1,
-    initialEpisode = 1
+    initialEpisode = 1,
 }: WatchPageProps) {
     const videoRef = useRef<HTMLVideoElement>(null);
     const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -41,25 +84,39 @@ export default function WatchPage({
     }, []);
 
     // Zetware Cloud Direct Storage State
-    const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(null);
-    const [zetwareStreams, setZetwareStreams] = useState<ZetwareStreamOption[]>([]);
+    const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(
+        null,
+    );
+    const [zetwareStreams, setZetwareStreams] = useState<ZetwareStreamOption[]>(
+        [],
+    );
     const [isCheckingZetware, setIsCheckingZetware] = useState<boolean>(true);
-    const [showResolutionMenu, setShowResolutionMenu] = useState<boolean>(false);
+    const [showResolutionMenu, setShowResolutionMenu] =
+        useState<boolean>(false);
     const [videoError, setVideoError] = useState<boolean>(false);
 
     // Zetware Cloud Subtitles State (Opsi B: Auto-fetch API)
     const [subtitles, setSubtitles] = useState<SubtitleTrack[]>([]);
-    const [selectedSubtitleId, setSelectedSubtitleId] = useState<string | 'off'>('id');
+    const [selectedSubtitleId, setSelectedSubtitleId] = useState<
+        string | 'off'
+    >('id');
     const [showSubtitleMenu, setShowSubtitleMenu] = useState<boolean>(false);
-    const [isLoadingSubtitles, setIsLoadingSubtitles] = useState<boolean>(false);
+    const [isLoadingSubtitles, setIsLoadingSubtitles] =
+        useState<boolean>(false);
 
     // Streambert Engine State
     const [selectedSource, setSelectedSource] = useState<string>('vidsrc');
     const [useStreambertEmbed, setUseStreambertEmbed] = useState<boolean>(true);
     const [currentTmdbId, setCurrentTmdbId] = useState<string | number>('');
-    const [selectedSeason, setSelectedSeason] = useState<number>(Number(initialSeason) || 1);
-    const [selectedEpisode, setSelectedEpisode] = useState<number>(Number(initialEpisode) || 1);
-    const [liveSeasons, setLiveSeasons] = useState<{ seasonNumber: number; name: string; episodeCount: number }[]>([]);
+    const [selectedSeason, setSelectedSeason] = useState<number>(
+        Number(initialSeason) || 1,
+    );
+    const [selectedEpisode, setSelectedEpisode] = useState<number>(
+        Number(initialEpisode) || 1,
+    );
+    const [liveSeasons, setLiveSeasons] = useState<
+        { seasonNumber: number; name: string; episodeCount: number }[]
+    >([]);
     const [liveEpisodes, setLiveEpisodes] = useState<Episode[]>([]);
     const [iframeLoading, setIframeLoading] = useState<boolean>(true);
     const [showSourceMenu, setShowSourceMenu] = useState<boolean>(false);
@@ -69,8 +126,12 @@ export default function WatchPage({
 
     // Synopsis translation & language toggle state
     const [synopsisLang, setSynopsisLang] = useState<'id' | 'en'>('id');
-    const [translatedSynopsis, setTranslatedSynopsis] = useState<{ id?: string; en?: string }>({});
-    const [isTranslatingSynopsis, setIsTranslatingSynopsis] = useState<boolean>(false);
+    const [translatedSynopsis, setTranslatedSynopsis] = useState<{
+        id?: string;
+        en?: string;
+    }>({});
+    const [isTranslatingSynopsis, setIsTranslatingSynopsis] =
+        useState<boolean>(false);
 
     const handleSwitchSynopsisLang = async (targetLang: 'id' | 'en') => {
         setSynopsisLang(targetLang);
@@ -78,13 +139,19 @@ export default function WatchPage({
 
         if (targetLang === 'id') {
             if (!translatedSynopsis.id) {
-                const currentEn = media.synopsisEn || (isEngText(media.synopsis) ? media.synopsis : '');
+                const currentEn =
+                    media.synopsisEn ||
+                    (isEngText(media.synopsis) ? media.synopsis : '');
                 if (media.synopsis && !isEngText(media.synopsis)) return;
                 if (currentEn) {
                     setIsTranslatingSynopsis(true);
                     try {
                         const res = await translateText(currentEn, 'en', 'id');
-                        if (res) setTranslatedSynopsis((prev) => ({ ...prev, id: res }));
+                        if (res)
+                            setTranslatedSynopsis((prev) => ({
+                                ...prev,
+                                id: res,
+                            }));
                     } finally {
                         setIsTranslatingSynopsis(false);
                     }
@@ -99,7 +166,11 @@ export default function WatchPage({
                     setIsTranslatingSynopsis(true);
                     try {
                         const res = await translateText(currentId, 'id', 'en');
-                        if (res) setTranslatedSynopsis((prev) => ({ ...prev, en: res }));
+                        if (res)
+                            setTranslatedSynopsis((prev) => ({
+                                ...prev,
+                                en: res,
+                            }));
                     } finally {
                         setIsTranslatingSynopsis(false);
                     }
@@ -112,18 +183,21 @@ export default function WatchPage({
         if (!media) return '';
         if (synopsisLang === 'id') {
             if (translatedSynopsis.id) return translatedSynopsis.id;
-            if (media.synopsis && !isEngText(media.synopsis)) return media.synopsis;
+            if (media.synopsis && !isEngText(media.synopsis))
+                return media.synopsis;
             return media.synopsis;
         } else {
             if (translatedSynopsis.en) return translatedSynopsis.en;
             if (media.synopsisEn) return media.synopsisEn;
-            if (media.synopsis && isEngText(media.synopsis)) return media.synopsis;
+            if (media.synopsis && isEngText(media.synopsis))
+                return media.synopsis;
             return media.synopsisEn || media.synopsis;
         }
     };
 
     // API Target Modal State
-    const [showApiTargetModal, setShowApiTargetModal] = useState<boolean>(false);
+    const [showApiTargetModal, setShowApiTargetModal] =
+        useState<boolean>(false);
     const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => {
         try {
             const saved = localStorage.getItem('ztv_api_target_base_url');
@@ -138,10 +212,15 @@ export default function WatchPage({
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
     const [testDownload, setTestDownload] = useState<boolean>(false);
     const [threads, setThreads] = useState<number>(10);
-    const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream' | 'zetware'>('watch');
+    const [targetM3u8Type, setTargetM3u8Type] = useState<
+        'watch' | 'stream' | 'zetware'
+    >('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);
-    const [apiFeedback, setApiFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [apiFeedback, setApiFeedback] = useState<{
+        type: 'success' | 'error';
+        message: string;
+    } | null>(null);
 
     // My List storage state for header badge
     const [myList, setMyList] = useState<string[]>([]);
@@ -173,7 +252,12 @@ export default function WatchPage({
     };
 
     const handleGoBack = () => {
-        if (typeof document !== 'undefined' && document.referrer && document.referrer.includes(window.location.host) && !document.referrer.includes('/watch/')) {
+        if (
+            typeof document !== 'undefined' &&
+            document.referrer &&
+            document.referrer.includes(window.location.host) &&
+            !document.referrer.includes('/watch/')
+        ) {
             window.location.href = document.referrer;
         } else if (media?.id) {
             router.visit(`/detail/${media.id}`);
@@ -197,10 +281,16 @@ export default function WatchPage({
                 const cachedStr = sessionStorage.getItem(`ztv_media_${id}`);
                 if (cachedStr) {
                     const cached = JSON.parse(cachedStr);
-                    if (cached && (cached.id === id || String(cached.tmdbId) === id)) {
+                    if (
+                        cached &&
+                        (cached.id === id || String(cached.tmdbId) === id)
+                    ) {
                         if (isMounted) {
                             setMedia(cached);
-                            const tmdb = getTmdbIdForMedia(cached.id, cached.tmdbId);
+                            const tmdb = getTmdbIdForMedia(
+                                cached.id,
+                                cached.tmdbId,
+                            );
                             setCurrentTmdbId(tmdb);
                             setCustomTmdbInput(String(tmdb));
                             setIsLoading(false);
@@ -220,7 +310,10 @@ export default function WatchPage({
                     setCurrentTmdbId(tmdb);
                     setCustomTmdbInput(String(tmdb));
                     try {
-                        sessionStorage.setItem(`ztv_media_${id}`, JSON.stringify(fetched));
+                        sessionStorage.setItem(
+                            `ztv_media_${id}`,
+                            JSON.stringify(fetched),
+                        );
                     } catch {
                         // ignore storage error
                     }
@@ -269,12 +362,25 @@ export default function WatchPage({
         if (!media) return;
 
         setIsCheckingZetware(true);
-        checkZetwareMediaExists(media.title, media.type, selectedSeason, selectedEpisode).then((res) => {
+        checkZetwareMediaExists(
+            media.title,
+            media.type,
+            selectedSeason,
+            selectedEpisode,
+        ).then((res) => {
             if (!isMounted) return;
             setIsCheckingZetware(false);
             if (res.exists && res.url) {
                 setZetwareDirectUrl(res.url);
-                setZetwareStreams(res.streams || [{ url: res.url, resolution: 'Direct MP4', label: 'Direct MP4' }]);
+                setZetwareStreams(
+                    res.streams || [
+                        {
+                            url: res.url,
+                            resolution: 'Direct MP4',
+                            label: 'Direct MP4',
+                        },
+                    ],
+                );
                 // Aktifkan default otomatis jika preferensi pengguna di cookie/session aktif
                 if (isZetwareDefaultEnabled()) {
                     setUseStreambertEmbed(false);
@@ -301,7 +407,7 @@ export default function WatchPage({
             currentTmdbId,
             media.type,
             selectedSeason,
-            selectedEpisode
+            selectedEpisode,
         ).then((subs) => {
             if (!isMounted) return;
             setIsLoadingSubtitles(false);
@@ -330,7 +436,9 @@ export default function WatchPage({
             isSyncing = true;
             try {
                 const tracks = video.textTracks;
-                const targetSub = subtitles.find((s) => s.id === selectedSubtitleId);
+                const targetSub = subtitles.find(
+                    (s) => s.id === selectedSubtitleId,
+                );
 
                 for (let i = 0; i < tracks.length; i++) {
                     const t = tracks[i];
@@ -340,8 +448,8 @@ export default function WatchPage({
                     const isSelected =
                         selectedSubtitleId !== 'off' &&
                         ((t.id && t.id === selectedSubtitleId) ||
-                         (targetSub && t.label === targetSub.label) ||
-                         (sub && sub.id === selectedSubtitleId));
+                            (targetSub && t.label === targetSub.label) ||
+                            (sub && sub.id === selectedSubtitleId));
 
                     const targetMode = isSelected ? 'showing' : 'disabled';
                     if (t.mode !== targetMode) {
@@ -361,9 +469,10 @@ export default function WatchPage({
         };
     }, [selectedSubtitleId, subtitles]);
 
-
     // Handle user uploading local subtitle file (.srt / .vtt)
-    const handleUploadLocalSubtitle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const handleUploadLocalSubtitle = (
+        e: React.ChangeEvent<HTMLInputElement>,
+    ) => {
         const file = e.target.files?.[0];
         if (!file) return;
         const reader = new FileReader();
@@ -396,7 +505,13 @@ export default function WatchPage({
             }, 6000);
             return () => clearTimeout(timer);
         }
-    }, [iframeLoading, selectedSource, selectedSeason, selectedEpisode, currentTmdbId]);
+    }, [
+        iframeLoading,
+        selectedSource,
+        selectedSeason,
+        selectedEpisode,
+        currentTmdbId,
+    ]);
 
     // Hotkeys
     useEffect(() => {
@@ -409,17 +524,21 @@ export default function WatchPage({
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, []);
 
-    const streamUrl = media ? getSourceUrl(
-        selectedSource,
-        media.type,
-        currentTmdbId || 27205,
-        selectedSeason,
-        selectedEpisode,
-        'e50914',
-        'id'
-    ) : '';
+    const streamUrl = media
+        ? getSourceUrl(
+              selectedSource,
+              media.type,
+              currentTmdbId || 27205,
+              selectedSeason,
+              selectedEpisode,
+              'e50914',
+              'id',
+          )
+        : '';
 
-    const activeSourceObj = PLAYER_SOURCES.find((s) => s.id === selectedSource) || PLAYER_SOURCES[0];
+    const activeSourceObj =
+        PLAYER_SOURCES.find((s) => s.id === selectedSource) ||
+        PLAYER_SOURCES[0];
 
     const toggleFullscreen = () => {
         if (frameContainerRef.current) {
@@ -441,30 +560,45 @@ export default function WatchPage({
     };
 
     // Target Query Parameters
-    const targetTmdbId = String(currentTmdbId || (media ? getTmdbIdForMedia(media.id, media.tmdbId) : ''));
-    
+    const targetTmdbId = String(
+        currentTmdbId ||
+            (media ? getTmdbIdForMedia(media.id, media.tmdbId) : ''),
+    );
+
     const getTargetWatchUrl = () => {
-        const domain = (typeof window !== 'undefined' && !window.location.origin.includes('localhost'))
-            ? window.location.origin
-            : 'https://cinema.zetware.id';
-        const mediaId = media ? (media.id.startsWith('tmdb-') ? media.id : `tmdb-${media.type === 'series' ? 'tv' : 'mov'}-${targetTmdbId}`) : id;
-        const query = media?.type === 'series' ? `?episode=${selectedEpisode}&season=${selectedSeason}` : '';
+        const domain =
+            typeof window !== 'undefined' &&
+            !window.location.origin.includes('localhost')
+                ? window.location.origin
+                : 'https://cinema.zetware.id';
+        const mediaId = media
+            ? media.id.startsWith('tmdb-')
+                ? media.id
+                : `tmdb-${media.type === 'series' ? 'tv' : 'mov'}-${targetTmdbId}`
+            : id;
+        const query =
+            media?.type === 'series'
+                ? `?episode=${selectedEpisode}&season=${selectedSeason}`
+                : '';
         return `${domain}/watch/${mediaId}${query}`;
     };
 
-    const targetM3u8Url = targetM3u8Type === 'zetware' && zetwareDirectUrl
-        ? zetwareDirectUrl
-        : targetM3u8Type === 'watch'
-        ? getTargetWatchUrl()
-        : streamUrl;
-    
+    const targetM3u8Url =
+        targetM3u8Type === 'zetware' && zetwareDirectUrl
+            ? zetwareDirectUrl
+            : targetM3u8Type === 'watch'
+              ? getTargetWatchUrl()
+              : streamUrl;
+
     const targetTitle = media
         ? media.type === 'series'
             ? `${media.title.toUpperCase()} - S${selectedSeason}E${selectedEpisode}`
             : media.title.toUpperCase()
         : '';
 
-    const detectedResolution = zetwareDirectUrl?.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1]
+    const detectedResolution = zetwareDirectUrl?.match(
+        /_(\d+x\d+|\d+p|\d{3,4}|4k)/i,
+    )?.[1]
         ? `${zetwareDirectUrl.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1]} MP4`
         : 'Direct MP4';
 
@@ -479,7 +613,9 @@ export default function WatchPage({
     const savedPlaybackPositionRef = useRef<number>(0);
     const shouldResumePlaybackRef = useRef<boolean>(true);
     const isSwitchingResolutionRef = useRef<boolean>(false);
-    const [resolutionNotice, setResolutionNotice] = useState<string | null>(null);
+    const [resolutionNotice, setResolutionNotice] = useState<string | null>(
+        null,
+    );
 
     const handleSelectZetwareResolution = (newUrl: string) => {
         const videoEl = videoRef.current;
@@ -492,10 +628,13 @@ export default function WatchPage({
 
         const targetStream = zetwareStreams.find((s) => s.url === newUrl);
         const resInfo = formatZetwareResolution(
-            targetStream?.resolution || newUrl.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1]
+            targetStream?.resolution ||
+                newUrl.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1],
         );
         const timeFormatted = formatTime(curTime);
-        setResolutionNotice(`⚡ Berpindah ke ${resInfo.label} • Menit ${timeFormatted}`);
+        setResolutionNotice(
+            `⚡ Berpindah ke ${resInfo.label} • Menit ${timeFormatted}`,
+        );
         setTimeout(() => setResolutionNotice(null), 3500);
 
         setVideoError(false);
@@ -555,7 +694,7 @@ export default function WatchPage({
             const fullUrl = getTargetFullUrl();
             const res = await fetch(fullUrl, {
                 method: 'GET',
-                headers: { 'Accept': 'application/json' },
+                headers: { Accept: 'application/json' },
             });
             if (res.ok) {
                 setApiFeedback({
@@ -580,7 +719,7 @@ export default function WatchPage({
 
     if (isLoading && !media) {
         return (
-            <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+            <div className="min-h-screen bg-slate-950 font-sans text-slate-100">
                 <Navbar
                     activeCategory=""
                     onSelectCategory={handleNavbarSelectCategory}
@@ -591,7 +730,7 @@ export default function WatchPage({
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
                     showCategories={true}
                 />
-                <div className="pt-28 px-4 sm:px-8 max-w-7xl mx-auto">
+                <div className="mx-auto max-w-7xl px-4 pt-28 sm:px-8">
                     <StreamingSkeleton />
                 </div>
             </div>
@@ -600,15 +739,17 @@ export default function WatchPage({
 
     if (!media) {
         return (
-            <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center">
-                <AlertCircle className="w-16 h-16 text-red-500 mb-4 animate-bounce" />
-                <h1 className="text-2xl font-bold mb-2">Video Tidak Ditemukan</h1>
-                <p className="text-slate-400 text-sm max-w-md mb-6">
+            <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 p-6 text-center text-slate-100">
+                <AlertCircle className="mb-4 h-16 w-16 animate-bounce text-red-500" />
+                <h1 className="mb-2 text-2xl font-bold">
+                    Video Tidak Ditemukan
+                </h1>
+                <p className="mb-6 max-w-md text-sm text-slate-400">
                     Konten pemutar video dengan ID ini tidak dapat dimuat.
                 </p>
                 <Link
                     href="/"
-                    className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition"
+                    className="rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-red-500"
                 >
                     Kembali Ke Beranda
                 </Link>
@@ -620,7 +761,7 @@ export default function WatchPage({
         <>
             <Head title={`Memutar ${media.title} | ZTV Stream Cinema`} />
 
-            <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-red-600 selection:text-white antialiased">
+            <div className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-red-600 selection:text-white">
                 {/* Navbar */}
                 <Navbar
                     activeCategory=""
@@ -634,68 +775,72 @@ export default function WatchPage({
                 />
 
                 {/* Back Quick Floating Bar */}
-                <div className="pt-28 sm:pt-28 px-3 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+                <div className="mx-auto max-w-7xl px-3 pt-28 sm:px-6 sm:pt-28 lg:px-8">
                     <button
                         onClick={handleGoBack}
-                        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer backdrop-blur-md mb-3 active:scale-95 shadow-md group"
+                        className="group mb-3 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 shadow-md backdrop-blur-md transition hover:bg-slate-800 hover:text-white active:scale-95"
                     >
-                        <ArrowLeft className="w-4 h-4 text-red-500 group-hover:text-white transition-colors" />
+                        <ArrowLeft className="h-4 w-4 text-red-500 transition-colors group-hover:text-white" />
                         <span>Kembali</span>
                     </button>
                 </div>
 
                 {/* CINEMA PLAYER CONTAINER */}
-                <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8 pb-12 space-y-4">
+                <div className="mx-auto max-w-7xl space-y-4 px-2 pb-12 sm:px-6 lg:px-8">
                     {/* PLAYER HEADER BAR */}
-                    <div className="relative z-30 p-3 sm:p-4 bg-slate-900/90 border border-white/10 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-2.5 sm:gap-4 shadow-xl backdrop-blur-xl">
+                    <div className="relative z-30 flex flex-col justify-between gap-2.5 rounded-2xl border border-white/10 bg-slate-900/90 p-3 shadow-xl backdrop-blur-xl sm:gap-4 sm:p-4 md:flex-row md:items-center">
                         {/* Row 1 on Mobile / Left Side on Desktop: Title & Mobile Quick Actions */}
-                        <div className="flex items-center justify-between gap-3 min-w-0 w-full md:w-auto md:flex-1">
+                        <div className="flex w-full min-w-0 items-center justify-between gap-3 md:w-auto md:flex-1">
                             <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                    <h1 className="text-base sm:text-lg md:text-xl font-black text-white tracking-tight truncate" title={media.title}>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h1
+                                        className="truncate text-base font-black tracking-tight text-white sm:text-lg md:text-xl"
+                                        title={media.title}
+                                    >
                                         {media.title}
                                     </h1>
                                     {!useStreambertEmbed && zetwareDirectUrl ? (
-                                        <span className="hidden md:inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 font-semibold text-[11px]">
-                                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                                        <span className="hidden items-center gap-1.5 rounded-md border border-emerald-500/20 bg-emerald-500/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-400 md:inline-flex">
+                                            <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-400" />
                                             Zetware Cloud
                                         </span>
                                     ) : null}
                                 </div>
                                 {media.type === 'series' && (
-                                    <div className="text-xs text-red-400 font-mono font-bold mt-0.5">
-                                        Musim {selectedSeason} • Eps {selectedEpisode}
+                                    <div className="mt-0.5 font-mono text-xs font-bold text-red-400">
+                                        Musim {selectedSeason} • Eps{' '}
+                                        {selectedEpisode}
                                     </div>
                                 )}
                             </div>
 
                             {/* Mobile-only Quick Action Buttons (Target API & Fullscreen) */}
-                            <div className="flex items-center gap-1.5 shrink-0 md:hidden">
+                            <div className="flex shrink-0 items-center gap-1.5 md:hidden">
                                 {/* Target API Query Button */}
                                 <button
                                     onClick={() => {
                                         setApiFeedback(null);
                                         setShowApiTargetModal(true);
                                     }}
-                                    className="p-2 rounded-xl bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/30 transition active:scale-95"
+                                    className="rounded-xl border border-amber-500/30 bg-amber-500/15 p-2 text-amber-300 transition hover:bg-amber-500/25 active:scale-95"
                                     title="Target API"
                                 >
-                                    <Share2 className="w-4 h-4 text-amber-400" />
+                                    <Share2 className="h-4 w-4 text-amber-400" />
                                 </button>
 
                                 {/* Fullscreen Button */}
                                 <button
                                     onClick={toggleFullscreen}
-                                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
+                                    className="rounded-xl bg-white/10 p-2 text-white transition hover:bg-white/20 active:scale-95"
                                     title="Layar Penuh"
                                 >
-                                    <Maximize className="w-4 h-4" />
+                                    <Maximize className="h-4 w-4" />
                                 </button>
                             </div>
                         </div>
 
                         {/* Row 2 on Mobile / Right Side on Desktop: Streaming Controls */}
-                        <div className="flex items-center gap-2 w-full md:w-auto shrink-0 relative z-30 justify-start md:justify-end">
+                        <div className="relative z-30 flex w-full shrink-0 items-center justify-start gap-2 md:w-auto md:justify-end">
                             {/* Zetware Glowing Badge with Integrated Resolution & Subtitle Dropdown */}
                             {zetwareDirectUrl && (
                                 <ZetwareGlowingBadge
@@ -704,7 +849,9 @@ export default function WatchPage({
                                     isPlayingZetware={!useStreambertEmbed}
                                     streams={zetwareStreams}
                                     currentStreamUrl={zetwareDirectUrl}
-                                    onSelectStream={handleSelectZetwareResolution}
+                                    onSelectStream={
+                                        handleSelectZetwareResolution
+                                    }
                                     subtitles={subtitles}
                                     selectedSubtitleId={selectedSubtitleId}
                                     onSelectSubtitle={setSelectedSubtitleId}
@@ -724,7 +871,7 @@ export default function WatchPage({
                             )}
 
                             {/* Server Selector */}
-                            <div className="relative flex-1 md:flex-initial min-w-0">
+                            <div className="relative min-w-0 flex-1 md:flex-initial">
                                 <button
                                     onClick={() => {
                                         setShowSourceMenu(!showSourceMenu);
@@ -732,204 +879,314 @@ export default function WatchPage({
                                         setShowResolutionMenu(false);
                                         setShowEpisodeMenu(false);
                                     }}
-                                    className={`w-full md:w-auto px-3 sm:px-3.5 py-1.5 sm:py-2 rounded-xl text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-md transition cursor-pointer active:scale-95 shrink-0 ${
+                                    className={`flex w-full shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-1.5 text-xs font-bold text-white shadow-md transition active:scale-95 sm:px-3.5 sm:py-2 md:w-auto ${
                                         !useStreambertEmbed && zetwareDirectUrl
-                                            ? 'bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 shadow-[0_0_15px_rgba(239,68,68,0.5)] border border-red-400/50'
-                                            : 'bg-red-600 hover:bg-red-500 shadow-red-600/30'
+                                            ? 'border border-red-400/50 bg-gradient-to-r from-red-600 via-rose-600 to-amber-600 shadow-[0_0_15px_rgba(239,68,68,0.5)]'
+                                            : 'bg-red-600 shadow-red-600/30 hover:bg-red-500'
                                     }`}
                                 >
-                                    <Server className="w-3.5 h-3.5 shrink-0" />
-                                    <span className="truncate">Server: {!useStreambertEmbed && zetwareDirectUrl ? 'Zetware Cloud' : activeSourceObj.label}</span>
+                                    <Server className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate">
+                                        Server:{' '}
+                                        {!useStreambertEmbed && zetwareDirectUrl
+                                            ? 'Zetware Cloud'
+                                            : activeSourceObj.label}
+                                    </span>
                                 </button>
 
-                                {showSourceMenu && mounted && createPortal(
-                                    <div className="fixed inset-0 z-[9999] flex flex-col justify-end sm:justify-center sm:items-center p-0 sm:p-4">
-                                        {/* Fullscreen Backdrop */}
-                                        <div
-                                            className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
-                                            onClick={() => setShowSourceMenu(false)}
-                                        />
+                                {showSourceMenu &&
+                                    mounted &&
+                                    createPortal(
+                                        <div className="fixed inset-0 z-[9999] flex flex-col justify-end p-0 sm:items-center sm:justify-center sm:p-4">
+                                            {/* Fullscreen Backdrop */}
+                                            <div
+                                                className="fixed inset-0 bg-black/80 backdrop-blur-sm transition-opacity"
+                                                onClick={() =>
+                                                    setShowSourceMenu(false)
+                                                }
+                                            />
 
-                                        {/* Modal Container: Bottom Sheet on Mobile, Centered Card on Desktop */}
-                                        <div className="relative z-10 w-full sm:max-w-md max-h-[85vh] sm:max-h-[80vh] bg-slate-950/98 border-t sm:border border-white/20 rounded-t-3xl sm:rounded-3xl p-4 sm:p-5 shadow-2xl backdrop-blur-2xl space-y-3.5 flex flex-col pb-safe animate-in slide-in-from-bottom sm:slide-in-from-bottom-2 sm:zoom-in-95 duration-200">
-                                            {/* Mobile Drag Pill */}
-                                            <div className="w-12 h-1.5 bg-white/25 rounded-full mx-auto -mt-1 mb-1 sm:hidden shrink-0" />
+                                            {/* Modal Container: Bottom Sheet on Mobile, Centered Card on Desktop */}
+                                            <div className="pb-safe relative z-10 flex max-h-[85vh] w-full animate-in flex-col space-y-3.5 rounded-t-3xl border-t border-white/20 bg-slate-950/98 p-4 shadow-2xl backdrop-blur-2xl duration-200 slide-in-from-bottom sm:max-h-[80vh] sm:max-w-md sm:rounded-3xl sm:border sm:p-5 sm:zoom-in-95 sm:slide-in-from-bottom-2">
+                                                {/* Mobile Drag Pill */}
+                                                <div className="mx-auto -mt-1 mb-1 h-1.5 w-12 shrink-0 rounded-full bg-white/25 sm:hidden" />
 
-                                            {/* Header with Title & Close Button */}
-                                            <div className="px-1 pb-2.5 border-b border-white/10 flex items-center justify-between shrink-0">
-                                                <div className="flex items-center gap-2.5">
-                                                    <div className="w-8 h-8 rounded-xl bg-red-600/20 border border-red-500/30 flex items-center justify-center text-red-500 shrink-0">
-                                                        <Server className="w-4 h-4" />
+                                                {/* Header with Title & Close Button */}
+                                                <div className="flex shrink-0 items-center justify-between border-b border-white/10 px-1 pb-2.5">
+                                                    <div className="flex items-center gap-2.5">
+                                                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-red-500/30 bg-red-600/20 text-red-500">
+                                                            <Server className="h-4 w-4" />
+                                                        </div>
+                                                        <div>
+                                                            <span className="block text-sm leading-tight font-extrabold text-white sm:text-base">
+                                                                Pilih Server
+                                                                Streaming
+                                                            </span>
+                                                            <span className="block text-[11px] text-slate-400 sm:text-xs">
+                                                                Zetware Cloud &
+                                                                Server Cadangan
+                                                            </span>
+                                                        </div>
                                                     </div>
-                                                    <div>
-                                                        <span className="font-extrabold text-white text-sm sm:text-base block leading-tight">Pilih Server Streaming</span>
-                                                        <span className="text-[11px] sm:text-xs text-slate-400 block">Zetware Cloud & Server Cadangan</span>
-                                                    </div>
-                                                </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={() => setShowSourceMenu(false)}
-                                                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition active:scale-95"
-                                                    title="Tutup"
-                                                >
-                                                    <X className="w-4 h-4" />
-                                                </button>
-                                            </div>
-
-                                            {/* Scrollable Content */}
-                                            <div className="overflow-y-auto space-y-3.5 pr-0.5 -mr-0.5 flex-1">
-                                                {/* Option: Zetware Cloud Native File (If Available) */}
-                                                {zetwareDirectUrl && (
-                                                    <div
-                                                        className={`p-3.5 rounded-2xl transition border ${
-                                                            !useStreambertEmbed
-                                                                ? 'bg-gradient-to-br from-amber-500/20 via-slate-900/95 to-red-950/40 border-amber-400/80 shadow-[0_0_20px_rgba(245,158,11,0.25)] text-white ring-1 ring-amber-400/30'
-                                                                : 'bg-white/5 border-white/10 text-slate-300 hover:bg-white/10 hover:border-white/20'
-                                                        }`}
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            setShowSourceMenu(
+                                                                false,
+                                                            )
+                                                        }
+                                                        className="rounded-xl bg-white/10 p-2 text-slate-300 transition hover:bg-white/20 hover:text-white active:scale-95"
+                                                        title="Tutup"
                                                     >
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => {
-                                                                setUseStreambertEmbed(false);
-                                                                setShowSourceMenu(false);
-                                                            }}
-                                                            className="w-full text-left cursor-pointer group"
+                                                        <X className="h-4 w-4" />
+                                                    </button>
+                                                </div>
+
+                                                {/* Scrollable Content */}
+                                                <div className="-mr-0.5 flex-1 space-y-3.5 overflow-y-auto pr-0.5">
+                                                    {/* Option: Zetware Cloud Native File (If Available) */}
+                                                    {zetwareDirectUrl && (
+                                                        <div
+                                                            className={`rounded-2xl border p-3.5 transition ${
+                                                                !useStreambertEmbed
+                                                                    ? 'border-amber-400/80 bg-gradient-to-br from-amber-500/20 via-slate-900/95 to-red-950/40 text-white shadow-[0_0_20px_rgba(245,158,11,0.25)] ring-1 ring-amber-400/30'
+                                                                    : 'border-white/10 bg-white/5 text-slate-300 hover:border-white/20 hover:bg-white/10'
+                                                            }`}
                                                         >
-                                                            <div className="flex items-center justify-between">
-                                                                <div className="flex items-center gap-2.5">
-                                                                    <div className="relative flex items-center justify-center w-8 h-8 rounded-xl bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 text-slate-950 shadow-[0_0_12px_rgba(250,204,21,0.8)] font-black text-sm shrink-0">
-                                                                        <span>Z</span>
-                                                                        <Zap className="absolute -top-1 -right-1 w-3.5 h-3.5 text-yellow-200 fill-amber-300 drop-shadow-[0_0_4px_rgba(250,204,21,1)]" />
-                                                                    </div>
-                                                                    <div>
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="font-black text-white text-sm group-hover:text-amber-300 transition">Zetware Cloud</span>
-                                                                            <span className="px-2 py-0.5 rounded-md bg-amber-400/20 border border-amber-400/40 text-[10px] font-bold text-amber-300 uppercase tracking-wide">
-                                                                                Cepat & Jernih
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => {
+                                                                    setUseStreambertEmbed(
+                                                                        false,
+                                                                    );
+                                                                    setShowSourceMenu(
+                                                                        false,
+                                                                    );
+                                                                }}
+                                                                className="group w-full cursor-pointer text-left"
+                                                            >
+                                                                <div className="flex items-center justify-between">
+                                                                    <div className="flex items-center gap-2.5">
+                                                                        <div className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-yellow-300 via-amber-400 to-yellow-500 text-sm font-black text-slate-950 shadow-[0_0_12px_rgba(250,204,21,0.8)]">
+                                                                            <span>
+                                                                                Z
                                                                             </span>
+                                                                            <Zap className="absolute -top-1 -right-1 h-3.5 w-3.5 fill-amber-300 text-yellow-200 drop-shadow-[0_0_4px_rgba(250,204,21,1)]" />
                                                                         </div>
-                                                                        <p className="text-xs text-slate-300 line-clamp-1 mt-0.5">
-                                                                            Direct cloud MP4 tanpa buffer dari zetware.id
-                                                                        </p>
-                                                                    </div>
-                                                                </div>
-                                                                {!useStreambertEmbed ? (
-                                                                    <span className="px-2.5 py-1 rounded-xl bg-amber-400 text-slate-950 text-xs font-black flex items-center gap-1 shrink-0 shadow-sm">
-                                                                        <Check className="w-3.5 h-3.5 stroke-[3]" />
-                                                                        <span>Aktif</span>
-                                                                    </span>
-                                                                ) : (
-                                                                    <span className="px-2.5 py-1 rounded-xl bg-white/10 group-hover:bg-amber-400/20 text-slate-300 group-hover:text-amber-300 text-xs font-bold shrink-0 transition">
-                                                                        Pilih
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </button>
-
-                                                        {/* Resolusi Selector di dalam Server Menu */}
-                                                        {zetwareStreams.length > 0 && (
-                                                            <div className="mt-3 pt-2.5 border-t border-white/10 space-y-2">
-                                                                <div className="flex items-center justify-between text-xs">
-                                                                    <span className="text-amber-300 font-bold flex items-center gap-1.5">
-                                                                        <Monitor className="w-3.5 h-3.5 text-amber-400" />
-                                                                        <span>Pilih Resolusi Video:</span>
-                                                                    </span>
-                                                                    <span className="text-slate-400 text-[11px]">
-                                                                        {zetwareStreams.length} Opsi Tersedia
-                                                                    </span>
-                                                                </div>
-                                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                                                    {zetwareStreams.map((st) => {
-                                                                        const isSelectedStream = !useStreambertEmbed && zetwareDirectUrl === st.url;
-                                                                        const resInfo = formatZetwareResolution(st.resolution);
-                                                                        return (
-                                                                            <button
-                                                                                key={st.url}
-                                                                                type="button"
-                                                                                onClick={(e) => {
-                                                                                    e.stopPropagation();
-                                                                                    handleSelectZetwareResolution(st.url);
-                                                                                }}
-                                                                                className={`px-3 py-2 rounded-xl text-xs font-bold transition flex items-center justify-between gap-2 cursor-pointer active:scale-95 border ${
-                                                                                    isSelectedStream
-                                                                                        ? 'bg-gradient-to-r from-amber-400 to-yellow-400 text-slate-950 border-amber-300 font-black shadow-md shadow-amber-400/30'
-                                                                                        : 'bg-white/10 hover:bg-white/20 text-slate-200 hover:text-white border-white/5'
-                                                                                }`}
-                                                                            >
-                                                                                <span className="flex items-center gap-2 min-w-0">
-                                                                                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-black shrink-0 ${
-                                                                                        isSelectedStream ? 'bg-slate-950 text-amber-300' : 'bg-black/30 text-amber-400'
-                                                                                    }`}>
-                                                                                        {resInfo.badge}
-                                                                                    </span>
-                                                                                    <span className="truncate">{resInfo.label}</span>
+                                                                        <div>
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-sm font-black text-white transition group-hover:text-amber-300">
+                                                                                    Zetware
+                                                                                    Cloud
                                                                                 </span>
-                                                                                {isSelectedStream && <Check className="w-3.5 h-3.5 stroke-[3] shrink-0" />}
-                                                                            </button>
-                                                                        );
-                                                                    })}
-                                                                </div>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                )}
-
-                                                {/* Server Alternatif */}
-                                                <div className="space-y-2">
-                                                    <div className="text-xs font-bold text-slate-400 uppercase tracking-wider px-1 flex items-center gap-1.5">
-                                                        <Layers className="w-3.5 h-3.5 text-slate-400" />
-                                                        <span>Server Alternatif (Embed / HLS)</span>
-                                                    </div>
-                                                    <div className="space-y-1.5">
-                                                        {PLAYER_SOURCES.map((src) => {
-                                                            const isSelected = useStreambertEmbed && selectedSource === src.id;
-                                                            return (
-                                                                <button
-                                                                    key={src.id}
-                                                                    onClick={() => {
-                                                                        setSelectedSource(src.id);
-                                                                        setUseStreambertEmbed(true);
-                                                                        setIframeLoading(true);
-                                                                        setShowSourceMenu(false);
-                                                                    }}
-                                                                    className={`w-full text-left p-3 rounded-2xl transition flex items-center justify-between cursor-pointer active:scale-[0.99] border ${
-                                                                        isSelected
-                                                                            ? 'bg-red-600 border-red-500 text-white font-bold shadow-lg shadow-red-600/30'
-                                                                            : 'bg-white/5 border-white/5 text-slate-300 hover:bg-white/10 hover:border-white/10'
-                                                                    }`}
-                                                                >
-                                                                    <div className="min-w-0 pr-2">
-                                                                        <div className="flex items-center gap-2">
-                                                                            <span className="font-extrabold text-white text-xs sm:text-sm">{src.label}</span>
-                                                                            {src.tag && (
-                                                                                <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                                                                                    isSelected ? 'bg-black/30 text-white' : 'bg-white/10 text-amber-300'
-                                                                                }`}>
-                                                                                    {src.tag}
+                                                                                <span className="rounded-md border border-amber-400/40 bg-amber-400/20 px-2 py-0.5 text-[10px] font-bold tracking-wide text-amber-300 uppercase">
+                                                                                    Cepat
+                                                                                    &
+                                                                                    Jernih
                                                                                 </span>
-                                                                            )}
+                                                                            </div>
+                                                                            <p className="mt-0.5 line-clamp-1 text-xs text-slate-300">
+                                                                                Direct
+                                                                                cloud
+                                                                                MP4
+                                                                                tanpa
+                                                                                buffer
+                                                                                dari
+                                                                                zetware.id
+                                                                            </p>
                                                                         </div>
-                                                                        <p className={`text-xs line-clamp-1 mt-0.5 ${
-                                                                            isSelected ? 'text-red-100' : 'text-slate-400'
-                                                                        }`}>
-                                                                            {src.description}
-                                                                        </p>
                                                                     </div>
-                                                                    {isSelected && (
-                                                                        <div className="w-5 h-5 rounded-full bg-white text-red-600 flex items-center justify-center shrink-0">
-                                                                            <Check className="w-3 h-3 stroke-[3]" />
-                                                                        </div>
+                                                                    {!useStreambertEmbed ? (
+                                                                        <span className="flex shrink-0 items-center gap-1 rounded-xl bg-amber-400 px-2.5 py-1 text-xs font-black text-slate-950 shadow-sm">
+                                                                            <Check className="h-3.5 w-3.5 stroke-[3]" />
+                                                                            <span>
+                                                                                Aktif
+                                                                            </span>
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span className="shrink-0 rounded-xl bg-white/10 px-2.5 py-1 text-xs font-bold text-slate-300 transition group-hover:bg-amber-400/20 group-hover:text-amber-300">
+                                                                            Pilih
+                                                                        </span>
                                                                     )}
-                                                                </button>
-                                                            );
-                                                        })}
+                                                                </div>
+                                                            </button>
+
+                                                            {/* Resolusi Selector di dalam Server Menu */}
+                                                            {zetwareStreams.length >
+                                                                0 && (
+                                                                <div className="mt-3 space-y-2 border-t border-white/10 pt-2.5">
+                                                                    <div className="flex items-center justify-between text-xs">
+                                                                        <span className="flex items-center gap-1.5 font-bold text-amber-300">
+                                                                            <Monitor className="h-3.5 w-3.5 text-amber-400" />
+                                                                            <span>
+                                                                                Pilih
+                                                                                Resolusi
+                                                                                Video:
+                                                                            </span>
+                                                                        </span>
+                                                                        <span className="text-[11px] text-slate-400">
+                                                                            {
+                                                                                zetwareStreams.length
+                                                                            }{' '}
+                                                                            Opsi
+                                                                            Tersedia
+                                                                        </span>
+                                                                    </div>
+                                                                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                                                                        {zetwareStreams.map(
+                                                                            (
+                                                                                st,
+                                                                            ) => {
+                                                                                const isSelectedStream =
+                                                                                    !useStreambertEmbed &&
+                                                                                    zetwareDirectUrl ===
+                                                                                        st.url;
+                                                                                const resInfo =
+                                                                                    formatZetwareResolution(
+                                                                                        st.resolution,
+                                                                                    );
+                                                                                return (
+                                                                                    <button
+                                                                                        key={
+                                                                                            st.url
+                                                                                        }
+                                                                                        type="button"
+                                                                                        onClick={(
+                                                                                            e,
+                                                                                        ) => {
+                                                                                            e.stopPropagation();
+                                                                                            handleSelectZetwareResolution(
+                                                                                                st.url,
+                                                                                            );
+                                                                                        }}
+                                                                                        className={`flex cursor-pointer items-center justify-between gap-2 rounded-xl border px-3 py-2 text-xs font-bold transition active:scale-95 ${
+                                                                                            isSelectedStream
+                                                                                                ? 'border-amber-300 bg-gradient-to-r from-amber-400 to-yellow-400 font-black text-slate-950 shadow-md shadow-amber-400/30'
+                                                                                                : 'border-white/5 bg-white/10 text-slate-200 hover:bg-white/20 hover:text-white'
+                                                                                        }`}
+                                                                                    >
+                                                                                        <span className="flex min-w-0 items-center gap-2">
+                                                                                            <span
+                                                                                                className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-black ${
+                                                                                                    isSelectedStream
+                                                                                                        ? 'bg-slate-950 text-amber-300'
+                                                                                                        : 'bg-black/30 text-amber-400'
+                                                                                                }`}
+                                                                                            >
+                                                                                                {
+                                                                                                    resInfo.badge
+                                                                                                }
+                                                                                            </span>
+                                                                                            <span className="truncate">
+                                                                                                {
+                                                                                                    resInfo.label
+                                                                                                }
+                                                                                            </span>
+                                                                                        </span>
+                                                                                        {isSelectedStream && (
+                                                                                            <Check className="h-3.5 w-3.5 shrink-0 stroke-[3]" />
+                                                                                        )}
+                                                                                    </button>
+                                                                                );
+                                                                            },
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Server Alternatif */}
+                                                    <div className="space-y-2">
+                                                        <div className="flex items-center gap-1.5 px-1 text-xs font-bold tracking-wider text-slate-400 uppercase">
+                                                            <Layers className="h-3.5 w-3.5 text-slate-400" />
+                                                            <span>
+                                                                Server
+                                                                Alternatif
+                                                                (Embed / HLS)
+                                                            </span>
+                                                        </div>
+                                                        <div className="space-y-1.5">
+                                                            {PLAYER_SOURCES.map(
+                                                                (src) => {
+                                                                    const isSelected =
+                                                                        useStreambertEmbed &&
+                                                                        selectedSource ===
+                                                                            src.id;
+                                                                    return (
+                                                                        <button
+                                                                            key={
+                                                                                src.id
+                                                                            }
+                                                                            onClick={() => {
+                                                                                setSelectedSource(
+                                                                                    src.id,
+                                                                                );
+                                                                                setUseStreambertEmbed(
+                                                                                    true,
+                                                                                );
+                                                                                setIframeLoading(
+                                                                                    true,
+                                                                                );
+                                                                                setShowSourceMenu(
+                                                                                    false,
+                                                                                );
+                                                                            }}
+                                                                            className={`flex w-full cursor-pointer items-center justify-between rounded-2xl border p-3 text-left transition active:scale-[0.99] ${
+                                                                                isSelected
+                                                                                    ? 'border-red-500 bg-red-600 font-bold text-white shadow-lg shadow-red-600/30'
+                                                                                    : 'border-white/5 bg-white/5 text-slate-300 hover:border-white/10 hover:bg-white/10'
+                                                                            }`}
+                                                                        >
+                                                                            <div className="min-w-0 pr-2">
+                                                                                <div className="flex items-center gap-2">
+                                                                                    <span className="text-xs font-extrabold text-white sm:text-sm">
+                                                                                        {
+                                                                                            src.label
+                                                                                        }
+                                                                                    </span>
+                                                                                    {src.tag && (
+                                                                                        <span
+                                                                                            className={`rounded px-2 py-0.5 text-[10px] font-bold ${
+                                                                                                isSelected
+                                                                                                    ? 'bg-black/30 text-white'
+                                                                                                    : 'bg-white/10 text-amber-300'
+                                                                                            }`}
+                                                                                        >
+                                                                                            {
+                                                                                                src.tag
+                                                                                            }
+                                                                                        </span>
+                                                                                    )}
+                                                                                </div>
+                                                                                <p
+                                                                                    className={`mt-0.5 line-clamp-1 text-xs ${
+                                                                                        isSelected
+                                                                                            ? 'text-red-100'
+                                                                                            : 'text-slate-400'
+                                                                                    }`}
+                                                                                >
+                                                                                    {
+                                                                                        src.description
+                                                                                    }
+                                                                                </p>
+                                                                            </div>
+                                                                            {isSelected && (
+                                                                                <div className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white text-red-600">
+                                                                                    <Check className="h-3 w-3 stroke-[3]" />
+                                                                                </div>
+                                                                            )}
+                                                                        </button>
+                                                                    );
+                                                                },
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </div>,
-                                    document.body
-                                )}
+                                        </div>,
+                                        document.body,
+                                    )}
                             </div>
 
                             {/* Series Season & Episode Picker */}
@@ -937,91 +1194,131 @@ export default function WatchPage({
                                 <div className="relative">
                                     <button
                                         onClick={() => {
-                                            setShowEpisodeMenu(!showEpisodeMenu);
+                                            setShowEpisodeMenu(
+                                                !showEpisodeMenu,
+                                            );
                                             setShowSourceMenu(false);
                                         }}
-                                        className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold flex items-center gap-1.5 transition cursor-pointer active:scale-95"
+                                        className="flex cursor-pointer items-center gap-1.5 rounded-xl bg-white/10 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/20 active:scale-95"
                                     >
-                                        <Tv className="w-3.5 h-3.5 text-red-500" />
-                                        <span>S{selectedSeason} E{selectedEpisode}</span>
+                                        <Tv className="h-3.5 w-3.5 text-red-500" />
+                                        <span>
+                                            S{selectedSeason} E{selectedEpisode}
+                                        </span>
                                     </button>
 
                                     {showEpisodeMenu && (
                                         <>
                                             <div
                                                 className="fixed inset-0 z-40 bg-transparent"
-                                                onClick={() => setShowEpisodeMenu(false)}
+                                                onClick={() =>
+                                                    setShowEpisodeMenu(false)
+                                                }
                                             />
-                                            <div className="absolute top-11 right-0 w-64 bg-slate-950 border border-white/20 rounded-2xl p-3 shadow-2xl z-50 text-xs space-y-2 backdrop-blur-2xl">
-                                            <span className="font-bold text-white block border-b border-white/10 pb-1.5">
-                                                Pilih Musim & Episode
-                                            </span>
-                                            <div>
-                                                <span className="text-[10px] text-slate-400 block mb-1">Musim:</span>
-                                                <div className="flex items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
-                                                    {(liveSeasons.length > 0
-                                                        ? liveSeasons
-                                                        : [{ seasonNumber: 1, name: 'Musim 1', episodeCount: 10 }]
-                                                    ).map((s) => (
-                                                        <button
-                                                            key={s.seasonNumber}
-                                                            onClick={() => {
-                                                                setSelectedSeason(s.seasonNumber);
-                                                                setSelectedEpisode(1);
-                                                                setIframeLoading(true);
-                                                            }}
-                                                            className={`px-2.5 py-1 rounded-lg text-xs font-bold transition shrink-0 ${
-                                                                selectedSeason === s.seasonNumber
-                                                                    ? 'bg-red-600 text-white'
-                                                                    : 'bg-white/10 text-slate-300 hover:bg-white/20'
-                                                            }`}
-                                                        >
-                                                            {s.name || `Musim ${s.seasonNumber}`}
-                                                        </button>
-                                                    ))}
+                                            <div className="absolute top-11 right-0 z-50 w-64 space-y-2 rounded-2xl border border-white/20 bg-slate-950 p-3 text-xs shadow-2xl backdrop-blur-2xl">
+                                                <span className="block border-b border-white/10 pb-1.5 font-bold text-white">
+                                                    Pilih Musim & Episode
+                                                </span>
+                                                <div>
+                                                    <span className="mb-1 block text-[10px] text-slate-400">
+                                                        Musim:
+                                                    </span>
+                                                    <div className="no-scrollbar flex items-center gap-1 overflow-x-auto pb-1">
+                                                        {(liveSeasons.length > 0
+                                                            ? liveSeasons
+                                                            : [
+                                                                  {
+                                                                      seasonNumber: 1,
+                                                                      name: 'Musim 1',
+                                                                      episodeCount: 10,
+                                                                  },
+                                                              ]
+                                                        ).map((s) => (
+                                                            <button
+                                                                key={
+                                                                    s.seasonNumber
+                                                                }
+                                                                onClick={() => {
+                                                                    setSelectedSeason(
+                                                                        s.seasonNumber,
+                                                                    );
+                                                                    setSelectedEpisode(
+                                                                        1,
+                                                                    );
+                                                                    setIframeLoading(
+                                                                        true,
+                                                                    );
+                                                                }}
+                                                                className={`shrink-0 rounded-lg px-2.5 py-1 text-xs font-bold transition ${
+                                                                    selectedSeason ===
+                                                                    s.seasonNumber
+                                                                        ? 'bg-red-600 text-white'
+                                                                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                                                                }`}
+                                                            >
+                                                                {s.name ||
+                                                                    `Musim ${s.seasonNumber}`}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
-                                            </div>
 
-                                            <div>
-                                                <span className="text-[10px] text-slate-400 block mb-1">Episode:</span>
-                                                <div className="grid grid-cols-4 gap-1 max-h-48 overflow-y-auto pr-1">
-                                                    {(liveEpisodes.length > 0
-                                                        ? liveEpisodes.map((e) => e.episodeNumber)
-                                                        : [1, 2, 3, 4, 5, 6, 7, 8]
-                                                    ).map((epNum) => (
-                                                        <button
-                                                            key={epNum}
-                                                            onClick={() => {
-                                                                setSelectedEpisode(epNum);
-                                                                setIframeLoading(true);
-                                                                setShowEpisodeMenu(false);
-                                                            }}
-                                                            className={`py-1.5 rounded-lg text-xs font-bold transition text-center ${
-                                                                selectedEpisode === epNum
-                                                                    ? 'bg-red-600 text-white'
-                                                                    : 'bg-white/10 text-slate-300 hover:bg-white/20'
-                                                            }`}
-                                                        >
-                                                            E{epNum}
-                                                        </button>
-                                                    ))}
+                                                <div>
+                                                    <span className="mb-1 block text-[10px] text-slate-400">
+                                                        Episode:
+                                                    </span>
+                                                    <div className="grid max-h-48 grid-cols-4 gap-1 overflow-y-auto pr-1">
+                                                        {(liveEpisodes.length >
+                                                        0
+                                                            ? liveEpisodes.map(
+                                                                  (e) =>
+                                                                      e.episodeNumber,
+                                                              )
+                                                            : [
+                                                                  1, 2, 3, 4, 5,
+                                                                  6, 7, 8,
+                                                              ]
+                                                        ).map((epNum) => (
+                                                            <button
+                                                                key={epNum}
+                                                                onClick={() => {
+                                                                    setSelectedEpisode(
+                                                                        epNum,
+                                                                    );
+                                                                    setIframeLoading(
+                                                                        true,
+                                                                    );
+                                                                    setShowEpisodeMenu(
+                                                                        false,
+                                                                    );
+                                                                }}
+                                                                className={`rounded-lg py-1.5 text-center text-xs font-bold transition ${
+                                                                    selectedEpisode ===
+                                                                    epNum
+                                                                        ? 'bg-red-600 text-white'
+                                                                        : 'bg-white/10 text-slate-300 hover:bg-white/20'
+                                                                }`}
+                                                            >
+                                                                E{epNum}
+                                                            </button>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    </>
-                                )}
+                                        </>
+                                    )}
                                 </div>
                             )}
 
                             {/* Desktop-only Quick Action Buttons */}
-                            <div className="hidden md:flex items-center gap-2 shrink-0">
+                            <div className="hidden shrink-0 items-center gap-2 md:flex">
                                 {/* Fullscreen Button */}
                                 <button
                                     onClick={toggleFullscreen}
-                                    className="p-2 rounded-xl bg-white/10 hover:bg-white/20 text-white transition active:scale-95"
+                                    className="rounded-xl bg-white/10 p-2 text-white transition hover:bg-white/20 active:scale-95"
                                     title="Layar Penuh (F)"
                                 >
-                                    <Maximize className="w-4 h-4" />
+                                    <Maximize className="h-4 w-4" />
                                 </button>
 
                                 {/* Target API Query Button */}
@@ -1030,10 +1327,10 @@ export default function WatchPage({
                                         setApiFeedback(null);
                                         setShowApiTargetModal(true);
                                     }}
-                                    className="px-3 py-1.5 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 hover:border-amber-400 transition cursor-pointer active:scale-95 flex items-center gap-1.5 text-xs font-semibold"
+                                    className="flex cursor-pointer items-center gap-1.5 rounded-xl border border-amber-500/30 bg-amber-500/20 px-3 py-1.5 text-xs font-semibold text-amber-300 transition hover:border-amber-400 hover:bg-amber-500/30 active:scale-95"
                                     title="Preview / Kirim Query TMDb Target (tmdb_id, m3u8_url, title)"
                                 >
-                                    <Share2 className="w-3.5 h-3.5 text-amber-400" />
+                                    <Share2 className="h-3.5 w-3.5 text-amber-400" />
                                     <span>Target API</span>
                                 </button>
                             </div>
@@ -1041,30 +1338,47 @@ export default function WatchPage({
                     </div>
 
                     {/* CINEMA VIDEO VIEWPORT */}
-                    <div 
+                    <div
                         ref={frameContainerRef}
-                        className="relative z-0 w-full aspect-video bg-black rounded-3xl overflow-hidden border border-white/15 shadow-2xl flex items-center justify-center"
+                        className="relative z-0 flex aspect-video w-full items-center justify-center overflow-hidden rounded-3xl border border-white/15 bg-black shadow-2xl"
                     >
                         {useStreambertEmbed ? (
                             <>
                                 {iframeLoading && (
-                                    <div className="absolute inset-0 z-10 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center space-y-4 animate-in fade-in duration-200">
+                                    <div className="absolute inset-0 z-10 flex animate-in flex-col items-center justify-center space-y-4 bg-slate-950/95 backdrop-blur-xl duration-200 fade-in">
                                         <div className="relative flex items-center justify-center">
-                                            <div className="w-16 h-16 border-4 border-red-600/20 border-t-red-600 rounded-full animate-spin" />
-                                            <div className="w-20 h-20 border-2 border-red-500/10 border-b-red-500 rounded-full animate-spin absolute -inset-2" style={{ animationDirection: 'reverse', animationDuration: '2s' }} />
-                                            <Server className="w-6 h-6 text-red-500 absolute inset-0 m-auto animate-pulse" />
+                                            <div className="h-16 w-16 animate-spin rounded-full border-4 border-red-600/20 border-t-red-600" />
+                                            <div
+                                                className="absolute -inset-2 h-20 w-20 animate-spin rounded-full border-2 border-red-500/10 border-b-red-500"
+                                                style={{
+                                                    animationDirection:
+                                                        'reverse',
+                                                    animationDuration: '2s',
+                                                }}
+                                            />
+                                            <Server className="absolute inset-0 m-auto h-6 w-6 animate-pulse text-red-500" />
                                         </div>
-                                        <div className="text-center space-y-1.5 max-w-sm px-4">
-                                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-red-600/20 border border-red-500/30 text-red-400 text-[10px] font-bold uppercase tracking-wider">
-                                                <RefreshCw className="w-3 h-3 animate-spin text-red-400" />
+                                        <div className="max-w-sm space-y-1.5 px-4 text-center">
+                                            <div className="inline-flex items-center gap-1.5 rounded-full border border-red-500/30 bg-red-600/20 px-2.5 py-0.5 text-[10px] font-bold tracking-wider text-red-400 uppercase">
+                                                <RefreshCw className="h-3 w-3 animate-spin text-red-400" />
                                                 Menghubungkan Stream
                                             </div>
-                                            <h3 className="text-sm font-extrabold text-white tracking-wide uppercase">
-                                                Menghubungkan Ke {activeSourceObj.label}...
+                                            <h3 className="text-sm font-extrabold tracking-wide text-white uppercase">
+                                                Menghubungkan Ke{' '}
+                                                {activeSourceObj.label}...
                                             </h3>
                                             <p className="text-xs text-slate-400">
-                                                TMDB ID: <span className="font-mono text-red-400 font-bold">{currentTmdbId}</span>
-                                                {media.type === 'series' && <span> • S{selectedSeason} E{selectedEpisode}</span>}
+                                                TMDB ID:{' '}
+                                                <span className="font-mono font-bold text-red-400">
+                                                    {currentTmdbId}
+                                                </span>
+                                                {media.type === 'series' && (
+                                                    <span>
+                                                        {' '}
+                                                        • S{selectedSeason} E
+                                                        {selectedEpisode}
+                                                    </span>
+                                                )}
                                             </p>
                                         </div>
                                     </div>
@@ -1073,7 +1387,7 @@ export default function WatchPage({
                                 <iframe
                                     ref={iframeRef}
                                     src={streamUrl}
-                                    className="w-full h-full border-0"
+                                    className="h-full w-full border-0"
                                     allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
                                     allowFullScreen
                                     onLoad={() => setIframeLoading(false)}
@@ -1081,26 +1395,30 @@ export default function WatchPage({
                                 />
                             </>
                         ) : (
-                            <div className="relative w-full h-full flex items-center justify-center bg-black group">
+                            <div className="group relative flex h-full w-full items-center justify-center bg-black">
                                 {/* Seamless Resolution Switch Notification Toast */}
                                 {resolutionNotice && (
-                                    <div className="absolute top-4 left-1/2 -translate-x-1/2 z-30 px-4 py-2 rounded-2xl bg-slate-950/90 border border-amber-400/60 shadow-[0_0_20px_rgba(250,204,21,0.35)] backdrop-blur-xl flex items-center gap-2 text-xs font-bold text-amber-300 animate-in fade-in slide-in-from-top-2 duration-200 pointer-events-none">
-                                        <div className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                                    <div className="pointer-events-none absolute top-4 left-1/2 z-30 flex -translate-x-1/2 animate-in items-center gap-2 rounded-2xl border border-amber-400/60 bg-slate-950/90 px-4 py-2 text-xs font-bold text-amber-300 shadow-[0_0_20px_rgba(250,204,21,0.35)] backdrop-blur-xl duration-200 fade-in slide-in-from-top-2">
+                                        <div className="h-2 w-2 animate-ping rounded-full bg-amber-400" />
                                         <span>{resolutionNotice}</span>
                                     </div>
                                 )}
 
                                 {/* Video Error Fallback Overlay */}
                                 {videoError && (
-                                    <div className="absolute inset-0 z-20 bg-slate-950/95 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center space-y-3">
-                                        <div className="p-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/30">
-                                            <AlertCircle className="w-8 h-8" />
+                                    <div className="absolute inset-0 z-20 flex flex-col items-center justify-center space-y-3 bg-slate-950/95 p-6 text-center backdrop-blur-md">
+                                        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/20 p-3 text-amber-400">
+                                            <AlertCircle className="h-8 w-8" />
                                         </div>
-                                        <h4 className="text-white font-extrabold text-sm sm:text-base">
-                                            Resolusi ini sedang membutuhkan waktu buffer
+                                        <h4 className="text-sm font-extrabold text-white sm:text-base">
+                                            Resolusi ini sedang membutuhkan
+                                            waktu buffer
                                         </h4>
-                                        <p className="text-xs text-slate-400 max-w-sm">
-                                            Koneksi ke server cloud sedang menyesuaikan bitrate file video. Anda dapat memuat ulang atau memilih resolusi alternatif.
+                                        <p className="max-w-sm text-xs text-slate-400">
+                                            Koneksi ke server cloud sedang
+                                            menyesuaikan bitrate file video.
+                                            Anda dapat memuat ulang atau memilih
+                                            resolusi alternatif.
                                         </p>
                                         <div className="flex items-center gap-2 pt-2">
                                             <button
@@ -1109,10 +1427,12 @@ export default function WatchPage({
                                                     setVideoError(false);
                                                     if (videoRef.current) {
                                                         videoRef.current.load();
-                                                        videoRef.current.play().catch(() => {});
+                                                        videoRef.current
+                                                            .play()
+                                                            .catch(() => {});
                                                     }
                                                 }}
-                                                className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs transition active:scale-95 shadow-lg shadow-amber-500/25"
+                                                className="rounded-xl bg-amber-500 px-4 py-2 text-xs font-bold text-slate-950 shadow-lg shadow-amber-500/25 transition hover:bg-amber-400 active:scale-95"
                                             >
                                                 Muat Ulang Resolusi
                                             </button>
@@ -1120,12 +1440,20 @@ export default function WatchPage({
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        const other = zetwareStreams.find((s) => s.url !== zetwareDirectUrl) || zetwareStreams[0];
+                                                        const other =
+                                                            zetwareStreams.find(
+                                                                (s) =>
+                                                                    s.url !==
+                                                                    zetwareDirectUrl,
+                                                            ) ||
+                                                            zetwareStreams[0];
                                                         if (other) {
-                                                            handleSelectZetwareResolution(other.url);
+                                                            handleSelectZetwareResolution(
+                                                                other.url,
+                                                            );
                                                         }
                                                     }}
-                                                    className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white font-semibold text-xs transition active:scale-95"
+                                                    className="rounded-xl bg-white/10 px-4 py-2 text-xs font-semibold text-white transition hover:bg-white/20 active:scale-95"
                                                 >
                                                     Pindah Resolusi Lain
                                                 </button>
@@ -1142,13 +1470,16 @@ export default function WatchPage({
                                     preload="auto"
                                     playsInline
                                     controls
-                                    className="w-full h-full object-contain"
+                                    className="h-full w-full object-contain"
                                     onError={() => setVideoError(true)}
                                     onLoadedMetadata={(e) => {
                                         setVideoError(false);
                                         const video = e.currentTarget;
-                                        if (savedPlaybackPositionRef.current > 0) {
-                                            video.currentTime = savedPlaybackPositionRef.current;
+                                        if (
+                                            savedPlaybackPositionRef.current > 0
+                                        ) {
+                                            video.currentTime =
+                                                savedPlaybackPositionRef.current;
                                         }
                                         if (shouldResumePlaybackRef.current) {
                                             video.play().catch(() => {});
@@ -1156,9 +1487,18 @@ export default function WatchPage({
                                     }}
                                     onCanPlay={(e) => {
                                         const video = e.currentTarget;
-                                        if (isSwitchingResolutionRef.current && savedPlaybackPositionRef.current > 0) {
-                                            if (Math.abs(video.currentTime - savedPlaybackPositionRef.current) > 1.5) {
-                                                video.currentTime = savedPlaybackPositionRef.current;
+                                        if (
+                                            isSwitchingResolutionRef.current &&
+                                            savedPlaybackPositionRef.current > 0
+                                        ) {
+                                            if (
+                                                Math.abs(
+                                                    video.currentTime -
+                                                        savedPlaybackPositionRef.current,
+                                                ) > 1.5
+                                            ) {
+                                                video.currentTime =
+                                                    savedPlaybackPositionRef.current;
                                             }
                                             isSwitchingResolutionRef.current = false;
                                         }
@@ -1172,7 +1512,9 @@ export default function WatchPage({
                                             src={sub.url}
                                             srcLang={sub.lang}
                                             label={sub.label}
-                                            default={selectedSubtitleId === sub.id}
+                                            default={
+                                                selectedSubtitleId === sub.id
+                                            }
                                         />
                                     ))}
                                 </video>
@@ -1181,20 +1523,22 @@ export default function WatchPage({
                     </div>
 
                     {/* BELOW PLAYER MEDIA INFO & BINGE WATCH BAR */}
-                    <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-                        <div className="space-y-2 flex-1 min-w-0">
-                            <div className="flex items-center gap-3 flex-wrap">
-                                <h2 className="text-xl font-bold text-white truncate">
+                    <div className="flex flex-col items-start justify-between gap-4 rounded-3xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl md:flex-row md:items-center">
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <div className="flex flex-wrap items-center gap-3">
+                                <h2 className="truncate text-xl font-bold text-white">
                                     {media.title}
                                 </h2>
                                 {/* Synopsis Language Switcher */}
-                                <div className="flex items-center gap-1 p-0.5 bg-white/5 border border-white/10 rounded-lg shrink-0">
+                                <div className="flex shrink-0 items-center gap-1 rounded-lg border border-white/10 bg-white/5 p-0.5">
                                     <button
                                         type="button"
-                                        onClick={() => handleSwitchSynopsisLang('id')}
+                                        onClick={() =>
+                                            handleSwitchSynopsisLang('id')
+                                        }
                                         disabled={isTranslatingSynopsis}
                                         title="Bahasa Indonesia"
-                                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                                        className={`rounded px-2 py-0.5 text-[11px] font-bold transition-all ${
                                             synopsisLang === 'id'
                                                 ? 'bg-red-600 text-white shadow-sm'
                                                 : 'text-slate-400 hover:text-white'
@@ -1204,10 +1548,12 @@ export default function WatchPage({
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => handleSwitchSynopsisLang('en')}
+                                        onClick={() =>
+                                            handleSwitchSynopsisLang('en')
+                                        }
                                         disabled={isTranslatingSynopsis}
                                         title="English"
-                                        className={`px-2 py-0.5 rounded text-[11px] font-bold transition-all ${
+                                        className={`rounded px-2 py-0.5 text-[11px] font-bold transition-all ${
                                             synopsisLang === 'en'
                                                 ? 'bg-red-600 text-white shadow-sm'
                                                 : 'text-slate-400 hover:text-white'
@@ -1218,22 +1564,24 @@ export default function WatchPage({
                                 </div>
                             </div>
                             {isTranslatingSynopsis ? (
-                                <p className="text-xs text-slate-400 italic animate-pulse">
-                                    {synopsisLang === 'id' ? 'Menerjemahkan sinopsis...' : 'Translating synopsis...'}
+                                <p className="animate-pulse text-xs text-slate-400 italic">
+                                    {synopsisLang === 'id'
+                                        ? 'Menerjemahkan sinopsis...'
+                                        : 'Translating synopsis...'}
                                 </p>
                             ) : (
-                                <p className="text-xs text-slate-300 line-clamp-3 leading-relaxed">
+                                <p className="line-clamp-3 text-xs leading-relaxed text-slate-300">
                                     {getDisplayedSynopsis()}
                                 </p>
                             )}
                         </div>
 
-                        <div className="flex items-center gap-2 shrink-0">
+                        <div className="flex shrink-0 items-center gap-2">
                             <Link
                                 href={`/detail/${media.id}`}
-                                className="px-4 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center gap-1.5"
+                                className="flex items-center gap-1.5 rounded-xl bg-white/10 px-4 py-2 text-xs font-bold text-white transition hover:bg-white/20"
                             >
-                                <Film className="w-3.5 h-3.5" />
+                                <Film className="h-3.5 w-3.5" />
                                 <span>Lihat Detail Lengkap</span>
                             </Link>
 
@@ -1243,10 +1591,10 @@ export default function WatchPage({
                                         setSelectedEpisode((prev) => prev + 1);
                                         setIframeLoading(true);
                                     }}
-                                    className="px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold transition flex items-center gap-1.5 shadow-md shadow-red-600/30"
+                                    className="flex items-center gap-1.5 rounded-xl bg-red-600 px-4 py-2 text-xs font-bold text-white shadow-md shadow-red-600/30 transition hover:bg-red-500"
                                 >
                                     <span>Eps Selanjutnya</span>
-                                    <ChevronRight className="w-3.5 h-3.5" />
+                                    <ChevronRight className="h-3.5 w-3.5" />
                                 </button>
                             )}
                         </div>
@@ -1254,34 +1602,42 @@ export default function WatchPage({
 
                     {/* SERIES EPISODES SELECTOR ROW (BELOW PLAYER) */}
                     {media.type === 'series' && liveEpisodes.length > 0 && (
-                        <div className="p-6 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl space-y-4">
+                        <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl">
                             <div className="flex items-center justify-between">
-                                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                                    <Tv className="w-4 h-4 text-red-500" />
+                                <h3 className="flex items-center gap-2 text-base font-bold text-white">
+                                    <Tv className="h-4 w-4 text-red-500" />
                                     Episode Musim {selectedSeason}
                                 </h3>
-                                <span className="text-xs text-slate-400">{liveEpisodes.length} Episode Tersedia</span>
+                                <span className="text-xs text-slate-400">
+                                    {liveEpisodes.length} Episode Tersedia
+                                </span>
                             </div>
 
-                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
+                            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6">
                                 {liveEpisodes.map((ep) => (
                                     <button
                                         key={ep.id}
                                         onClick={() => {
-                                            setSelectedEpisode(ep.episodeNumber);
+                                            setSelectedEpisode(
+                                                ep.episodeNumber,
+                                            );
                                             setIframeLoading(true);
                                         }}
-                                        className={`p-2.5 rounded-2xl border text-left transition flex flex-col justify-between cursor-pointer ${
+                                        className={`flex cursor-pointer flex-col justify-between rounded-2xl border p-2.5 text-left transition ${
                                             selectedEpisode === ep.episodeNumber
-                                                ? 'bg-red-600/20 border-red-500 text-white shadow-lg shadow-red-600/20'
-                                                : 'bg-slate-950/60 border-white/5 hover:border-white/20 text-slate-300'
+                                                ? 'border-red-500 bg-red-600/20 text-white shadow-lg shadow-red-600/20'
+                                                : 'border-white/5 bg-slate-950/60 text-slate-300 hover:border-white/20'
                                         }`}
                                     >
-                                        <div className="flex items-center justify-between mb-1">
-                                            <span className="font-mono text-xs font-bold text-red-400">E{ep.episodeNumber}</span>
-                                            <span className="text-[10px] text-slate-400">{ep.duration}</span>
+                                        <div className="mb-1 flex items-center justify-between">
+                                            <span className="font-mono text-xs font-bold text-red-400">
+                                                E{ep.episodeNumber}
+                                            </span>
+                                            <span className="text-[10px] text-slate-400">
+                                                {ep.duration}
+                                            </span>
                                         </div>
-                                        <span className="text-xs font-semibold truncate block">
+                                        <span className="block truncate text-xs font-semibold">
                                             {ep.title}
                                         </span>
                                     </button>
@@ -1293,40 +1649,45 @@ export default function WatchPage({
 
                 {/* TMDB ID MODAL */}
                 {showTmdbModal && (
-                    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
-                        <div className="w-full max-w-md bg-slate-950 border border-white/20 rounded-3xl p-6 shadow-2xl space-y-4">
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4 backdrop-blur-md">
+                        <div className="w-full max-w-md space-y-4 rounded-3xl border border-white/20 bg-slate-950 p-6 shadow-2xl">
                             <div className="flex items-center justify-between border-b border-white/10 pb-3">
-                                <h3 className="text-base font-bold text-white flex items-center gap-2">
-                                    <Search className="w-5 h-5 text-red-500" />
+                                <h3 className="flex items-center gap-2 text-base font-bold text-white">
+                                    <Search className="h-5 w-5 text-red-500" />
                                     Ubah TMDB Stream ID
                                 </h3>
                                 <button
                                     onClick={() => setShowTmdbModal(false)}
                                     className="text-slate-400 hover:text-white"
                                 >
-                                    <X className="w-5 h-5" />
+                                    <X className="h-5 w-5" />
                                 </button>
                             </div>
 
-                            <form onSubmit={handleApplyCustomTmdb} className="space-y-3">
+                            <form
+                                onSubmit={handleApplyCustomTmdb}
+                                className="space-y-3"
+                            >
                                 <input
                                     type="text"
                                     value={customTmdbInput}
-                                    onChange={(e) => setCustomTmdbInput(e.target.value)}
+                                    onChange={(e) =>
+                                        setCustomTmdbInput(e.target.value)
+                                    }
                                     placeholder="Contoh: 27205"
-                                    className="w-full px-4 py-2.5 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-sm focus:outline-none focus:border-red-500"
+                                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-4 py-2.5 font-mono text-sm text-white focus:border-red-500 focus:outline-none"
                                 />
                                 <div className="flex gap-2">
                                     <button
                                         type="button"
                                         onClick={() => setShowTmdbModal(false)}
-                                        className="flex-1 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-semibold"
+                                        className="flex-1 rounded-xl bg-white/10 py-2.5 text-xs font-semibold text-white hover:bg-white/20"
                                     >
                                         Batal
                                     </button>
                                     <button
                                         type="submit"
-                                        className="flex-1 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white text-xs font-bold"
+                                        className="flex-1 rounded-xl bg-red-600 py-2.5 text-xs font-bold text-white hover:bg-red-500"
                                     >
                                         Terapkan
                                     </button>
@@ -1338,83 +1699,107 @@ export default function WatchPage({
 
                 {/* TARGET API MODAL */}
                 {showApiTargetModal && (
-                    <div 
+                    <div
                         onClick={() => setShowApiTargetModal(false)}
-                        className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 cursor-pointer"
+                        className="fixed inset-0 z-50 flex animate-in cursor-pointer items-center justify-center bg-black/85 p-3 backdrop-blur-md duration-200 fade-in sm:p-4"
                     >
-                        <div 
+                        <div
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-xl bg-slate-950 border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto cursor-default text-slate-200"
+                            className="max-h-[90vh] w-full max-w-xl cursor-default space-y-4 overflow-y-auto rounded-3xl border border-amber-500/30 bg-slate-950 p-5 text-slate-200 shadow-2xl sm:p-6"
                         >
                             <div className="flex items-center justify-between border-b border-white/10 pb-3">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
-                                        <Share2 className="w-5 h-5" />
+                                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-amber-400">
+                                        <Share2 className="h-5 w-5" />
                                     </div>
                                     <div>
                                         <h3 className="text-base font-bold text-white">
                                             Preview Query Target Stream API
                                         </h3>
                                         <p className="text-[11px] text-slate-400">
-                                            Parameter query string target untuk pemutar / manifest streaming
+                                            Parameter query string target untuk
+                                            pemutar / manifest streaming
                                         </p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => setShowApiTargetModal(false)}
-                                    className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition"
+                                    className="rounded-xl p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
                                 >
-                                    <X className="w-5 h-5" />
+                                    <X className="h-5 w-5" />
                                 </button>
                             </div>
 
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                                    <Globe className="w-3.5 h-3.5 text-amber-400" />
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
+                                    <Globe className="h-3.5 w-3.5 text-amber-400" />
                                     Base URL Endpoint Target:
                                 </label>
                                 <input
                                     type="text"
                                     value={apiBaseUrl}
-                                    onChange={(e) => handleBaseUrlChange(e.target.value)}
+                                    onChange={(e) =>
+                                        handleBaseUrlChange(e.target.value)
+                                    }
                                     placeholder="http://100.81.252.14:8000/extract"
-                                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs focus:outline-none focus:border-amber-500 transition"
+                                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3.5 py-2 font-mono text-xs text-white transition focus:border-amber-500 focus:outline-none"
                                 />
                             </div>
 
                             <div className="space-y-2">
                                 {/* 1. tmdb_id */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-red-400">tmdb_id *</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-mono">string (query)</span>
+                                            <code className="font-mono text-xs font-bold text-red-400">
+                                                tmdb_id *
+                                            </code>
+                                            <span className="py-0.2 rounded bg-red-500/20 px-1.5 font-mono text-[10px] text-red-300">
+                                                string (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">ID TMDb media</p>
-                                        <p className="text-xs font-mono text-white font-semibold truncate mt-1 bg-black/40 px-2 py-1 rounded-lg">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            ID TMDb media
+                                        </p>
+                                        <p className="mt-1 truncate rounded-lg bg-black/40 px-2 py-1 font-mono text-xs font-semibold text-white">
                                             {targetTmdbId}
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(targetTmdbId, 'tmdb_id')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0"
+                                        onClick={() =>
+                                            handleCopy(targetTmdbId, 'tmdb_id')
+                                        }
+                                        className="shrink-0 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
                                     >
-                                        {copiedField === 'tmdb_id' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'tmdb_id'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 2. m3u8_url */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <code className="text-xs font-mono font-bold text-amber-400">m3u8_url *</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono">string (query)</span>
-                                            <div className="flex items-center gap-1 ml-auto">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <code className="font-mono text-xs font-bold text-amber-400">
+                                                m3u8_url *
+                                            </code>
+                                            <span className="py-0.2 rounded bg-amber-500/20 px-1.5 font-mono text-[10px] text-amber-300">
+                                                string (query)
+                                            </span>
+                                            <div className="ml-auto flex items-center gap-1">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setTargetM3u8Type('watch')}
-                                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
-                                                        targetM3u8Type === 'watch' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                    onClick={() =>
+                                                        setTargetM3u8Type(
+                                                            'watch',
+                                                        )
+                                                    }
+                                                    className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                                                        targetM3u8Type ===
+                                                        'watch'
+                                                            ? 'bg-amber-500 font-bold text-slate-950'
+                                                            : 'bg-white/10 text-slate-400 hover:text-white'
                                                     }`}
                                                 >
                                                     Watch URL
@@ -1422,9 +1807,16 @@ export default function WatchPage({
                                                 {zetwareDirectUrl && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setTargetM3u8Type('zetware')}
-                                                        className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
-                                                            targetM3u8Type === 'zetware' ? 'bg-red-600 text-white font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                        onClick={() =>
+                                                            setTargetM3u8Type(
+                                                                'zetware',
+                                                            )
+                                                        }
+                                                        className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                                                            targetM3u8Type ===
+                                                            'zetware'
+                                                                ? 'bg-red-600 font-bold text-white'
+                                                                : 'bg-white/10 text-slate-400 hover:text-white'
                                                         }`}
                                                     >
                                                         ⚡ Zetware Direct
@@ -1432,179 +1824,278 @@ export default function WatchPage({
                                                 )}
                                                 <button
                                                     type="button"
-                                                    onClick={() => setTargetM3u8Type('stream')}
-                                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
-                                                        targetM3u8Type === 'stream' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                    onClick={() =>
+                                                        setTargetM3u8Type(
+                                                            'stream',
+                                                        )
+                                                    }
+                                                    className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                                                        targetM3u8Type ===
+                                                        'stream'
+                                                            ? 'bg-amber-500 font-bold text-slate-950'
+                                                            : 'bg-white/10 text-slate-400 hover:text-white'
                                                     }`}
                                                 >
                                                     Stream Embed
                                                 </button>
                                             </div>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">URL manifest target</p>
-                                        <p className="text-xs font-mono text-white font-semibold break-all mt-1 bg-black/40 px-2 py-1 rounded-lg max-h-16 overflow-y-auto">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            URL manifest target
+                                        </p>
+                                        <p className="mt-1 max-h-16 overflow-y-auto rounded-lg bg-black/40 px-2 py-1 font-mono text-xs font-semibold break-all text-white">
                                             {targetM3u8Url}
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(targetM3u8Url, 'm3u8_url')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(
+                                                targetM3u8Url,
+                                                'm3u8_url',
+                                            )
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'm3u8_url' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'm3u8_url'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 3. title */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-emerald-400">title *</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">string (query)</span>
+                                            <code className="font-mono text-xs font-bold text-emerald-400">
+                                                title *
+                                            </code>
+                                            <span className="py-0.2 rounded bg-emerald-500/20 px-1.5 font-mono text-[10px] text-emerald-300">
+                                                string (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">Judul media / video</p>
-                                        <p className="text-xs font-mono text-white font-semibold truncate mt-1 bg-black/40 px-2 py-1 rounded-lg">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            Judul media / video
+                                        </p>
+                                        <p className="mt-1 truncate rounded-lg bg-black/40 px-2 py-1 font-mono text-xs font-semibold text-white">
                                             {targetTitle}
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(targetTitle, 'title')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(targetTitle, 'title')
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'title' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'title'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 4. enable_download */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-cyan-400">enable_download</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">boolean (query)</span>
+                                            <code className="font-mono text-xs font-bold text-cyan-400">
+                                                enable_download
+                                            </code>
+                                            <span className="py-0.2 rounded bg-cyan-500/20 px-1.5 font-mono text-[10px] text-cyan-300">
+                                                boolean (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">Unduh video?</p>
-                                        <div className="flex items-center gap-3 mt-1.5">
-                                            <label className="flex items-center gap-2 cursor-pointer">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            Unduh video?
+                                        </p>
+                                        <div className="mt-1.5 flex items-center gap-3">
+                                            <label className="flex cursor-pointer items-center gap-2">
                                                 <input
                                                     type="checkbox"
                                                     checked={enableDownload}
-                                                    onChange={(e) => setEnableDownload(e.target.checked)}
-                                                    className="rounded bg-slate-950 border-white/20 text-red-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                                                    onChange={(e) =>
+                                                        setEnableDownload(
+                                                            e.target.checked,
+                                                        )
+                                                    }
+                                                    className="h-4 w-4 cursor-pointer rounded border-white/20 bg-slate-950 text-red-600 focus:ring-0"
                                                 />
-                                                <span className={`text-xs font-mono font-bold ${enableDownload ? 'text-emerald-400' : 'text-slate-400'}`}>
-                                                    {enableDownload ? 'true (Unduh Aktif)' : 'false (Unduh Mati)'}
+                                                <span
+                                                    className={`font-mono text-xs font-bold ${enableDownload ? 'text-emerald-400' : 'text-slate-400'}`}
+                                                >
+                                                    {enableDownload
+                                                        ? 'true (Unduh Aktif)'
+                                                        : 'false (Unduh Mati)'}
                                                 </span>
                                             </label>
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(String(enableDownload), 'enable_download')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(
+                                                String(enableDownload),
+                                                'enable_download',
+                                            )
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'enable_download' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'enable_download'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 5. test_download */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-purple-400">test_download</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">boolean (query)</span>
+                                            <code className="font-mono text-xs font-bold text-purple-400">
+                                                test_download
+                                            </code>
+                                            <span className="py-0.2 rounded bg-purple-500/20 px-1.5 font-mono text-[10px] text-purple-300">
+                                                boolean (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">True = Unduh resolusi terendah saja.</p>
-                                        <div className="flex items-center gap-3 mt-1.5">
-                                            <label className="flex items-center gap-2 cursor-pointer">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            True = Unduh resolusi terendah saja.
+                                        </p>
+                                        <div className="mt-1.5 flex items-center gap-3">
+                                            <label className="flex cursor-pointer items-center gap-2">
                                                 <input
                                                     type="checkbox"
                                                     checked={testDownload}
-                                                    onChange={(e) => setTestDownload(e.target.checked)}
-                                                    className="rounded bg-slate-950 border-white/20 text-red-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                                                    onChange={(e) =>
+                                                        setTestDownload(
+                                                            e.target.checked,
+                                                        )
+                                                    }
+                                                    className="h-4 w-4 cursor-pointer rounded border-white/20 bg-slate-950 text-red-600 focus:ring-0"
                                                 />
-                                                <span className={`text-xs font-mono font-bold ${testDownload ? 'text-emerald-400' : 'text-slate-400'}`}>
-                                                    {testDownload ? 'true (Resolusi Terendah Saja)' : 'false (Semua Resolusi)'}
+                                                <span
+                                                    className={`font-mono text-xs font-bold ${testDownload ? 'text-emerald-400' : 'text-slate-400'}`}
+                                                >
+                                                    {testDownload
+                                                        ? 'true (Resolusi Terendah Saja)'
+                                                        : 'false (Semua Resolusi)'}
                                                 </span>
                                             </label>
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(String(testDownload), 'test_download')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(
+                                                String(testDownload),
+                                                'test_download',
+                                            )
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'test_download' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'test_download'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 6. threads */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-sky-400">threads</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono">integer (query)</span>
+                                            <code className="font-mono text-xs font-bold text-sky-400">
+                                                threads
+                                            </code>
+                                            <span className="py-0.2 rounded bg-sky-500/20 px-1.5 font-mono text-[10px] text-sky-300">
+                                                integer (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">Jumlah pecahan koneksi paralel (1-10 direkomendasikan)</p>
-                                        <div className="flex items-center gap-3 mt-1.5">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            Jumlah pecahan koneksi paralel (1-10
+                                            direkomendasikan)
+                                        </p>
+                                        <div className="mt-1.5 flex items-center gap-3">
                                             <input
                                                 type="range"
                                                 min="1"
                                                 max="10"
                                                 value={threads}
-                                                onChange={(e) => setThreads(parseInt(e.target.value) || 1)}
-                                                className="w-36 accent-red-600 cursor-pointer"
+                                                onChange={(e) =>
+                                                    setThreads(
+                                                        parseInt(
+                                                            e.target.value,
+                                                        ) || 1,
+                                                    )
+                                                }
+                                                className="w-36 cursor-pointer accent-red-600"
                                             />
-                                            <span className="text-xs font-mono font-bold text-white bg-black/40 px-2 py-0.5 rounded">
+                                            <span className="rounded bg-black/40 px-2 py-0.5 font-mono text-xs font-bold text-white">
                                                 {threads} threads
                                             </span>
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(String(threads), 'threads')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(
+                                                String(threads),
+                                                'threads',
+                                            )
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'threads' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'threads'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
                             </div>
 
                             <div className="space-y-1.5 pt-1">
-                                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                                    <Code className="w-3.5 h-3.5 text-slate-400" />
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                                    <Code className="h-3.5 w-3.5 text-slate-400" />
                                     Preview Full URL:
                                 </label>
-                                <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 text-[11px] font-mono text-amber-300 break-all max-h-20 overflow-y-auto select-all">
+                                <div className="max-h-20 overflow-y-auto rounded-xl border border-white/10 bg-black/60 p-2.5 font-mono text-[11px] break-all text-amber-300 select-all">
                                     {getTargetFullUrl()}
                                 </div>
                             </div>
 
                             {apiFeedback && (
-                                <div className={`p-3 rounded-xl text-xs flex items-center gap-2 border ${
-                                    apiFeedback.type === 'success' 
-                                        ? 'bg-emerald-950/40 border-emerald-500/30 text-emerald-300' 
-                                        : 'bg-red-950/40 border-red-500/30 text-red-300'
-                                }`}>
+                                <div
+                                    className={`flex items-center gap-2 rounded-xl border p-3 text-xs ${
+                                        apiFeedback.type === 'success'
+                                            ? 'border-emerald-500/30 bg-emerald-950/40 text-emerald-300'
+                                            : 'border-red-500/30 bg-red-950/40 text-red-300'
+                                    }`}
+                                >
                                     {apiFeedback.type === 'success' ? (
-                                        <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                                        <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-400" />
                                     ) : (
-                                        <AlertCircle className="w-4 h-4 text-red-400 shrink-0" />
+                                        <AlertCircle className="h-4 w-4 shrink-0 text-red-400" />
                                     )}
                                     <span>{apiFeedback.message}</span>
                                 </div>
                             )}
 
-                            <div className="flex gap-2 pt-2 border-t border-white/10">
+                            <div className="flex gap-2 border-t border-white/10 pt-2">
                                 <button
-                                    onClick={() => window.open(getTargetFullUrl(), '_blank')}
-                                    className="flex-1 py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5"
+                                    onClick={() =>
+                                        window.open(
+                                            getTargetFullUrl(),
+                                            '_blank',
+                                        )
+                                    }
+                                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-amber-500"
                                 >
-                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <ExternalLink className="h-3.5 w-3.5" />
                                     <span>Buka di Tab Baru</span>
                                 </button>
                                 <button
                                     onClick={handleSendApiRequest}
                                     disabled={apiSending}
-                                    className="flex-1 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center justify-center gap-1.5"
+                                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/20"
                                 >
-                                    <Send className="w-3.5 h-3.5 text-amber-400" />
-                                    <span>{apiSending ? 'Mengirim...' : 'Kirim Request'}</span>
+                                    <Send className="h-3.5 w-3.5 text-amber-400" />
+                                    <span>
+                                        {apiSending
+                                            ? 'Mengirim...'
+                                            : 'Kirim Request'}
+                                    </span>
                                 </button>
                             </div>
                         </div>

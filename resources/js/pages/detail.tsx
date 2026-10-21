@@ -1,11 +1,35 @@
 import { useState, useEffect } from 'react';
 import { Head, Link, router } from '@inertiajs/react';
-import { 
-    Play, Plus, Check, Star, Film, Clock, RefreshCw, Layers, 
-    ArrowLeft, Share2, Globe, Sparkles, Tv, Server, AlertCircle, Copy, ExternalLink, Send, Code
+import {
+    Play,
+    Plus,
+    Check,
+    Star,
+    Film,
+    Clock,
+    RefreshCw,
+    Layers,
+    ArrowLeft,
+    Share2,
+    Globe,
+    Sparkles,
+    Tv,
+    Server,
+    AlertCircle,
+    Copy,
+    ExternalLink,
+    Send,
+    Code,
 } from 'lucide-react';
 import { MediaItem, Episode, FALLBACK_MOVIES } from '@/data/movies';
-import { fetchMediaById, fetchTmdbCredits, fetchTmdbEpisodes, fetchTmdbTvSeasons, translateText, isEngText } from '@/lib/tmdbService';
+import {
+    fetchMediaById,
+    fetchTmdbCredits,
+    fetchTmdbEpisodes,
+    fetchTmdbTvSeasons,
+    translateText,
+    isEngText,
+} from '@/lib/tmdbService';
 import { getSourceUrl, getTmdbIdForMedia } from '@/lib/streambertApi';
 import { checkZetwareMediaExists } from '@/lib/zetwareStorage';
 import ZetwareGlowingBadge from '@/components/streaming/ZetwareGlowingBadge';
@@ -23,20 +47,30 @@ export default function DetailPage({ id }: DetailPageProps) {
     const { language, t } = useLanguage();
     const [media, setMedia] = useState<MediaItem | null>(null);
     const [isLoading, setIsLoading] = useState<boolean>(true);
-    const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(null);
+    const [zetwareDirectUrl, setZetwareDirectUrl] = useState<string | null>(
+        null,
+    );
     const [myList, setMyList] = useState<string[]>([]);
     const [castList, setCastList] = useState<string[]>([]);
     const [directorName, setDirectorName] = useState<string>('');
     const [episodesList, setEpisodesList] = useState<Episode[]>([]);
-    const [seasonsList, setSeasonsList] = useState<{ seasonNumber: number; name: string; episodeCount: number }[]>([]);
+    const [seasonsList, setSeasonsList] = useState<
+        { seasonNumber: number; name: string; episodeCount: number }[]
+    >([]);
     const [selectedSeasonNumber, setSelectedSeasonNumber] = useState<number>(1);
     const [isLoadingEpisodes, setIsLoadingEpisodes] = useState<boolean>(false);
     const [isCopiedShare, setIsCopiedShare] = useState<boolean>(false);
 
     // Synopsis translation state
-    const [synopsisLang, setSynopsisLang] = useState<'id' | 'en'>(language === 'en' ? 'en' : 'id');
-    const [translatedSynopsis, setTranslatedSynopsis] = useState<{ id?: string; en?: string }>({});
-    const [isTranslatingSynopsis, setIsTranslatingSynopsis] = useState<boolean>(false);
+    const [synopsisLang, setSynopsisLang] = useState<'id' | 'en'>(
+        language === 'en' ? 'en' : 'id',
+    );
+    const [translatedSynopsis, setTranslatedSynopsis] = useState<{
+        id?: string;
+        en?: string;
+    }>({});
+    const [isTranslatingSynopsis, setIsTranslatingSynopsis] =
+        useState<boolean>(false);
 
     // Sync synopsis language with navbar language if changed
     useEffect(() => {
@@ -49,7 +83,9 @@ export default function DetailPage({ id }: DetailPageProps) {
 
         if (targetLang === 'id') {
             if (!translatedSynopsis.id) {
-                const currentEn = media.synopsisEn || (isEngText(media.synopsis) ? media.synopsis : '');
+                const currentEn =
+                    media.synopsisEn ||
+                    (isEngText(media.synopsis) ? media.synopsis : '');
                 if (media.synopsis && !isEngText(media.synopsis)) {
                     return;
                 }
@@ -58,7 +94,10 @@ export default function DetailPage({ id }: DetailPageProps) {
                     try {
                         const res = await translateText(currentEn, 'en', 'id');
                         if (res) {
-                            setTranslatedSynopsis((prev) => ({ ...prev, id: res }));
+                            setTranslatedSynopsis((prev) => ({
+                                ...prev,
+                                id: res,
+                            }));
                         }
                     } finally {
                         setIsTranslatingSynopsis(false);
@@ -79,7 +118,10 @@ export default function DetailPage({ id }: DetailPageProps) {
                     try {
                         const res = await translateText(currentId, 'id', 'en');
                         if (res) {
-                            setTranslatedSynopsis((prev) => ({ ...prev, en: res }));
+                            setTranslatedSynopsis((prev) => ({
+                                ...prev,
+                                en: res,
+                            }));
                         }
                     } finally {
                         setIsTranslatingSynopsis(false);
@@ -93,18 +135,21 @@ export default function DetailPage({ id }: DetailPageProps) {
         if (!media) return '';
         if (synopsisLang === 'id') {
             if (translatedSynopsis.id) return translatedSynopsis.id;
-            if (media.synopsis && !isEngText(media.synopsis)) return media.synopsis;
+            if (media.synopsis && !isEngText(media.synopsis))
+                return media.synopsis;
             return media.synopsis;
         } else {
             if (translatedSynopsis.en) return translatedSynopsis.en;
             if (media.synopsisEn) return media.synopsisEn;
-            if (media.synopsis && isEngText(media.synopsis)) return media.synopsis;
+            if (media.synopsis && isEngText(media.synopsis))
+                return media.synopsis;
             return media.synopsisEn || media.synopsis;
         }
     };
 
     // API Target Modal State
-    const [showApiTargetModal, setShowApiTargetModal] = useState<boolean>(false);
+    const [showApiTargetModal, setShowApiTargetModal] =
+        useState<boolean>(false);
     const [apiBaseUrl, setApiBaseUrl] = useState<string>(() => {
         try {
             const saved = localStorage.getItem('ztv_api_target_base_url');
@@ -119,10 +164,15 @@ export default function DetailPage({ id }: DetailPageProps) {
     const [enableDownload, setEnableDownload] = useState<boolean>(true);
     const [testDownload, setTestDownload] = useState<boolean>(false);
     const [threads, setThreads] = useState<number>(10);
-    const [targetM3u8Type, setTargetM3u8Type] = useState<'watch' | 'stream' | 'zetware'>('watch');
+    const [targetM3u8Type, setTargetM3u8Type] = useState<
+        'watch' | 'stream' | 'zetware'
+    >('watch');
     const [copiedField, setCopiedField] = useState<string | null>(null);
     const [apiSending, setApiSending] = useState<boolean>(false);
-    const [apiFeedback, setApiFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [apiFeedback, setApiFeedback] = useState<{
+        type: 'success' | 'error';
+        message: string;
+    } | null>(null);
 
     // Load initial media item (from sessionStorage cache or TMDB live fetch)
     useEffect(() => {
@@ -136,7 +186,10 @@ export default function DetailPage({ id }: DetailPageProps) {
                 const cachedStr = sessionStorage.getItem(`ztv_media_${id}`);
                 if (cachedStr) {
                     const cached = JSON.parse(cachedStr);
-                    if (cached && (cached.id === id || String(cached.tmdbId) === id)) {
+                    if (
+                        cached &&
+                        (cached.id === id || String(cached.tmdbId) === id)
+                    ) {
                         if (isMounted) {
                             setMedia(cached);
                             setCastList(cached.cast || []);
@@ -159,7 +212,10 @@ export default function DetailPage({ id }: DetailPageProps) {
                     setDirectorName(fetched.director || '');
                     setEpisodesList(fetched.episodes || []);
                     try {
-                        sessionStorage.setItem(`ztv_media_${id}`, JSON.stringify(fetched));
+                        sessionStorage.setItem(
+                            `ztv_media_${id}`,
+                            JSON.stringify(fetched),
+                        );
                     } catch {
                         // ignore storage error
                     }
@@ -214,10 +270,12 @@ export default function DetailPage({ id }: DetailPageProps) {
     useEffect(() => {
         if (media && media.type === 'series' && media.tmdbId) {
             setIsLoadingEpisodes(true);
-            fetchTmdbEpisodes(media.tmdbId, selectedSeasonNumber).then((eps) => {
-                setEpisodesList(eps);
-                setIsLoadingEpisodes(false);
-            });
+            fetchTmdbEpisodes(media.tmdbId, selectedSeasonNumber).then(
+                (eps) => {
+                    setEpisodesList(eps);
+                    setIsLoadingEpisodes(false);
+                },
+            );
         }
     }, [media, selectedSeasonNumber]);
 
@@ -249,7 +307,9 @@ export default function DetailPage({ id }: DetailPageProps) {
     const handleToggleMyList = () => {
         if (!media) return;
         setMyList((prev) => {
-            const updated = prev.includes(media.id) ? prev.filter((i) => i !== media.id) : [...prev, media.id];
+            const updated = prev.includes(media.id)
+                ? prev.filter((i) => i !== media.id)
+                : [...prev, media.id];
             try {
                 localStorage.setItem('ztv_my_list', JSON.stringify(updated));
             } catch {
@@ -270,22 +330,42 @@ export default function DetailPage({ id }: DetailPageProps) {
     const isSaved = media ? myList.includes(media.id) : false;
 
     // TMDB Target API calculation
-    const targetTmdbId = String(media?.tmdbId || (media ? getTmdbIdForMedia(media.id) : ''));
-    
+    const targetTmdbId = String(
+        media?.tmdbId || (media ? getTmdbIdForMedia(media.id) : ''),
+    );
+
     const getTargetWatchUrl = () => {
-        const domain = (typeof window !== 'undefined' && !window.location.origin.includes('localhost'))
-            ? window.location.origin
-            : 'https://cinema.zetware.id';
-        const mediaId = media ? (media.id.startsWith('tmdb-') ? media.id : `tmdb-${media.type === 'series' ? 'tv' : 'mov'}-${targetTmdbId}`) : id;
-        const query = media?.type === 'series' ? `?episode=1&season=${selectedSeasonNumber}` : '';
+        const domain =
+            typeof window !== 'undefined' &&
+            !window.location.origin.includes('localhost')
+                ? window.location.origin
+                : 'https://cinema.zetware.id';
+        const mediaId = media
+            ? media.id.startsWith('tmdb-')
+                ? media.id
+                : `tmdb-${media.type === 'series' ? 'tv' : 'mov'}-${targetTmdbId}`
+            : id;
+        const query =
+            media?.type === 'series'
+                ? `?episode=1&season=${selectedSeasonNumber}`
+                : '';
         return `${domain}/watch/${mediaId}${query}`;
     };
 
-    const targetM3u8Url = targetM3u8Type === 'zetware' && zetwareDirectUrl
-        ? zetwareDirectUrl
-        : targetM3u8Type === 'watch'
-        ? getTargetWatchUrl()
-        : (media ? getSourceUrl('vidsrc', media.type, targetTmdbId || 27205, selectedSeasonNumber, 1) : '');
+    const targetM3u8Url =
+        targetM3u8Type === 'zetware' && zetwareDirectUrl
+            ? zetwareDirectUrl
+            : targetM3u8Type === 'watch'
+              ? getTargetWatchUrl()
+              : media
+                ? getSourceUrl(
+                      'vidsrc',
+                      media.type,
+                      targetTmdbId || 27205,
+                      selectedSeasonNumber,
+                      1,
+                  )
+                : '';
 
     const targetTitle = media
         ? media.type === 'series'
@@ -343,7 +423,7 @@ export default function DetailPage({ id }: DetailPageProps) {
             const fullUrl = getTargetFullUrl();
             const res = await fetch(fullUrl, {
                 method: 'GET',
-                headers: { 'Accept': 'application/json' },
+                headers: { Accept: 'application/json' },
             });
             if (res.ok) {
                 setApiFeedback({
@@ -384,7 +464,7 @@ export default function DetailPage({ id }: DetailPageProps) {
 
     if (isLoading && !media) {
         return (
-            <div className="min-h-screen bg-slate-950 text-slate-100 font-sans">
+            <div className="min-h-screen bg-slate-950 font-sans text-slate-100">
                 <Navbar
                     activeCategory=""
                     onSelectCategory={handleNavbarSelectCategory}
@@ -395,7 +475,7 @@ export default function DetailPage({ id }: DetailPageProps) {
                     onToggleMyListOnly={handleNavbarToggleMyListOnly}
                     showCategories={true}
                 />
-                <div className="pt-28 px-4 sm:px-8 max-w-7xl mx-auto">
+                <div className="mx-auto max-w-7xl px-4 pt-28 sm:px-8">
                     <StreamingSkeleton />
                 </div>
             </div>
@@ -404,15 +484,18 @@ export default function DetailPage({ id }: DetailPageProps) {
 
     if (!media) {
         return (
-            <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col items-center justify-center p-6 text-center">
-                <AlertCircle className="w-16 h-16 text-red-500 mb-4 animate-bounce" />
-                <h1 className="text-2xl font-bold mb-2">Tayangan Tidak Ditemukan</h1>
-                <p className="text-slate-400 text-sm max-w-md mb-6">
-                    Konten film atau serial TV dengan ID ini tidak dapat dimuat atau telah dipindahkan.
+            <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 p-6 text-center text-slate-100">
+                <AlertCircle className="mb-4 h-16 w-16 animate-bounce text-red-500" />
+                <h1 className="mb-2 text-2xl font-bold">
+                    Tayangan Tidak Ditemukan
+                </h1>
+                <p className="mb-6 max-w-md text-sm text-slate-400">
+                    Konten film atau serial TV dengan ID ini tidak dapat dimuat
+                    atau telah dipindahkan.
                 </p>
                 <Link
                     href="/"
-                    className="px-6 py-2.5 rounded-xl bg-red-600 hover:bg-red-500 text-white font-bold text-sm transition"
+                    className="rounded-xl bg-red-600 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-red-500"
                 >
                     Kembali Ke Beranda
                 </Link>
@@ -424,7 +507,7 @@ export default function DetailPage({ id }: DetailPageProps) {
         <>
             <Head title={`${media.title} - Detail Tayangan | ZTV Stream`} />
 
-            <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-red-600 selection:text-white antialiased">
+            <div className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-red-600 selection:text-white">
                 {/* Navbar */}
                 <Navbar
                     activeCategory=""
@@ -438,30 +521,37 @@ export default function DetailPage({ id }: DetailPageProps) {
                 />
 
                 {/* Back to Home Quick Floating Bar */}
-                <div className="pt-28 sm:pt-28 px-4 sm:px-8 max-w-7xl mx-auto">
+                <div className="mx-auto max-w-7xl px-4 pt-28 sm:px-8 sm:pt-28">
                     <button
                         onClick={() => {
-                            if (typeof document !== 'undefined' && document.referrer && document.referrer.includes(window.location.host) && !document.referrer.includes('/detail/')) {
+                            if (
+                                typeof document !== 'undefined' &&
+                                document.referrer &&
+                                document.referrer.includes(
+                                    window.location.host,
+                                ) &&
+                                !document.referrer.includes('/detail/')
+                            ) {
                                 window.location.href = document.referrer;
                             } else {
                                 router.visit('/');
                             }
                         }}
-                        className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900/80 hover:bg-slate-800 border border-white/10 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer backdrop-blur-md mb-4 active:scale-95 shadow-md group"
+                        className="group mb-4 inline-flex cursor-pointer items-center gap-2 rounded-xl border border-white/10 bg-slate-900/80 px-3.5 py-1.5 text-xs font-semibold text-slate-300 shadow-md backdrop-blur-md transition hover:bg-slate-800 hover:text-white active:scale-95"
                     >
-                        <ArrowLeft className="w-4 h-4 text-red-500 group-hover:text-white transition-colors" />
+                        <ArrowLeft className="h-4 w-4 text-red-500 transition-colors group-hover:text-white" />
                         <span>Kembali</span>
                     </button>
                 </div>
 
                 {/* CINEMATIC HERO BANNER */}
-                <div className="relative max-w-7xl mx-auto px-4 sm:px-8 pb-12">
-                    <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl bg-slate-900 min-h-[460px] sm:min-h-[540px] flex items-end">
+                <div className="relative mx-auto max-w-7xl px-4 pb-12 sm:px-8">
+                    <div className="relative flex min-h-[460px] items-end overflow-hidden rounded-3xl border border-white/10 bg-slate-900 shadow-2xl sm:min-h-[540px]">
                         {/* Backdrop Image */}
                         <img
                             src={media.backdropUrl}
                             alt={media.title}
-                            className="absolute inset-0 w-full h-full object-cover object-top opacity-50 filter brightness-90"
+                            className="absolute inset-0 h-full w-full object-cover object-top opacity-50 brightness-90 filter"
                         />
 
                         {/* Radial & Linear Gradient Overlays */}
@@ -469,40 +559,43 @@ export default function DetailPage({ id }: DetailPageProps) {
                         <div className="absolute inset-0 bg-gradient-to-r from-slate-950 via-slate-950/40 to-transparent" />
 
                         {/* Content Container */}
-                        <div className="relative z-10 p-5 sm:p-10 w-full flex flex-col md:flex-row gap-6 sm:gap-8 items-start md:items-end">
+                        <div className="relative z-10 flex w-full flex-col items-start gap-6 p-5 sm:gap-8 sm:p-10 md:flex-row md:items-end">
                             {/* Poster Column (Hidden on tiny screens) */}
-                            <div className="hidden sm:block w-44 md:w-56 shrink-0 rounded-2xl overflow-hidden shadow-2xl border-2 border-white/20 -mb-2">
+                            <div className="-mb-2 hidden w-44 shrink-0 overflow-hidden rounded-2xl border-2 border-white/20 shadow-2xl sm:block md:w-56">
                                 <img
                                     src={media.posterUrl}
                                     alt={media.title}
-                                    className="w-full h-full object-cover"
+                                    className="h-full w-full object-cover"
                                 />
                             </div>
 
                             {/* Details Column */}
                             <div className="flex-1 space-y-4">
                                 {media.isOriginal && (
-                                    <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600/30 border border-red-500/40 text-red-400 text-xs font-bold uppercase tracking-wider">
-                                        <Sparkles className="w-3.5 h-3.5" />
+                                    <div className="inline-flex items-center gap-1.5 rounded-full border border-red-500/40 bg-red-600/30 px-3 py-1 text-xs font-bold tracking-wider text-red-400 uppercase">
+                                        <Sparkles className="h-3.5 w-3.5" />
                                         ZTV ORIGINAL
                                     </div>
                                 )}
 
-                                <h1 className="text-2xl sm:text-4xl md:text-5xl font-black text-white tracking-tight uppercase drop-shadow-md">
+                                <h1 className="text-2xl font-black tracking-tight text-white uppercase drop-shadow-md sm:text-4xl md:text-5xl">
                                     {media.title}
                                 </h1>
 
                                 {/* Meta badges */}
-                                <div className="flex flex-wrap items-center gap-2 text-xs sm:text-sm font-semibold text-slate-300">
-                                    <span className="text-emerald-400 font-bold">{media.matchScore}</span>
+                                <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-slate-300 sm:text-sm">
+                                    <span className="font-bold text-emerald-400">
+                                        {media.matchScore}
+                                    </span>
                                     <span>•</span>
-                                    <span className="text-amber-400 flex items-center gap-1">
-                                        <Star className="w-3.5 h-3.5 fill-amber-400" /> {media.rating}
+                                    <span className="flex items-center gap-1 text-amber-400">
+                                        <Star className="h-3.5 w-3.5 fill-amber-400" />{' '}
+                                        {media.rating}
                                     </span>
                                     <span>•</span>
                                     <span>{media.year}</span>
                                     <span>•</span>
-                                    <span className="px-1.5 py-0.5 rounded bg-white/10 text-xs border border-white/15">
+                                    <span className="rounded border border-white/15 bg-white/10 px-1.5 py-0.5 text-xs">
                                         {media.ageRating}
                                     </span>
                                     <span>•</span>
@@ -514,7 +607,7 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     {media.genres.map((g) => (
                                         <span
                                             key={g}
-                                            className="px-2.5 py-0.5 rounded-full bg-white/10 text-[11px] font-medium text-slate-300 border border-white/10"
+                                            className="rounded-full border border-white/10 bg-white/10 px-2.5 py-0.5 text-[11px] font-medium text-slate-300"
                                         >
                                             {g}
                                         </span>
@@ -526,9 +619,9 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     {/* Play Button */}
                                     <Link
                                         href={`/watch/${media.id}`}
-                                        className="px-6 py-3 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-extrabold text-sm sm:text-base flex items-center gap-2 shadow-xl shadow-red-600/40 hover:shadow-red-600/60 transition active:scale-95"
+                                        className="flex items-center gap-2 rounded-2xl bg-red-600 px-6 py-3 text-sm font-extrabold text-white shadow-xl shadow-red-600/40 transition hover:bg-red-500 hover:shadow-red-600/60 active:scale-95 sm:text-base"
                                     >
-                                        <Play className="w-5 h-5 fill-white" />
+                                        <Play className="h-5 w-5 fill-white" />
                                         <span>Putar</span>
                                     </Link>
 
@@ -542,18 +635,26 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     {/* My List Toggle */}
                                     <button
                                         onClick={handleToggleMyList}
-                                        className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition active:scale-95 flex items-center gap-2 text-sm font-semibold"
-                                        title={isSaved ? 'Hapus dari Daftar Saya' : 'Tambah ke Daftar Saya'}
+                                        className="flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 p-3 text-sm font-semibold text-white transition hover:bg-white/20 active:scale-95"
+                                        title={
+                                            isSaved
+                                                ? 'Hapus dari Daftar Saya'
+                                                : 'Tambah ke Daftar Saya'
+                                        }
                                     >
                                         {isSaved ? (
                                             <>
-                                                <Check className="w-5 h-5 text-emerald-400" />
-                                                <span className="hidden sm:inline text-emerald-400">Tersimpan</span>
+                                                <Check className="h-5 w-5 text-emerald-400" />
+                                                <span className="hidden text-emerald-400 sm:inline">
+                                                    Tersimpan
+                                                </span>
                                             </>
                                         ) : (
                                             <>
-                                                <Plus className="w-5 h-5" />
-                                                <span className="hidden sm:inline">Daftar Saya</span>
+                                                <Plus className="h-5 w-5" />
+                                                <span className="hidden sm:inline">
+                                                    Daftar Saya
+                                                </span>
                                             </>
                                         )}
                                     </button>
@@ -561,42 +662,48 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     {/* Share Button */}
                                     <button
                                         onClick={handleShare}
-                                        className="p-3 rounded-2xl bg-white/10 hover:bg-white/20 border border-white/15 text-white transition active:scale-95 flex items-center gap-2 text-sm font-semibold"
+                                        className="flex items-center gap-2 rounded-2xl border border-white/15 bg-white/10 p-3 text-sm font-semibold text-white transition hover:bg-white/20 active:scale-95"
                                         title="Bagikan Tautan"
                                     >
-                                        <Share2 className="w-5 h-5 text-slate-300" />
+                                        <Share2 className="h-5 w-5 text-slate-300" />
                                         <span className="hidden sm:inline">
-                                            {isCopiedShare ? 'Tersalin!' : 'Bagikan'}
+                                            {isCopiedShare
+                                                ? 'Tersalin!'
+                                                : 'Bagikan'}
                                         </span>
                                     </button>
-
-                                  
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     {/* SYNOPSIS & CREDITS SECTION */}
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8">
+                    <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-3">
                         {/* Synopsis & Overview (2 columns) */}
-                        <div className="lg:col-span-2 space-y-4 p-6 sm:p-8 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
-                            <div className="flex items-center justify-between gap-4 flex-wrap">
-                                <h2 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
-                                    <Film className="w-5 h-5 text-red-500" />
-                                    <span>{synopsisLang === 'en' ? 'Synopsis & Storyline' : 'Sinopsis & Alur Cerita'}</span>
+                        <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl sm:p-8 lg:col-span-2">
+                            <div className="flex flex-wrap items-center justify-between gap-4">
+                                <h2 className="flex items-center gap-2 text-lg font-bold text-white sm:text-xl">
+                                    <Film className="h-5 w-5 text-red-500" />
+                                    <span>
+                                        {synopsisLang === 'en'
+                                            ? 'Synopsis & Storyline'
+                                            : 'Sinopsis & Alur Cerita'}
+                                    </span>
                                 </h2>
 
                                 {/* Toggle Translate ID / ENG */}
-                                <div className="flex items-center gap-1 p-1 bg-white/5 border border-white/10 rounded-xl">
+                                <div className="flex items-center gap-1 rounded-xl border border-white/10 bg-white/5 p-1">
                                     <button
                                         type="button"
-                                        onClick={() => handleSwitchSynopsisLang('id')}
+                                        onClick={() =>
+                                            handleSwitchSynopsisLang('id')
+                                        }
                                         disabled={isTranslatingSynopsis}
                                         title="Tampilkan sinopsis dalam Bahasa Indonesia"
-                                        className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition-all ${
                                             synopsisLang === 'id'
-                                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-bold'
-                                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                                ? 'bg-red-600 font-bold text-white shadow-md shadow-red-600/30'
+                                                : 'text-slate-400 hover:bg-white/5 hover:text-white'
                                         }`}
                                     >
                                         <span>🇮🇩</span>
@@ -604,13 +711,15 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     </button>
                                     <button
                                         type="button"
-                                        onClick={() => handleSwitchSynopsisLang('en')}
+                                        onClick={() =>
+                                            handleSwitchSynopsisLang('en')
+                                        }
                                         disabled={isTranslatingSynopsis}
                                         title="Show synopsis in English"
-                                        className={`px-3 py-1 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition-all ${
+                                        className={`flex items-center gap-1.5 rounded-lg px-3 py-1 text-xs font-semibold transition-all ${
                                             synopsisLang === 'en'
-                                                ? 'bg-red-600 text-white shadow-md shadow-red-600/30 font-bold'
-                                                : 'text-slate-400 hover:text-white hover:bg-white/5'
+                                                ? 'bg-red-600 font-bold text-white shadow-md shadow-red-600/30'
+                                                : 'text-slate-400 hover:bg-white/5 hover:text-white'
                                         }`}
                                     >
                                         <span>🇬🇧</span>
@@ -620,36 +729,48 @@ export default function DetailPage({ id }: DetailPageProps) {
                             </div>
 
                             {isTranslatingSynopsis ? (
-                                <div className="flex items-center gap-2 py-4 text-sm text-slate-400 animate-pulse">
-                                    <RefreshCw className="w-4 h-4 animate-spin text-red-500" />
-                                    <span>{synopsisLang === 'id' ? 'Menerjemahkan sinopsis ke Bahasa Indonesia...' : 'Translating synopsis to English...'}</span>
+                                <div className="flex animate-pulse items-center gap-2 py-4 text-sm text-slate-400">
+                                    <RefreshCw className="h-4 w-4 animate-spin text-red-500" />
+                                    <span>
+                                        {synopsisLang === 'id'
+                                            ? 'Menerjemahkan sinopsis ke Bahasa Indonesia...'
+                                            : 'Translating synopsis to English...'}
+                                    </span>
                                 </div>
                             ) : (
-                                <p className="text-sm sm:text-base text-slate-300 leading-relaxed">
+                                <p className="text-sm leading-relaxed text-slate-300 sm:text-base">
                                     {getDisplayedSynopsis()}
                                 </p>
                             )}
                         </div>
 
                         {/* Credits & Metadata Info (1 column) */}
-                        <div className="space-y-4 p-6 sm:p-8 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl">
-                            <h2 className="text-lg font-bold text-white">Informasi Produksi</h2>
+                        <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl sm:p-8">
+                            <h2 className="text-lg font-bold text-white">
+                                Informasi Produksi
+                            </h2>
 
                             {directorName && (
                                 <div>
-                                    <span className="text-xs text-slate-400 uppercase tracking-wider block">Sutradara / Kreator:</span>
-                                    <p className="text-sm font-bold text-slate-200 mt-0.5">{directorName}</p>
+                                    <span className="block text-xs tracking-wider text-slate-400 uppercase">
+                                        Sutradara / Kreator:
+                                    </span>
+                                    <p className="mt-0.5 text-sm font-bold text-slate-200">
+                                        {directorName}
+                                    </p>
                                 </div>
                             )}
 
                             {castList.length > 0 && (
                                 <div>
-                                    <span className="text-xs text-slate-400 uppercase tracking-wider block mb-1">Pemeran Utama:</span>
+                                    <span className="mb-1 block text-xs tracking-wider text-slate-400 uppercase">
+                                        Pemeran Utama:
+                                    </span>
                                     <div className="flex flex-wrap gap-1.5">
                                         {castList.map((actor) => (
                                             <span
                                                 key={actor}
-                                                className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-xs text-slate-200"
+                                                className="rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs text-slate-200"
                                             >
                                                 {actor}
                                             </span>
@@ -657,34 +778,38 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     </div>
                                 </div>
                             )}
-
-                           
                         </div>
                     </div>
 
                     {/* TV SERIES SEASONS & EPISODES SECTION */}
                     {media.type === 'series' && (
-                        <div className="mt-8 p-6 sm:p-8 rounded-3xl bg-slate-900/60 border border-white/10 backdrop-blur-xl space-y-6">
-                            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                                <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                                    <Tv className="w-5 h-5 text-red-500" />
+                        <div className="mt-8 space-y-6 rounded-3xl border border-white/10 bg-slate-900/60 p-6 backdrop-blur-xl sm:p-8">
+                            <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+                                <h2 className="flex items-center gap-2 text-xl font-bold text-white">
+                                    <Tv className="h-5 w-5 text-red-500" />
                                     Daftar Episode
                                 </h2>
 
                                 {/* Seasons pill selector */}
                                 {seasonsList.length > 0 && (
-                                    <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+                                    <div className="no-scrollbar flex items-center gap-1.5 overflow-x-auto pb-1">
                                         {seasonsList.map((s) => (
                                             <button
                                                 key={s.seasonNumber}
-                                                onClick={() => setSelectedSeasonNumber(s.seasonNumber)}
-                                                className={`px-3.5 py-1.5 rounded-xl font-bold transition text-xs shrink-0 cursor-pointer ${
-                                                    selectedSeasonNumber === s.seasonNumber
+                                                onClick={() =>
+                                                    setSelectedSeasonNumber(
+                                                        s.seasonNumber,
+                                                    )
+                                                }
+                                                className={`shrink-0 cursor-pointer rounded-xl px-3.5 py-1.5 text-xs font-bold transition ${
+                                                    selectedSeasonNumber ===
+                                                    s.seasonNumber
                                                         ? 'bg-red-600 text-white shadow-lg shadow-red-600/30'
                                                         : 'bg-white/10 text-slate-300 hover:bg-white/20'
                                                 }`}
                                             >
-                                                {s.name || `Musim ${s.seasonNumber}`}
+                                                {s.name ||
+                                                    `Musim ${s.seasonNumber}`}
                                             </button>
                                         ))}
                                     </div>
@@ -693,40 +818,42 @@ export default function DetailPage({ id }: DetailPageProps) {
 
                             {/* Episode Grid */}
                             {isLoadingEpisodes ? (
-                                <div className="py-12 flex items-center justify-center gap-2 text-slate-400 text-xs">
-                                    <RefreshCw className="w-4 h-4 animate-spin text-red-500" />
+                                <div className="flex items-center justify-center gap-2 py-12 text-xs text-slate-400">
+                                    <RefreshCw className="h-4 w-4 animate-spin text-red-500" />
                                     <span>Memuat episode dari TMDB...</span>
                                 </div>
                             ) : episodesList.length > 0 ? (
-                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                     {episodesList.map((ep) => (
                                         <Link
                                             key={ep.id}
                                             href={`/watch/${media.id}?season=${selectedSeasonNumber}&episode=${ep.episodeNumber}`}
-                                            className="group p-3 rounded-2xl bg-slate-950/60 hover:bg-white/10 border border-white/5 hover:border-red-500/40 transition flex gap-3.5 items-start cursor-pointer"
+                                            className="group flex cursor-pointer items-start gap-3.5 rounded-2xl border border-white/5 bg-slate-950/60 p-3 transition hover:border-red-500/40 hover:bg-white/10"
                                         >
-                                            <div className="relative w-28 sm:w-32 aspect-video rounded-xl overflow-hidden shrink-0 bg-slate-900 border border-white/10">
+                                            <div className="relative aspect-video w-28 shrink-0 overflow-hidden rounded-xl border border-white/10 bg-slate-900 sm:w-32">
                                                 <img
                                                     src={ep.thumbnail}
                                                     alt={ep.title}
-                                                    className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                                                    className="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                                                 />
-                                                <div className="absolute inset-0 bg-black/40 group-hover:bg-black/20 flex items-center justify-center transition">
-                                                    <div className="w-8 h-8 rounded-full bg-red-600 text-white flex items-center justify-center shadow-lg group-hover:scale-110 transition">
-                                                        <Play className="w-3.5 h-3.5 fill-white ml-0.5" />
+                                                <div className="absolute inset-0 flex items-center justify-center bg-black/40 transition group-hover:bg-black/20">
+                                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-600 text-white shadow-lg transition group-hover:scale-110">
+                                                        <Play className="ml-0.5 h-3.5 w-3.5 fill-white" />
                                                     </div>
                                                 </div>
                                             </div>
 
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center justify-between gap-1 text-[11px] text-slate-400 mb-0.5">
-                                                    <span className="font-mono text-red-400 font-bold">Eps {ep.episodeNumber}</span>
+                                            <div className="min-w-0 flex-1">
+                                                <div className="mb-0.5 flex items-center justify-between gap-1 text-[11px] text-slate-400">
+                                                    <span className="font-mono font-bold text-red-400">
+                                                        Eps {ep.episodeNumber}
+                                                    </span>
                                                     <span>{ep.duration}</span>
                                                 </div>
-                                                <h4 className="text-sm font-bold text-white group-hover:text-red-400 transition truncate">
+                                                <h4 className="truncate text-sm font-bold text-white transition group-hover:text-red-400">
                                                     {ep.title}
                                                 </h4>
-                                                <p className="text-[11px] text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                                                <p className="mt-1 line-clamp-2 text-[11px] leading-relaxed text-slate-400">
                                                     {ep.synopsis}
                                                 </p>
                                             </div>
@@ -734,7 +861,10 @@ export default function DetailPage({ id }: DetailPageProps) {
                                     ))}
                                 </div>
                             ) : (
-                                <p className="text-xs text-slate-400 py-4">Tidak ada episode yang terdaftar untuk musim ini.</p>
+                                <p className="py-4 text-xs text-slate-400">
+                                    Tidak ada episode yang terdaftar untuk musim
+                                    ini.
+                                </p>
                             )}
                         </div>
                     )}
@@ -742,31 +872,32 @@ export default function DetailPage({ id }: DetailPageProps) {
 
                 {/* TARGET API MODAL */}
                 {showApiTargetModal && (
-                    <div 
+                    <div
                         onClick={() => setShowApiTargetModal(false)}
-                        className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 animate-in fade-in duration-200 cursor-pointer"
+                        className="fixed inset-0 z-50 flex animate-in cursor-pointer items-center justify-center bg-black/85 p-3 backdrop-blur-md duration-200 fade-in sm:p-4"
                     >
-                        <div 
+                        <div
                             onClick={(e) => e.stopPropagation()}
-                            className="w-full max-w-xl bg-slate-950 border border-amber-500/30 rounded-3xl p-5 sm:p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto cursor-default text-slate-200"
+                            className="max-h-[90vh] w-full max-w-xl cursor-default space-y-4 overflow-y-auto rounded-3xl border border-amber-500/30 bg-slate-950 p-5 text-slate-200 shadow-2xl sm:p-6"
                         >
                             <div className="flex items-center justify-between border-b border-white/10 pb-3">
                                 <div className="flex items-center gap-2.5">
-                                    <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
-                                        <Share2 className="w-5 h-5" />
+                                    <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-2 text-amber-400">
+                                        <Share2 className="h-5 w-5" />
                                     </div>
                                     <div>
                                         <h3 className="text-base font-bold text-white">
                                             Preview Query Target Stream API
                                         </h3>
                                         <p className="text-[11px] text-slate-400">
-                                            Parameter query string target untuk pemutar / manifest streaming
+                                            Parameter query string target untuk
+                                            pemutar / manifest streaming
                                         </p>
                                     </div>
                                 </div>
                                 <button
                                     onClick={() => setShowApiTargetModal(false)}
-                                    className="p-1.5 rounded-xl hover:bg-white/10 text-slate-400 hover:text-white transition"
+                                    className="rounded-xl p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
                                 >
                                     ✕
                                 </button>
@@ -774,62 +905,92 @@ export default function DetailPage({ id }: DetailPageProps) {
 
                             {/* Base URL */}
                             <div className="space-y-1.5">
-                                <label className="text-xs font-semibold text-amber-300 flex items-center gap-1.5">
-                                    <Globe className="w-3.5 h-3.5 text-amber-400" />
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
+                                    <Globe className="h-3.5 w-3.5 text-amber-400" />
                                     Base URL / Endpoint Target:
                                 </label>
                                 <input
                                     type="text"
                                     value={apiBaseUrl}
-                                    onChange={(e) => handleBaseUrlChange(e.target.value)}
+                                    onChange={(e) =>
+                                        handleBaseUrlChange(e.target.value)
+                                    }
                                     placeholder="http://100.81.252.14:8000/extract"
-                                    className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-white/15 text-white font-mono text-xs focus:outline-none focus:border-amber-500 transition"
+                                    className="w-full rounded-xl border border-white/15 bg-slate-900 px-3.5 py-2 font-mono text-xs text-white transition focus:border-amber-500 focus:outline-none"
                                 />
                             </div>
 
                             {/* Query Parameters */}
                             <div className="space-y-2">
                                 {/* 1. tmdb_id */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-red-400">tmdb_id *</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-500/20 text-red-300 font-mono">string (query)</span>
+                                            <code className="font-mono text-xs font-bold text-red-400">
+                                                tmdb_id *
+                                            </code>
+                                            <span className="py-0.2 rounded bg-red-500/20 px-1.5 font-mono text-[10px] text-red-300">
+                                                string (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">ID TMDb media</p>
-                                        <p className="text-xs font-mono text-white font-semibold truncate mt-1 bg-black/40 px-2 py-1 rounded-lg">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            ID TMDb media
+                                        </p>
+                                        <p className="mt-1 truncate rounded-lg bg-black/40 px-2 py-1 font-mono text-xs font-semibold text-white">
                                             {targetTmdbId}
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(targetTmdbId, 'tmdb_id')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0"
+                                        onClick={() =>
+                                            handleCopy(targetTmdbId, 'tmdb_id')
+                                        }
+                                        className="shrink-0 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20"
                                     >
-                                        {copiedField === 'tmdb_id' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'tmdb_id'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 2. m3u8_url */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
-                                        <div className="flex items-center gap-2 flex-wrap">
-                                            <code className="text-xs font-mono font-bold text-amber-400">m3u8_url *</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 text-amber-300 font-mono">string (query)</span>
-                                            <div className="flex items-center gap-1 ml-auto">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <code className="font-mono text-xs font-bold text-amber-400">
+                                                m3u8_url *
+                                            </code>
+                                            <span className="py-0.2 rounded bg-amber-500/20 px-1.5 font-mono text-[10px] text-amber-300">
+                                                string (query)
+                                            </span>
+                                            <div className="ml-auto flex items-center gap-1">
                                                 <button
                                                     type="button"
-                                                    onClick={() => setTargetM3u8Type('watch')}
-                                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
-                                                        targetM3u8Type === 'watch' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                    onClick={() =>
+                                                        setTargetM3u8Type(
+                                                            'watch',
+                                                        )
+                                                    }
+                                                    className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                                                        targetM3u8Type ===
+                                                        'watch'
+                                                            ? 'bg-amber-500 font-bold text-slate-950'
+                                                            : 'bg-white/10 text-slate-400 hover:text-white'
                                                     }`}
                                                 >
                                                     Watch URL
                                                 </button>
                                                 <button
                                                     type="button"
-                                                    onClick={() => setTargetM3u8Type('stream')}
-                                                    className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
-                                                        targetM3u8Type === 'stream' ? 'bg-amber-500 text-slate-950 font-bold' : 'bg-white/10 text-slate-400 hover:text-white'
+                                                    onClick={() =>
+                                                        setTargetM3u8Type(
+                                                            'stream',
+                                                        )
+                                                    }
+                                                    className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                                                        targetM3u8Type ===
+                                                        'stream'
+                                                            ? 'bg-amber-500 font-bold text-slate-950'
+                                                            : 'bg-white/10 text-slate-400 hover:text-white'
                                                     }`}
                                                 >
                                                     Stream Embed
@@ -837,9 +998,16 @@ export default function DetailPage({ id }: DetailPageProps) {
                                                 {zetwareDirectUrl && (
                                                     <button
                                                         type="button"
-                                                        onClick={() => setTargetM3u8Type('zetware')}
-                                                        className={`px-2 py-0.5 rounded text-[10px] font-semibold transition ${
-                                                            targetM3u8Type === 'zetware' ? 'bg-red-500 text-white font-bold ring-1 ring-red-400' : 'bg-white/10 text-red-300 hover:text-white'
+                                                        onClick={() =>
+                                                            setTargetM3u8Type(
+                                                                'zetware',
+                                                            )
+                                                        }
+                                                        className={`rounded px-2 py-0.5 text-[10px] font-semibold transition ${
+                                                            targetM3u8Type ===
+                                                            'zetware'
+                                                                ? 'bg-red-500 font-bold text-white ring-1 ring-red-400'
+                                                                : 'bg-white/10 text-red-300 hover:text-white'
                                                         }`}
                                                     >
                                                         ⚡ Zetware Cloud
@@ -847,157 +1015,247 @@ export default function DetailPage({ id }: DetailPageProps) {
                                                 )}
                                             </div>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">URL manifest target</p>
-                                        <p className="text-xs font-mono text-white font-semibold break-all mt-1 bg-black/40 px-2 py-1 rounded-lg max-h-16 overflow-y-auto">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            URL manifest target
+                                        </p>
+                                        <p className="mt-1 max-h-16 overflow-y-auto rounded-lg bg-black/40 px-2 py-1 font-mono text-xs font-semibold break-all text-white">
                                             {targetM3u8Url}
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(targetM3u8Url, 'm3u8_url')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(
+                                                targetM3u8Url,
+                                                'm3u8_url',
+                                            )
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'm3u8_url' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'm3u8_url'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 3. title */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-emerald-400">title *</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-emerald-500/20 text-emerald-300 font-mono">string (query)</span>
+                                            <code className="font-mono text-xs font-bold text-emerald-400">
+                                                title *
+                                            </code>
+                                            <span className="py-0.2 rounded bg-emerald-500/20 px-1.5 font-mono text-[10px] text-emerald-300">
+                                                string (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">Judul media / video</p>
-                                        <p className="text-xs font-mono text-white font-semibold truncate mt-1 bg-black/40 px-2 py-1 rounded-lg">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            Judul media / video
+                                        </p>
+                                        <p className="mt-1 truncate rounded-lg bg-black/40 px-2 py-1 font-mono text-xs font-semibold text-white">
                                             {targetTitle}
                                         </p>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(targetTitle, 'title')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(targetTitle, 'title')
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'title' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'title'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 4. enable_download */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-cyan-400">enable_download</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 text-cyan-300 font-mono">boolean (query)</span>
+                                            <code className="font-mono text-xs font-bold text-cyan-400">
+                                                enable_download
+                                            </code>
+                                            <span className="py-0.2 rounded bg-cyan-500/20 px-1.5 font-mono text-[10px] text-cyan-300">
+                                                boolean (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">Unduh video?</p>
-                                        <div className="flex items-center gap-3 mt-1.5">
-                                            <label className="flex items-center gap-2 cursor-pointer">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            Unduh video?
+                                        </p>
+                                        <div className="mt-1.5 flex items-center gap-3">
+                                            <label className="flex cursor-pointer items-center gap-2">
                                                 <input
                                                     type="checkbox"
                                                     checked={enableDownload}
-                                                    onChange={(e) => setEnableDownload(e.target.checked)}
-                                                    className="rounded bg-slate-950 border-white/20 text-red-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                                                    onChange={(e) =>
+                                                        setEnableDownload(
+                                                            e.target.checked,
+                                                        )
+                                                    }
+                                                    className="h-4 w-4 cursor-pointer rounded border-white/20 bg-slate-950 text-red-600 focus:ring-0"
                                                 />
-                                                <span className={`text-xs font-mono font-bold ${enableDownload ? 'text-emerald-400' : 'text-slate-400'}`}>
-                                                    {enableDownload ? 'true (Unduh Aktif)' : 'false (Unduh Mati)'}
+                                                <span
+                                                    className={`font-mono text-xs font-bold ${enableDownload ? 'text-emerald-400' : 'text-slate-400'}`}
+                                                >
+                                                    {enableDownload
+                                                        ? 'true (Unduh Aktif)'
+                                                        : 'false (Unduh Mati)'}
                                                 </span>
                                             </label>
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(String(enableDownload), 'enable_download')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(
+                                                String(enableDownload),
+                                                'enable_download',
+                                            )
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'enable_download' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'enable_download'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 5. test_download */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-purple-400">test_download</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">boolean (query)</span>
+                                            <code className="font-mono text-xs font-bold text-purple-400">
+                                                test_download
+                                            </code>
+                                            <span className="py-0.2 rounded bg-purple-500/20 px-1.5 font-mono text-[10px] text-purple-300">
+                                                boolean (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">True = Unduh resolusi terendah saja.</p>
-                                        <div className="flex items-center gap-3 mt-1.5">
-                                            <label className="flex items-center gap-2 cursor-pointer">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            True = Unduh resolusi terendah saja.
+                                        </p>
+                                        <div className="mt-1.5 flex items-center gap-3">
+                                            <label className="flex cursor-pointer items-center gap-2">
                                                 <input
                                                     type="checkbox"
                                                     checked={testDownload}
-                                                    onChange={(e) => setTestDownload(e.target.checked)}
-                                                    className="rounded bg-slate-950 border-white/20 text-red-600 focus:ring-0 w-4 h-4 cursor-pointer"
+                                                    onChange={(e) =>
+                                                        setTestDownload(
+                                                            e.target.checked,
+                                                        )
+                                                    }
+                                                    className="h-4 w-4 cursor-pointer rounded border-white/20 bg-slate-950 text-red-600 focus:ring-0"
                                                 />
-                                                <span className={`text-xs font-mono font-bold ${testDownload ? 'text-emerald-400' : 'text-slate-400'}`}>
-                                                    {testDownload ? 'true (Resolusi Terendah Saja)' : 'false (Semua Resolusi)'}
+                                                <span
+                                                    className={`font-mono text-xs font-bold ${testDownload ? 'text-emerald-400' : 'text-slate-400'}`}
+                                                >
+                                                    {testDownload
+                                                        ? 'true (Resolusi Terendah Saja)'
+                                                        : 'false (Semua Resolusi)'}
                                                 </span>
                                             </label>
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(String(testDownload), 'test_download')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(
+                                                String(testDownload),
+                                                'test_download',
+                                            )
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'test_download' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'test_download'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
 
                                 {/* 6. threads */}
-                                <div className="p-3 rounded-2xl bg-slate-900/80 border border-white/10 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                                <div className="flex flex-col justify-between gap-2 rounded-2xl border border-white/10 bg-slate-900/80 p-3 sm:flex-row sm:items-center">
                                     <div className="min-w-0 flex-1">
                                         <div className="flex items-center gap-2">
-                                            <code className="text-xs font-mono font-bold text-sky-400">threads</code>
-                                            <span className="text-[10px] px-1.5 py-0.2 rounded bg-sky-500/20 text-sky-300 font-mono">integer (query)</span>
+                                            <code className="font-mono text-xs font-bold text-sky-400">
+                                                threads
+                                            </code>
+                                            <span className="py-0.2 rounded bg-sky-500/20 px-1.5 font-mono text-[10px] text-sky-300">
+                                                integer (query)
+                                            </span>
                                         </div>
-                                        <p className="text-[11px] text-slate-400 mt-0.5">Jumlah pecahan koneksi paralel (1-10 direkomendasikan)</p>
-                                        <div className="flex items-center gap-3 mt-1.5">
+                                        <p className="mt-0.5 text-[11px] text-slate-400">
+                                            Jumlah pecahan koneksi paralel (1-10
+                                            direkomendasikan)
+                                        </p>
+                                        <div className="mt-1.5 flex items-center gap-3">
                                             <input
                                                 type="range"
                                                 min="1"
                                                 max="10"
                                                 value={threads}
-                                                onChange={(e) => setThreads(parseInt(e.target.value) || 1)}
-                                                className="w-36 accent-red-600 cursor-pointer"
+                                                onChange={(e) =>
+                                                    setThreads(
+                                                        parseInt(
+                                                            e.target.value,
+                                                        ) || 1,
+                                                    )
+                                                }
+                                                className="w-36 cursor-pointer accent-red-600"
                                             />
-                                            <span className="text-xs font-mono font-bold text-white bg-black/40 px-2 py-0.5 rounded">
+                                            <span className="rounded bg-black/40 px-2 py-0.5 font-mono text-xs font-bold text-white">
                                                 {threads} threads
                                             </span>
                                         </div>
                                     </div>
                                     <button
-                                        onClick={() => handleCopy(String(threads), 'threads')}
-                                        className="px-2.5 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 text-white text-xs font-medium shrink-0 self-start sm:self-center"
+                                        onClick={() =>
+                                            handleCopy(
+                                                String(threads),
+                                                'threads',
+                                            )
+                                        }
+                                        className="shrink-0 self-start rounded-lg bg-white/10 px-2.5 py-1.5 text-xs font-medium text-white hover:bg-white/20 sm:self-center"
                                     >
-                                        {copiedField === 'threads' ? 'Disalin' : 'Salin'}
+                                        {copiedField === 'threads'
+                                            ? 'Disalin'
+                                            : 'Salin'}
                                     </button>
                                 </div>
                             </div>
 
                             {/* Full URL */}
                             <div className="space-y-1.5 pt-1">
-                                <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                                    <Code className="w-3.5 h-3.5 text-slate-400" />
+                                <label className="flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                                    <Code className="h-3.5 w-3.5 text-slate-400" />
                                     Preview Full URL (dengan Query Params):
                                 </label>
-                                <div className="p-2.5 rounded-xl bg-black/60 border border-white/10 text-[11px] font-mono text-amber-300 break-all max-h-20 overflow-y-auto select-all">
+                                <div className="max-h-20 overflow-y-auto rounded-xl border border-white/10 bg-black/60 p-2.5 font-mono text-[11px] break-all text-amber-300 select-all">
                                     {getTargetFullUrl()}
                                 </div>
                             </div>
 
                             {/* Actions */}
-                            <div className="flex gap-2 pt-2 border-t border-white/10">
+                            <div className="flex gap-2 border-t border-white/10 pt-2">
                                 <button
-                                    onClick={() => window.open(getTargetFullUrl(), '_blank')}
-                                    className="flex-1 py-2.5 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-bold transition flex items-center justify-center gap-1.5"
+                                    onClick={() =>
+                                        window.open(
+                                            getTargetFullUrl(),
+                                            '_blank',
+                                        )
+                                    }
+                                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-amber-600 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-amber-500"
                                 >
-                                    <ExternalLink className="w-3.5 h-3.5" />
+                                    <ExternalLink className="h-3.5 w-3.5" />
                                     <span>Buka di Tab Baru</span>
                                 </button>
                                 <button
                                     onClick={handleSendApiRequest}
                                     disabled={apiSending}
-                                    className="flex-1 py-2.5 px-3 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold transition flex items-center justify-center gap-1.5"
+                                    className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-white/10 px-3 py-2.5 text-xs font-bold text-white transition hover:bg-white/20"
                                 >
-                                    <Send className="w-3.5 h-3.5 text-amber-400" />
-                                    <span>{apiSending ? 'Mengirim...' : 'Kirim Request'}</span>
+                                    <Send className="h-3.5 w-3.5 text-amber-400" />
+                                    <span>
+                                        {apiSending
+                                            ? 'Mengirim...'
+                                            : 'Kirim Request'}
+                                    </span>
                                 </button>
                             </div>
                         </div>

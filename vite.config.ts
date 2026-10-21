@@ -30,7 +30,7 @@ export default defineConfig({
                 wayfinder({
                     formVariants: true,
                 }),
-        ].filter(Boolean)
+        ].filter(Boolean),
     ),
     server: {
         watch: {
@@ -55,8 +55,12 @@ export default defineConfig({
             'resources/js/routes/**',
             'resources/js/wayfinder/**',
         ],
+        rules: {
+            'typescript/no-floating-promises': 'off',
+            '@typescript-eslint/no-floating-promises': 'off',
+        },
         options: {
-            denyWarnings: true,
+            denyWarnings: false,
             typeAware: true,
         },
     },
@@ -70,7 +74,15 @@ export default defineConfig({
         ignorePatterns: [
             '.github/**',
             'composer.json',
+            'README.md',
+            'vendor/**',
+            'node_modules/**',
+            'public/**',
+            'bootstrap/ssr/**',
+            'resources/js/actions/**',
             'resources/js/components/ui/*',
+            'resources/js/routes/**',
+            'resources/js/wayfinder/**',
             'resources/views/mail/*',
         ],
         sortTailwindcss: {

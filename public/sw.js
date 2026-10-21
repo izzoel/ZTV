@@ -21,7 +21,7 @@ const AD_TRACKER_DOMAINS = [
     'adsterra.com',
     'bet365',
     'slot',
-    'gacor'
+    'gacor',
 ];
 
 self.addEventListener('install', (event) => {
@@ -36,7 +36,9 @@ self.addEventListener('fetch', (event) => {
     const url = event.request.url.toLowerCase();
 
     // Check if the requested URL belongs to a known ad or tracker domain
-    const isAdRequest = AD_TRACKER_DOMAINS.some((domain) => url.includes(domain));
+    const isAdRequest = AD_TRACKER_DOMAINS.some((domain) =>
+        url.includes(domain),
+    );
 
     if (isAdRequest) {
         console.warn('[ZTV Anti-Ad SW] Blocked request:', event.request.url);
@@ -45,7 +47,7 @@ self.addEventListener('fetch', (event) => {
             new Response(null, {
                 status: 204,
                 statusText: 'No Content (Blocked by ZTV Anti-Ad Engine)',
-            })
+            }),
         );
     }
 });

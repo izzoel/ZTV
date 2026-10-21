@@ -16,8 +16,16 @@ import { useLanguage } from '@/lib/i18n';
 const parseCategoryParam = (cat: string | null): string => {
     if (!cat) return 'Semua';
     const lower = cat.toLowerCase();
-    if (lower === 'film' || lower === 'movie' || lower === 'movies') return 'Film';
-    if (lower === 'series tv' || lower === 'serial tv' || lower === 'series' || lower === 'tv' || lower === 'serial') return 'Series TV';
+    if (lower === 'film' || lower === 'movie' || lower === 'movies')
+        return 'Film';
+    if (
+        lower === 'series tv' ||
+        lower === 'serial tv' ||
+        lower === 'series' ||
+        lower === 'tv' ||
+        lower === 'serial'
+    )
+        return 'Series TV';
     return cat;
 };
 
@@ -37,7 +45,10 @@ export default function Welcome() {
     const [showMyListOnly, setShowMyListOnly] = useState<boolean>(() => {
         if (typeof window !== 'undefined') {
             const params = new URLSearchParams(window.location.search);
-            return params.get('my_list') === '1' || params.get('my_list') === 'true';
+            return (
+                params.get('my_list') === '1' ||
+                params.get('my_list') === 'true'
+            );
         }
         return false;
     });
@@ -58,7 +69,8 @@ export default function Welcome() {
     const [isTmdbLive, setIsTmdbLive] = useState<boolean>(false);
 
     // Category identification helpers
-    const isSeriesCategory = activeCategory === 'Series TV' || activeCategory === 'Serial TV';
+    const isSeriesCategory =
+        activeCategory === 'Series TV' || activeCategory === 'Serial TV';
     const isFilmCategory = activeCategory === 'Film';
 
     // Sync state with URL when URL changes
@@ -114,18 +126,30 @@ export default function Welcome() {
     };
 
     // Page navigation handlers for watching and detail view
-    const handlePlayMedia = (item: MediaItem, episodeNumber: number = 1, seasonNumber: number = 1) => {
+    const handlePlayMedia = (
+        item: MediaItem,
+        episodeNumber: number = 1,
+        seasonNumber: number = 1,
+    ) => {
         try {
-            sessionStorage.setItem(`ztv_media_${item.id}`, JSON.stringify(item));
+            sessionStorage.setItem(
+                `ztv_media_${item.id}`,
+                JSON.stringify(item),
+            );
         } catch {
             // ignore
         }
-        router.visit(`/watch/${item.id}?season=${seasonNumber || 1}&episode=${episodeNumber || 1}`);
+        router.visit(
+            `/watch/${item.id}?season=${seasonNumber || 1}&episode=${episodeNumber || 1}`,
+        );
     };
 
     const handleOpenDetail = (item: MediaItem) => {
         try {
-            sessionStorage.setItem(`ztv_media_${item.id}`, JSON.stringify(item));
+            sessionStorage.setItem(
+                `ztv_media_${item.id}`,
+                JSON.stringify(item),
+            );
         } catch {
             // ignore
         }
@@ -135,7 +159,7 @@ export default function Welcome() {
     // Fetch live TMDB data on mount
     useEffect(() => {
         let isMounted = true;
-        
+
         async function loadTmdbData() {
             try {
                 setIsLoading(true);
@@ -183,15 +207,21 @@ export default function Welcome() {
         setIsFetchingMore(true);
 
         try {
-            const typeToFetch: 'movie' | 'series' = isSeriesCategory ? 'series' : 'movie';
+            const typeToFetch: 'movie' | 'series' = isSeriesCategory
+                ? 'series'
+                : 'movie';
             const nextPage = typeToFetch === 'movie' ? moviePage : seriesPage;
 
             const newItems = await fetchMoreTmdbContent(typeToFetch, nextPage);
 
             if (newItems.length > 0) {
                 setAllMedia((prev) => {
-                    const existingIds = new Set(prev.map((m) => m.tmdbId || m.id));
-                    const uniqueNew = newItems.filter((m) => !existingIds.has(m.tmdbId || m.id));
+                    const existingIds = new Set(
+                        prev.map((m) => m.tmdbId || m.id),
+                    );
+                    const uniqueNew = newItems.filter(
+                        (m) => !existingIds.has(m.tmdbId || m.id),
+                    );
                     return [...prev, ...uniqueNew];
                 });
 
@@ -224,11 +254,22 @@ export default function Welcome() {
 
         window.addEventListener('scroll', handleScroll);
         return () => window.removeEventListener('scroll', handleScroll);
-    }, [isLoading, isFetchingMore, activeCategory, moviePage, seriesPage, showMyListOnly, isFilmCategory, isSeriesCategory]);
+    }, [
+        isLoading,
+        isFetchingMore,
+        activeCategory,
+        moviePage,
+        seriesPage,
+        showMyListOnly,
+        isFilmCategory,
+        isSeriesCategory,
+    ]);
 
     const handleToggleMyList = (id: string) => {
         setMyList((prev) => {
-            const updated = prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id];
+            const updated = prev.includes(id)
+                ? prev.filter((item) => item !== id)
+                : [...prev, id];
             localStorage.setItem('ztv_my_list', JSON.stringify(updated));
             return updated;
         });
@@ -250,7 +291,11 @@ export default function Welcome() {
 
         if (activeGenre !== 'Semua') {
             list = list.filter((m) =>
-                m.genres.some((g) => g.toLowerCase().includes(activeGenre.toLowerCase().split(' ')[0]))
+                m.genres.some((g) =>
+                    g
+                        .toLowerCase()
+                        .includes(activeGenre.toLowerCase().split(' ')[0]),
+                ),
             );
         }
 
@@ -261,14 +306,27 @@ export default function Welcome() {
 
     // Specific list subsets for rows
     const continueWatching = allMedia.filter((m) => m.progress !== undefined);
-    const displayAction = actionMedia.length > 0 ? actionMedia : allMedia.filter((m) => m.genres.includes('Aksi') || m.genres.includes('Sci-Fi'));
-    const displayHorror = horrorMedia.length > 0 ? horrorMedia : allMedia.filter((m) => m.genres.includes('Horor') || m.genres.includes('Misteri'));
+    const displayAction =
+        actionMedia.length > 0
+            ? actionMedia
+            : allMedia.filter(
+                  (m) =>
+                      m.genres.includes('Aksi') || m.genres.includes('Sci-Fi'),
+              );
+    const displayHorror =
+        horrorMedia.length > 0
+            ? horrorMedia
+            : allMedia.filter(
+                  (m) =>
+                      m.genres.includes('Horor') ||
+                      m.genres.includes('Misteri'),
+              );
 
     return (
         <>
             <Head title="ZTV Stream - Platform Streaming Film & Serial TV Premium" />
 
-            <div className="min-h-screen bg-slate-950 text-slate-100 font-sans selection:bg-red-600 selection:text-white antialiased">
+            <div className="min-h-screen bg-slate-950 font-sans text-slate-100 antialiased selection:bg-red-600 selection:text-white">
                 {/* Fixed Navigation Header */}
                 <Navbar
                     activeCategory={activeCategory}
@@ -287,24 +345,35 @@ export default function Welcome() {
                 ) : (
                     <>
                         {/* Hero Spotlight (Displayed when on homepage & not My List only) */}
-                        {!showMyListOnly && activeGenre === 'Semua' && activeCategory === 'Semua' && (
-                            <HeroSpotlight
-                                items={featuredMedia}
-                                onPlay={handlePlayMedia}
-                                onOpenDetail={handleOpenDetail}
-                                myList={myList}
-                                onToggleMyList={handleToggleMyList}
-                            />
-                        )}
+                        {!showMyListOnly &&
+                            activeGenre === 'Semua' &&
+                            activeCategory === 'Semua' && (
+                                <HeroSpotlight
+                                    items={featuredMedia}
+                                    onPlay={handlePlayMedia}
+                                    onOpenDetail={handleOpenDetail}
+                                    myList={myList}
+                                    onToggleMyList={handleToggleMyList}
+                                />
+                            )}
 
                         {/* Category & Genre Filter Pills (Always accessible on page) */}
                         {!showMyListOnly && (
-                            <div className={activeCategory !== 'Semua' || activeGenre !== 'Semua' ? 'pt-28 sm:pt-28' : ''}>
+                            <div
+                                className={
+                                    activeCategory !== 'Semua' ||
+                                    activeGenre !== 'Semua'
+                                        ? 'pt-28 sm:pt-28'
+                                        : ''
+                                }
+                            >
                                 <CategoryPillFilter
                                     activeCategory={activeCategory}
                                     onSelectCategory={handleSelectCategory}
                                     activeGenre={activeGenre}
-                                    onSelectGenre={(genre) => setActiveGenre(genre)}
+                                    onSelectGenre={(genre) =>
+                                        setActiveGenre(genre)
+                                    }
                                 />
                             </div>
                         )}
@@ -313,105 +382,153 @@ export default function Welcome() {
                         <main className="space-y-4">
                             {/* View: My List Page */}
                             {showMyListOnly ? (
-                                <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-28 pb-16">
-                                    <div className="flex items-center justify-between mb-8 border-b border-white/10 pb-4">
+                                <section className="mx-auto max-w-7xl px-4 pt-28 pb-16 sm:px-6 lg:px-8">
+                                    <div className="mb-8 flex items-center justify-between border-b border-white/10 pb-4">
                                         <div>
-                                            <h1 className="text-3xl font-extrabold text-white flex items-center gap-3">
-                                                <Bookmark className="w-7 h-7 text-amber-500 fill-amber-500" />
-                                                Daftar Saya ({filteredMedia.length})
+                                            <h1 className="flex items-center gap-3 text-3xl font-extrabold text-white">
+                                                <Bookmark className="h-7 w-7 fill-amber-500 text-amber-500" />
+                                                Daftar Saya (
+                                                {filteredMedia.length})
                                             </h1>
-                                            <p className="text-sm text-slate-400 mt-1">
-                                                Film dan series TV yang Anda simpan untuk ditonton nanti.
+                                            <p className="mt-1 text-sm text-slate-400">
+                                                Film dan series TV yang Anda
+                                                simpan untuk ditonton nanti.
                                             </p>
                                         </div>
                                     </div>
 
                                     {filteredMedia.length === 0 ? (
-                                        <div className="text-center py-20 bg-slate-900/50 rounded-3xl border border-white/10 p-8 space-y-4">
-                                            <div className="w-16 h-16 rounded-full bg-red-600/20 text-red-500 mx-auto flex items-center justify-center">
-                                                <Bookmark className="w-8 h-8" />
+                                        <div className="space-y-4 rounded-3xl border border-white/10 bg-slate-900/50 p-8 py-20 text-center">
+                                            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-red-600/20 text-red-500">
+                                                <Bookmark className="h-8 w-8" />
                                             </div>
-                                            <h3 className="text-xl font-bold text-white">Daftar Saya Masih Kosong</h3>
-                                            <p className="text-sm text-slate-400 max-w-md mx-auto">
-                                                Jelajahi ribuan film & series TV di ZTV dan klik tombol <span className="text-red-400 font-semibold">+ Tambah ke Daftar</span> pada judul yang menarik minat Anda.
+                                            <h3 className="text-xl font-bold text-white">
+                                                Daftar Saya Masih Kosong
+                                            </h3>
+                                            <p className="mx-auto max-w-md text-sm text-slate-400">
+                                                Jelajahi ribuan film & series TV
+                                                di ZTV dan klik tombol{' '}
+                                                <span className="font-semibold text-red-400">
+                                                    + Tambah ke Daftar
+                                                </span>{' '}
+                                                pada judul yang menarik minat
+                                                Anda.
                                             </p>
                                             <button
-                                                onClick={() => handleToggleMyListOnly(false)}
-                                                className="px-6 py-2.5 rounded-full bg-red-600 hover:bg-red-500 text-white font-bold text-sm shadow-lg transition cursor-pointer"
+                                                onClick={() =>
+                                                    handleToggleMyListOnly(
+                                                        false,
+                                                    )
+                                                }
+                                                className="cursor-pointer rounded-full bg-red-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg transition hover:bg-red-500"
                                             >
                                                 Mulai Jelajahi Tayangan
                                             </button>
                                         </div>
                                     ) : (
-                                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                                        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-4 lg:grid-cols-5">
                                             {filteredMedia.map((item) => (
                                                 <div
                                                     key={item.id}
-                                                    onClick={() => handleOpenDetail(item)}
-                                                    className="group relative rounded-2xl overflow-hidden bg-slate-900 border border-white/10 shadow-xl hover:scale-105 transition duration-300 cursor-pointer"
+                                                    onClick={() =>
+                                                        handleOpenDetail(item)
+                                                    }
+                                                    className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-xl transition duration-300 hover:scale-105"
                                                 >
                                                     <div className="aspect-[2/3] w-full overflow-hidden">
-                                                        <img src={item.posterUrl} alt={item.title} className="w-full h-full object-cover" />
+                                                        <img
+                                                            src={item.posterUrl}
+                                                            alt={item.title}
+                                                            className="h-full w-full object-cover"
+                                                        />
                                                     </div>
                                                     <div className="p-3">
-                                                        <h4 className="text-xs font-bold text-white truncate">{item.title}</h4>
-                                                        <span className="text-[10px] text-amber-400 font-semibold">★ {item.rating} • {item.year}</span>
+                                                        <h4 className="truncate text-xs font-bold text-white">
+                                                            {item.title}
+                                                        </h4>
+                                                        <span className="text-[10px] font-semibold text-amber-400">
+                                                            ★ {item.rating} •{' '}
+                                                            {item.year}
+                                                        </span>
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
                                     )}
                                 </section>
-                            ) : activeGenre !== 'Semua' || activeCategory !== 'Semua' ? (
+                            ) : activeGenre !== 'Semua' ||
+                              activeCategory !== 'Semua' ? (
                                 /* Filtered Grid View for Film, Series TV, or Genres */
-                                <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-2 pb-16">
-                                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-4 border-b border-white/10">
+                                <section className="mx-auto max-w-7xl px-4 pt-2 pb-16 sm:px-6 lg:px-8">
+                                    <div className="mb-6 flex flex-col justify-between gap-4 border-b border-white/10 pb-4 sm:flex-row sm:items-center">
                                         <div>
-                                            <h1 className="text-2xl sm:text-3xl font-extrabold text-white flex items-center gap-3">
+                                            <h1 className="flex items-center gap-3 text-2xl font-extrabold text-white sm:text-3xl">
                                                 {isSeriesCategory ? (
-                                                    <Tv className="w-7 h-7 text-cyan-400" />
+                                                    <Tv className="h-7 w-7 text-cyan-400" />
                                                 ) : isFilmCategory ? (
-                                                    <Film className="w-7 h-7 text-red-500" />
+                                                    <Film className="h-7 w-7 text-red-500" />
                                                 ) : (
-                                                    <Flame className="w-7 h-7 text-amber-500" />
+                                                    <Flame className="h-7 w-7 text-amber-500" />
                                                 )}
                                                 <span>
                                                     {isFilmCategory
                                                         ? 'Katalog Film'
                                                         : isSeriesCategory
-                                                        ? 'Katalog Series TV'
-                                                        : activeCategory}
-                                                    {activeGenre !== 'Semua' ? ` • ${activeGenre}` : ''}
+                                                          ? 'Katalog Series TV'
+                                                          : activeCategory}
+                                                    {activeGenre !== 'Semua'
+                                                        ? ` • ${activeGenre}`
+                                                        : ''}
                                                 </span>
                                             </h1>
-                                            <p className="text-sm text-slate-400 mt-1">
-                                                Menampilkan {filteredMedia.length} tayangan {isFilmCategory ? 'film' : isSeriesCategory ? 'series TV' : ''}
+                                            <p className="mt-1 text-sm text-slate-400">
+                                                Menampilkan{' '}
+                                                {filteredMedia.length} tayangan{' '}
+                                                {isFilmCategory
+                                                    ? 'film'
+                                                    : isSeriesCategory
+                                                      ? 'series TV'
+                                                      : ''}
                                             </p>
                                         </div>
                                         {activeCategory !== 'Semua' && (
                                             <button
-                                                onClick={() => handleSelectCategory('Semua')}
-                                                className="self-start sm:self-auto px-3.5 py-1.5 rounded-full bg-white/10 hover:bg-white/20 text-xs font-semibold text-slate-300 hover:text-white transition cursor-pointer"
+                                                onClick={() =>
+                                                    handleSelectCategory(
+                                                        'Semua',
+                                                    )
+                                                }
+                                                className="cursor-pointer self-start rounded-full bg-white/10 px-3.5 py-1.5 text-xs font-semibold text-slate-300 transition hover:bg-white/20 hover:text-white sm:self-auto"
                                             >
                                                 Tampilkan Semua Konten
                                             </button>
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4 sm:gap-6">
+                                    <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 sm:gap-6 md:grid-cols-4 lg:grid-cols-5">
                                         {filteredMedia.map((item) => (
                                             <div
                                                 key={item.id}
-                                                onClick={() => handleOpenDetail(item)}
-                                                className="group relative rounded-2xl overflow-hidden bg-slate-900 border border-white/10 shadow-xl hover:scale-105 transition duration-300 cursor-pointer"
+                                                onClick={() =>
+                                                    handleOpenDetail(item)
+                                                }
+                                                className="group relative cursor-pointer overflow-hidden rounded-2xl border border-white/10 bg-slate-900 shadow-xl transition duration-300 hover:scale-105"
                                             >
                                                 <div className="aspect-[2/3] w-full overflow-hidden">
-                                                    <img src={item.posterUrl} alt={item.title} className="w-full h-full object-cover" />
+                                                    <img
+                                                        src={item.posterUrl}
+                                                        alt={item.title}
+                                                        className="h-full w-full object-cover"
+                                                    />
                                                 </div>
                                                 <div className="p-3">
-                                                    <h4 className="text-xs font-bold text-white truncate">{item.title}</h4>
-                                                    <div className="flex items-center justify-between text-[10px] text-slate-400 mt-1">
-                                                        <span className="text-amber-400 font-semibold">★ {item.rating}</span>
+                                                    <h4 className="truncate text-xs font-bold text-white">
+                                                        {item.title}
+                                                    </h4>
+                                                    <div className="mt-1 flex items-center justify-between text-[10px] text-slate-400">
+                                                        <span className="font-semibold text-amber-400">
+                                                            ★ {item.rating}
+                                                        </span>
                                                         <span>{item.year}</span>
                                                     </div>
                                                 </div>
@@ -477,12 +594,19 @@ export default function Welcome() {
                                 </>
                             )}
                             {/* Infinite Scroll Dynamic Loading Indicator (hanya di kategori Film & Series TV) */}
-                            {isFetchingMore && (isFilmCategory || isSeriesCategory) && (
-                                <div className="flex items-center justify-center gap-3 py-10 text-slate-400 text-xs sm:text-sm font-semibold">
-                                    <RefreshCw className="w-5 h-5 text-red-500 animate-spin" />
-                                    <span>Memuat lebih banyak {isFilmCategory ? 'Film' : 'Series TV'} dari TMDB...</span>
-                                </div>
-                            )}
+                            {isFetchingMore &&
+                                (isFilmCategory || isSeriesCategory) && (
+                                    <div className="flex items-center justify-center gap-3 py-10 text-xs font-semibold text-slate-400 sm:text-sm">
+                                        <RefreshCw className="h-5 w-5 animate-spin text-red-500" />
+                                        <span>
+                                            Memuat lebih banyak{' '}
+                                            {isFilmCategory
+                                                ? 'Film'
+                                                : 'Series TV'}{' '}
+                                            dari TMDB...
+                                        </span>
+                                    </div>
+                                )}
                         </main>
                     </>
                 )}

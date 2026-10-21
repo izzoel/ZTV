@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, {
+    createContext,
+    useContext,
+    useState,
+    useEffect,
+    ReactNode,
+} from 'react';
 
 export type Language = 'id' | 'en';
 
@@ -51,7 +57,8 @@ export const translations = {
 
         // Footer
         footer_devices_title: 'Tonton di Mana Saja, Kapan Saja',
-        footer_devices_desc: 'Tersedia di Smart TV, Ponsel, Tablet, Laptop, dan Konsol Game.',
+        footer_devices_desc:
+            'Tersedia di Smart TV, Ponsel, Tablet, Laptop, dan Konsol Game.',
         footer_terms_title: 'Ketentuan & Privasi',
         footer_terms_link: 'Syarat & Ketentuan Layanan',
         footer_privacy_link: 'Kebijakan Privasi',
@@ -107,7 +114,8 @@ export const translations = {
 
         // Footer
         footer_devices_title: 'Watch Anywhere, Anytime',
-        footer_devices_desc: 'Available on Smart TVs, Phones, Tablets, Laptops, and Game Consoles.',
+        footer_devices_desc:
+            'Available on Smart TVs, Phones, Tablets, Laptops, and Game Consoles.',
         footer_terms_title: 'Terms & Privacy',
         footer_terms_link: 'Terms of Service',
         footer_privacy_link: 'Privacy Policy',
@@ -129,7 +137,9 @@ const LanguageContext = createContext<LanguageContextType>({
     t: (key) => translations.id[key] || key,
 });
 
-export const LanguageProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+export const LanguageProvider: React.FC<{ children: ReactNode }> = ({
+    children,
+}) => {
     const [language, setLanguageState] = useState<Language>('id');
 
     useEffect(() => {

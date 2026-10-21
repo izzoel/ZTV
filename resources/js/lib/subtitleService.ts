@@ -28,7 +28,7 @@ export async function fetchSubtitlesForMedia(
     type: 'movie' | 'series' = 'movie',
     season: number = 1,
     episode: number = 1,
-    imdbId?: string
+    imdbId?: string,
 ): Promise<SubtitleTrack[]> {
     if (!tmdbId && !imdbId) return [];
 
