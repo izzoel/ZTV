@@ -19,12 +19,12 @@ Aplikasi ini menyajikan pengalaman menonton film setara platform streaming kelas
 ## ✨ Fitur-Fitur Unggulan
 
 ### ☁️ 1. Integrasi Khusus Zetware Cloud (Direct MP4 Streaming)
-- **High-Speed Direct Stream**: Streaming langsung file MP4 definisi tinggi dari server cloud pribadi (`zetware.id/storage/movies/`) tanpa iklan pihak ketiga.
+- **High-Speed Direct Stream**: Streaming langsung file MP4 definisi tinggi dari server cloud storage pribadi tanpa iklan pihak ketiga.
 - **Deteksi Resolusi Cerdas (Multi-Resolution Probing)**:
   - Otomatis memindai dan mengenali berbagai format resolusi berdasarkan dimensi pertama file: **4K (UHD)**, **1080p (FHD)**, **720p (HD)**, **480p (SD)**, **360p (SD)**, hingga **240p**.
   - Pilihan ganti resolusi (*quality selector*) yang mulus langsung di pemutar video.
-- **Penyimpanan Lokal / Hostinger Scanner**:
-  - Jika aplikasi di-host di lingkungan server yang sama dengan storage (misal Hostinger cPanel `domains/zetware.id/public_html/storage/movies`), sistem membaca direktori storage lokal secara instan tanpa jeda HTTP curl.
+- **Penyimpanan Lokal / Dedicated Server Scanner**:
+  - Jika aplikasi di-host di lingkungan server yang sama dengan storage (misal storage lokal pada server hosting privat), sistem membaca direktori storage secara instan tanpa jeda HTTP curl.
 - **Indikator Ketersediaan Real-Time (`ZetwareGlowingBadge`)**:
   - Badge interaktif yang memberi tahu ketersediaan server cloud untuk judul yang sedang dipilih, opsi setel server default, serta notifikasi film cloud terbaru.
 
