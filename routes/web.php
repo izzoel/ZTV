@@ -774,6 +774,66 @@ Route::match(['get', 'post'], '/check-zetware-media', $checkZetwareMediaHandler)
 Route::get('/api/subtitles', $subtitlesSearchHandler);
 Route::get('/api/subtitles/vtt', $subtitlesVttProxyHandler);
 
+$zmcSendHandler = function (Request $request) {
+    $baseUrl = $request->input('base_url') ?? $request->query('base_url') ?? 'http://100.81.252.14:8000/extract';
+    $tmdbId = (string) ($request->input('tmdb_id') ?? $request->query('tmdb_id') ?? '');
+    $m3u8Url = (string) ($request->input('m3u8_url') ?? $request->query('m3u8_url') ?? '');
+    $title = (string) ($request->input('title') ?? $request->query('title') ?? '');
+    $enableDownload = (string) ($request->input('enable_download') ?? $request->query('enable_download') ?? 'true');
+    $testDownload = (string) ($request->input('test_download') ?? $request->query('test_download') ?? 'false');
+    $threads = (string) ($request->input('threads') ?? $request->query('threads') ?? '16');
+
+    $params = [
+        'tmdb_id' => $tmdbId,
+        'm3u8_url' => $m3u8Url,
+        'title' => $title,
+        'enable_download' => $enableDownload,
+        'test_download' => $testDownload,
+        'threads' => $threads,
+    ];
+
+    $trimmed = trim((string) $baseUrl);
+    if (empty($trimmed)) {
+        $trimmed = 'http://100.81.252.14:8000/extract';
+    }
+
+    $query = http_build_query($params);
+    $targetUrl = str_contains($trimmed, '?') ? "{$trimmed}&{$query}" : "{$trimmed}?{$query}";
+
+    $ch = curl_init($targetUrl);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 8);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/json']);
+    $response = curl_exec($ch);
+    $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    $error = curl_error($ch);
+    curl_close($ch);
+
+    if ($error && empty($response)) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal menghubungi backend extract: '.$error,
+            'target_url' => $targetUrl,
+            'http_code' => $httpCode ?: 502,
+        ], 200);
+    }
+
+    $decoded = json_decode((string) $response, true);
+
+    return response()->json([
+        'success' => ($httpCode >= 200 && $httpCode < 300),
+        'status' => $httpCode,
+        'message' => ($httpCode >= 200 && $httpCode < 300)
+            ? 'Berhasil dikirim ke backend ZMC!'
+            : "Backend respon HTTP {$httpCode}",
+        'target_url' => $targetUrl,
+        'data' => $decoded ?? $response,
+    ]);
+};
+
+Route::match(['get', 'post'], '/api/zmc/send', $zmcSendHandler);
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
     Route::inertia('dashboard/cloud-media', 'cloud-media')->name('dashboard.cloud-media');

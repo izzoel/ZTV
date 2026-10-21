@@ -1,19 +1,23 @@
 import { Head, Link } from '@inertiajs/react';
 import {
+    AlertCircle,
+    Check,
     Database,
     ExternalLink,
     Film,
-    Play,
+    Loader2,
     Search,
     Star,
     TrendingUp,
     Trophy,
     Tv,
+    Zap,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Top10MovieTable } from '@/components/streaming/Top10MovieTable';
 import { FluxTable } from '@/components/ui/flux-table';
 import { ALL_MEDIA, type MediaItem } from '@/data/movies';
+import { sendZmcRequest } from '@/lib/zmcApi';
 import { home } from '@/routes';
 
 export default function DatabaseMediaPage() {
@@ -24,6 +28,40 @@ export default function DatabaseMediaPage() {
     >('all');
     const [sortBy, setSortBy] = useState<'title' | 'year' | 'rating'>('rating');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+
+    // ZMC Target API State
+    const [sendingId, setSendingId] = useState<string | null>(null);
+    const [feedback, setFeedback] = useState<{
+        itemId: string;
+        success: boolean;
+        message: string;
+    } | null>(null);
+
+    const handleSendZmc = async (item: MediaItem) => {
+        setSendingId(item.id);
+        setFeedback(null);
+        try {
+            const res = await sendZmcRequest(item);
+            setFeedback({
+                itemId: item.id,
+                success: res.success,
+                message: `${item.title}: ${res.message}`,
+            });
+        } catch (err: unknown) {
+            const errorMsg =
+                err instanceof Error ? err.message : 'Gagal mengirim ZMC';
+            setFeedback({
+                itemId: item.id,
+                success: false,
+                message: `${item.title}: ${errorMsg}`,
+            });
+        } finally {
+            setSendingId(null);
+            setTimeout(() => {
+                setFeedback((curr) => (curr?.itemId === item.id ? null : curr));
+            }, 4000);
+        }
+    };
 
     const handleSort = (column: 'title' | 'year' | 'rating') => {
         if (sortBy === column) {
@@ -271,6 +309,33 @@ export default function DatabaseMediaPage() {
                         </div>
                     </div>
 
+                    {/* Notification Banner when ZMC is triggered */}
+                    {feedback && (
+                        <div
+                            className={`mt-3 flex animate-in items-center justify-between rounded-lg px-3.5 py-2 text-xs transition-all duration-200 fade-in ${
+                                feedback.success
+                                    ? 'border border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300'
+                                    : 'border border-rose-500/30 bg-rose-500/10 text-rose-800 dark:text-rose-300'
+                            }`}
+                        >
+                            <span className="flex items-center gap-2 font-medium">
+                                {feedback.success ? (
+                                    <Check className="size-4 text-emerald-600 dark:text-emerald-400" />
+                                ) : (
+                                    <AlertCircle className="size-4 text-rose-600 dark:text-rose-400" />
+                                )}
+                                <span>{feedback.message}</span>
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setFeedback(null)}
+                                className="cursor-pointer text-[11px] opacity-60 hover:opacity-100"
+                            >
+                                Tutup
+                            </button>
+                        </div>
+                    )}
+
                     <FluxTable bleed containerClassName="mt-4">
                         <FluxTable.Columns sticky>
                             <FluxTable.Column
@@ -412,13 +477,48 @@ export default function DatabaseMediaPage() {
                                                 <span>Detail</span>
                                             </Link>
 
-                                            <Link
-                                                href={`/watch/${item.id}`}
-                                                className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white shadow-2xs hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
+                                            {/* ZMC BUTTON: Sends Target API to Backend */}
+                                            <button
+                                                type="button"
+                                                disabled={sendingId === item.id}
+                                                onClick={() =>
+                                                    handleSendZmc(item)
+                                                }
+                                                className={`inline-flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-semibold shadow-2xs transition-all active:scale-95 disabled:opacity-60 ${
+                                                    feedback?.itemId === item.id
+                                                        ? feedback.success
+                                                            ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                                                            : 'bg-rose-600 text-white hover:bg-rose-500'
+                                                        : 'bg-purple-600 text-white hover:bg-purple-500 dark:bg-purple-600 dark:hover:bg-purple-500'
+                                                }`}
+                                                title={`Kirim Target API ke backend ZMC untuk: ${item.title}`}
                                             >
-                                                <Play className="size-3" />
-                                                <span>Tonton</span>
-                                            </Link>
+                                                {sendingId === item.id ? (
+                                                    <>
+                                                        <Loader2 className="size-3 animate-spin" />
+                                                        <span>ZMC...</span>
+                                                    </>
+                                                ) : feedback?.itemId ===
+                                                  item.id ? (
+                                                    <>
+                                                        {feedback.success ? (
+                                                            <Check className="size-3" />
+                                                        ) : (
+                                                            <AlertCircle className="size-3" />
+                                                        )}
+                                                        <span>
+                                                            {feedback.success
+                                                                ? 'OK'
+                                                                : 'Error'}
+                                                        </span>
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <Zap className="size-3 fill-current" />
+                                                        <span>ZMC</span>
+                                                    </>
+                                                )}
+                                            </button>
                                         </div>
                                     </FluxTable.Cell>
                                 </FluxTable.Row>
