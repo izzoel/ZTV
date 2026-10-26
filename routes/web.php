@@ -75,7 +75,14 @@ $checkZetwareMediaHandler = function (Request $request) {
         $season = (int) ($request->input('season') ?? $request->query('season') ?? 1);
         $episode = (int) ($request->input('episode') ?? $request->query('episode') ?? 1);
 
-        $resolutions = [
+        $dbResolutions = \Illuminate\Support\Facades\Schema::hasTable('zetware_resolutions')
+            ? \App\Models\ZetwareResolution::getAllSuffixes()
+            : [];
+
+        $fallbackResolutions = [
+            '_1920x1038', '_1280x692', '_640x346',
+            '_1280x602', '_1920x904', '_640x302',
+            '_1080x720', '_1620x1080', '_540x360',
             '_1920x800', '_1920x802', '_1920x804', '_1920x806', '_1920x808', '_1920x810', '_1920x812', '_1920x816', '_1920x820',
             '_1920x960', '_1920x1000', '_1920x1080',
             '_1280x532', '_1280x534', '_1280x536', '_1280x538', '_1280x540', '_1280x542', '_1280x544',
@@ -86,6 +93,8 @@ $checkZetwareMediaHandler = function (Request $request) {
             '_1920', '_1280', '_960', '_854', '_640', '_3840',
             '_1080p', '_720p', '_480p', '_360p', '_4K', '',
         ];
+
+        $resolutions = array_values(array_unique(array_merge($dbResolutions, $fallbackResolutions)));
 
         $bases = ['https://zetware.id/storage/movies', 'https://zetware.id/storage/movie'];
 
@@ -106,6 +115,12 @@ $checkZetwareMediaHandler = function (Request $request) {
         ];
 
         $matchedCloudFolders = [];
+        if (! empty($tmdbId)) {
+            $cloudMedia = \App\Models\ZetwareCloudMedia::where('tmdb_id', $tmdbId)->first();
+            if ($cloudMedia && ! empty($cloudMedia->folder_name)) {
+                $matchedCloudFolders[] = trim($cloudMedia->folder_name);
+            }
+        }
         foreach ($knownCloudFolders as $cloudFolder => $aliases) {
             foreach ($aliases as $alias) {
                 if ($upperTitle === $alias ||
@@ -467,6 +482,9 @@ $checkZetwareMediaHandler = function (Request $request) {
 
                 if (! empty($rawBaseName)) {
                     $targetResList = [
+                        '_1920x1038', '_1280x692', '_640x346',
+                        '_1280x602', '_1920x904', '_640x302',
+                        '_1080x720', '_1620x1080', '_540x360',
                         '_1920x800', '_1920x802', '_1920x804', '_1920x806', '_1920x808', '_1920x810', '_1920x812', '_1920x816', '_1920x820',
                         '_1920x960', '_1920x1000', '_1920x1080',
                         '_1280x532', '_1280x534', '_1280x536', '_1280x538', '_1280x540', '_1280x542', '_1280x544',
@@ -956,11 +974,65 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('dashboard/cloud-media', function () {
         $dbMedia = \App\Models\ZetwareCloudMedia::orderBy('created_at', 'asc')->get();
 
+        // Ambil data langsung dari server hostinger via API ZTV Extractor /check-tmdb
+        $liveCloudMedia = [];
+        try {
+            $ch = curl_init('http://100.81.252.14:8000/check-tmdb');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 6);
+            $res = curl_exec($ch);
+            curl_close($ch);
+            if (is_string($res)) {
+                $decoded = json_decode($res, true);
+                if (isset($decoded['data']) && is_array($decoded['data'])) {
+                    $liveCloudMedia = $decoded['data'];
+                }
+            }
+        } catch (\Throwable $e) {
+            // Abaikan jika offline
+        }
+
         return inertia('cloud-media', [
             'initialCloudMedia' => $dbMedia,
+            'initialLiveCloudMedia' => $liveCloudMedia,
         ]);
     })->name('dashboard.cloud-media');
     Route::inertia('dashboard/database-media', 'database-media')->name('dashboard.database-media');
+
+    // Endpoint API untuk memeriksa live data /check-tmdb kapan saja
+    Route::get('/api/admin/cloud-media/live-check-tmdb', function (Request $request) {
+        $pathParam = $request->query('path_param');
+        $url = 'http://100.81.252.14:8000/check-tmdb' . ($pathParam ? '/' . rawurlencode($pathParam) : '');
+
+        $ch = curl_init($url);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+        $res = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        $err = curl_error($ch);
+        curl_close($ch);
+
+        if ($err || empty($res)) {
+            return response()->json([
+                'status' => 'error',
+                'message' => 'Gagal menghubungi service /check-tmdb: ' . $err,
+                'data' => [],
+            ], 502);
+        }
+
+        $decoded = json_decode($res, true);
+        if (isset($decoded['data']) && is_array($decoded['data'])) {
+            foreach ($decoded['data'] as $item) {
+                if (! empty($item['resolutions']) && is_array($item['resolutions'])) {
+                    foreach ($item['resolutions'] as $r) {
+                        \App\Models\ZetwareResolution::registerResolution($r, 'Dari live check-tmdb: ' . ($item['title'] ?? ''));
+                    }
+                }
+            }
+        }
+
+        return response()->json($decoded ?? ['status' => 'success', 'data' => []], $httpCode ?: 200);
+    })->name('admin.cloud-media.live-check-tmdb');
 
     // API manajemen media cloud (Create, Update, Delete)
     Route::post('/api/admin/cloud-media', function (Request $request) {
@@ -976,6 +1048,11 @@ Route::middleware(['auth', 'verified'])->group(function () {
             'description' => 'nullable|string',
             'release_date' => 'nullable|string|max:50',
         ]);
+
+        // Jika badge atau resolusi diinput, pastikan tersimpan di tabel resolusi
+        if (! empty($validated['badge'])) {
+            \App\Models\ZetwareResolution::registerResolution($validated['badge'], 'Dari simpan cloud media: ' . $validated['title']);
+        }
 
         $media = \App\Models\ZetwareCloudMedia::updateOrCreate(
             [
@@ -1008,7 +1085,45 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/api/admin/cloud-media/sync', function (Request $request) {
         $customTargets = $request->input('targets'); // Array opsional dari user: [{tmdb_id, title, folder, type, season, episode}]
 
-        // Daftar direktori & TMDB ID yang diketahui ada di Zetware Cloud
+        // 1. Ambil data aktual langsung dari Hostinger server via ZTV Extractor API /check-tmdb
+        $liveDiscovered = [];
+        try {
+            $ch = curl_init('http://100.81.252.14:8000/check-tmdb');
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+            $liveRes = curl_exec($ch);
+            curl_close($ch);
+            if (is_string($liveRes)) {
+                $liveJson = json_decode($liveRes, true);
+                if (isset($liveJson['data']) && is_array($liveJson['data'])) {
+                    foreach ($liveJson['data'] as $ld) {
+                        if (! empty($ld['tmdb_id'])) {
+                            $resList = $ld['resolutions'] ?? [];
+                            foreach ($resList as $rItem) {
+                                \App\Models\ZetwareResolution::registerResolution($rItem, 'Dari sync cloud-media: ' . ($ld['title'] ?? ''));
+                            }
+                            $badge = ! empty($resList) ? implode(' / ', $resList) : 'Cloud Direct';
+                            $liveDiscovered[] = [
+                                'tmdb_id' => (int) $ld['tmdb_id'],
+                                'title' => $ld['title'] ?? ('TMDB ' . $ld['tmdb_id']),
+                                'folder_name' => $ld['folder_name'] ?? ($ld['title'] ?? ''),
+                                'type' => ($ld['type'] ?? 'movie') === 'series' ? 'series' : 'movie',
+                                'season' => $ld['season'] ?? null,
+                                'episode' => $ld['episode'] ?? null,
+                                'badge' => $badge,
+                                'resolutions' => $resList,
+                                'tag' => 'Hostinger Cloud',
+                                'description' => 'Terdeteksi dari direktori Hostinger cloud storage.',
+                            ];
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            // Lanjut ke fallback list jika API offline
+        }
+
+        // 2. Daftar direktori default & fallback
         $cloudDirectories = [
             [
                 'tmdb_id' => 1368337,
@@ -1093,6 +1208,14 @@ Route::middleware(['auth', 'verified'])->group(function () {
                 'release_date' => '1950',
             ],
         ];
+
+        // Gabungkan live items dengan deduplikasi tmdb_id + type
+        $mergedMap = [];
+        foreach (array_merge($cloudDirectories, $liveDiscovered) as $cItem) {
+            $key = $cItem['tmdb_id'] . '_' . ($cItem['type'] ?? 'movie');
+            $mergedMap[$key] = $cItem;
+        }
+        $cloudDirectories = array_values($mergedMap);
 
         // Jika user mengirimkan target tambahan, gabungkan
         if (is_array($customTargets) && ! empty($customTargets)) {

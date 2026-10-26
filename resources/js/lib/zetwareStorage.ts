@@ -183,6 +183,15 @@ export interface ZetwareMediaCheckOptions {
 }
 
 const COMMON_RESOLUTIONS = [
+    '_1920x1038', // FALL 2 DEADPOINT FHD
+    '_1280x692', // FALL 2 DEADPOINT HD
+    '_640x346', // FALL 2 DEADPOINT SD
+    '_1920x904', // STREET FIGHTER FHD
+    '_1280x602', // STREET FIGHTER HD
+    '_640x302', // STREET FIGHTER SD
+    '_1620x1080', // OBSESSION FHD
+    '_1080x720', // OBSESSION HD
+    '_540x360', // OBSESSION SD
     '_1920x800', // 2.39:1 ultrawide cinema (HOPE, INSIDIOUS, SPIDER-MAN)
     '_1920x802', // 2.39:1 scope (ANIMALS)
     '_1920x804', // 2.39:1 scope (MATCHBOX THE MOVIE)

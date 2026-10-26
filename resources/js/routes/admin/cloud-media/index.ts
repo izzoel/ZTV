@@ -1,6 +1,80 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
-* @see routes/web.php:966
+* @see routes/web.php:1003
+* @route '/api/admin/cloud-media/live-check-tmdb'
+*/
+export const liveCheckTmdb = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: liveCheckTmdb.url(options),
+    method: 'get',
+})
+
+liveCheckTmdb.definition = {
+    methods: ["get","head"],
+    url: '/api/admin/cloud-media/live-check-tmdb',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see routes/web.php:1003
+* @route '/api/admin/cloud-media/live-check-tmdb'
+*/
+liveCheckTmdb.url = (options?: RouteQueryOptions) => {
+    return liveCheckTmdb.definition.url + queryParams(options)
+}
+
+/**
+* @see routes/web.php:1003
+* @route '/api/admin/cloud-media/live-check-tmdb'
+*/
+liveCheckTmdb.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: liveCheckTmdb.url(options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:1003
+* @route '/api/admin/cloud-media/live-check-tmdb'
+*/
+liveCheckTmdb.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: liveCheckTmdb.url(options),
+    method: 'head',
+})
+
+/**
+* @see routes/web.php:1003
+* @route '/api/admin/cloud-media/live-check-tmdb'
+*/
+const liveCheckTmdbForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: liveCheckTmdb.url(options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:1003
+* @route '/api/admin/cloud-media/live-check-tmdb'
+*/
+liveCheckTmdbForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: liveCheckTmdb.url(options),
+    method: 'get',
+})
+
+/**
+* @see routes/web.php:1003
+* @route '/api/admin/cloud-media/live-check-tmdb'
+*/
+liveCheckTmdbForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    action: liveCheckTmdb.url({
+        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+            _method: 'HEAD',
+            ...(options?.query ?? options?.mergeQuery ?? {}),
+        }
+    }),
+    method: 'get',
+})
+
+liveCheckTmdb.form = liveCheckTmdbForm
+
+/**
+* @see routes/web.php:1038
 * @route '/api/admin/cloud-media'
 */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -14,7 +88,7 @@ store.definition = {
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see routes/web.php:966
+* @see routes/web.php:1038
 * @route '/api/admin/cloud-media'
 */
 store.url = (options?: RouteQueryOptions) => {
@@ -22,7 +96,7 @@ store.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see routes/web.php:966
+* @see routes/web.php:1038
 * @route '/api/admin/cloud-media'
 */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -31,7 +105,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 })
 
 /**
-* @see routes/web.php:966
+* @see routes/web.php:1038
 * @route '/api/admin/cloud-media'
 */
 const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -40,7 +114,7 @@ const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => 
 })
 
 /**
-* @see routes/web.php:966
+* @see routes/web.php:1038
 * @route '/api/admin/cloud-media'
 */
 storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -51,7 +125,7 @@ storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 store.form = storeForm
 
 /**
-* @see routes/web.php:997
+* @see routes/web.php:1074
 * @route '/api/admin/cloud-media/{id}'
 */
 export const destroy = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -65,7 +139,7 @@ destroy.definition = {
 } satisfies RouteDefinition<["delete"]>
 
 /**
-* @see routes/web.php:997
+* @see routes/web.php:1074
 * @route '/api/admin/cloud-media/{id}'
 */
 destroy.url = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -91,7 +165,7 @@ destroy.url = (args: { id: string | number } | [id: string | number ] | string |
 }
 
 /**
-* @see routes/web.php:997
+* @see routes/web.php:1074
 * @route '/api/admin/cloud-media/{id}'
 */
 destroy.delete = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -100,7 +174,7 @@ destroy.delete = (args: { id: string | number } | [id: string | number ] | strin
 })
 
 /**
-* @see routes/web.php:997
+* @see routes/web.php:1074
 * @route '/api/admin/cloud-media/{id}'
 */
 const destroyForm = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -114,7 +188,7 @@ const destroyForm = (args: { id: string | number } | [id: string | number ] | st
 })
 
 /**
-* @see routes/web.php:997
+* @see routes/web.php:1074
 * @route '/api/admin/cloud-media/{id}'
 */
 destroyForm.delete = (args: { id: string | number } | [id: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -130,7 +204,7 @@ destroyForm.delete = (args: { id: string | number } | [id: string | number ] | s
 destroy.form = destroyForm
 
 /**
-* @see routes/web.php:1008
+* @see routes/web.php:1085
 * @route '/api/admin/cloud-media/sync'
 */
 export const sync = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -144,7 +218,7 @@ sync.definition = {
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see routes/web.php:1008
+* @see routes/web.php:1085
 * @route '/api/admin/cloud-media/sync'
 */
 sync.url = (options?: RouteQueryOptions) => {
@@ -152,7 +226,7 @@ sync.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see routes/web.php:1008
+* @see routes/web.php:1085
 * @route '/api/admin/cloud-media/sync'
 */
 sync.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -161,7 +235,7 @@ sync.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 })
 
 /**
-* @see routes/web.php:1008
+* @see routes/web.php:1085
 * @route '/api/admin/cloud-media/sync'
 */
 const syncForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -170,7 +244,7 @@ const syncForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => (
 })
 
 /**
-* @see routes/web.php:1008
+* @see routes/web.php:1085
 * @route '/api/admin/cloud-media/sync'
 */
 syncForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -181,6 +255,7 @@ syncForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
 sync.form = syncForm
 
 const cloudMedia = {
+    liveCheckTmdb: Object.assign(liveCheckTmdb, liveCheckTmdb),
     store: Object.assign(store, store),
     destroy: Object.assign(destroy, destroy),
     sync: Object.assign(sync, sync),

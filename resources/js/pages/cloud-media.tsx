@@ -42,10 +42,20 @@ export interface KnownCloudMedia {
     badge?: string;
     is_active?: boolean;
     release_date?: string;
+    resolutions?: string[];
+}
+
+export interface LiveApiCloudMedia {
+    tmdb_id: string | number;
+    title: string;
+    type: 'movie' | 'series';
+    folder_name: string;
+    resolutions: string[];
 }
 
 interface CloudMediaPageProps {
     initialCloudMedia?: KnownCloudMedia[];
+    initialLiveCloudMedia?: LiveApiCloudMedia[];
 }
 
 const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
@@ -127,6 +137,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
 
 export default function CloudMediaPage({
     initialCloudMedia = [],
+    initialLiveCloudMedia = [],
 }: CloudMediaPageProps) {
     // Database Cloud Media State (prioritaskan data dari database MySQL)
     const [cloudMediaList, setCloudMediaList] = useState<KnownCloudMedia[]>(() => {
@@ -136,11 +147,48 @@ export default function CloudMediaPage({
         return KNOWN_CLOUD_MEDIA;
     });
 
+    // Live API Cloud Media State (dari API http://100.81.252.14:8000/check-tmdb)
+    const [liveMediaList, setLiveMediaList] = useState<LiveApiCloudMedia[]>(initialLiveCloudMedia);
+    const [isFetchingLive, setIsFetchingLive] = useState(false);
+    const [viewTab, setViewTab] = useState<'database' | 'live_api'>('live_api');
+
     const [isSavingDb, setIsSavingDb] = useState(false);
     const [actionFeedback, setActionFeedback] = useState<{
         type: 'success' | 'error';
         message: string;
     } | null>(null);
+
+    // Ambil data terbaru langsung dari API /check-tmdb dan tambah/update ke tabel database
+    const fetchLiveApiMedia = async () => {
+        setIsFetchingLive(true);
+        try {
+            const res = await fetch('/api/admin/cloud-media/live-check-tmdb');
+            const json = await res.json();
+            if (res.ok && json.data && Array.isArray(json.data)) {
+                setLiveMediaList(json.data);
+                if (Array.isArray(json.all_db_media) && json.all_db_media.length > 0) {
+                    setCloudMediaList(json.all_db_media);
+                }
+                setActionFeedback({
+                    type: 'success',
+                    message: json.message || `Berhasil memperbarui data API dan menyinkronkan ke database!`,
+                });
+            } else {
+                setActionFeedback({
+                    type: 'error',
+                    message: json.message || 'Gagal mengambil data live cloud API.',
+                });
+            }
+        } catch (err: unknown) {
+            setActionFeedback({
+                type: 'error',
+                message: err instanceof Error ? err.message : 'Koneksi ke endpoint API gagal.',
+            });
+        } finally {
+            setIsFetchingLive(false);
+            setTimeout(() => setActionFeedback(null), 5000);
+        }
+    };
 
     // Media Inspector State
     const [searchTitle, setSearchTitle] = useState('The Odyssey');
@@ -201,6 +249,31 @@ export default function CloudMediaPage({
             return 0;
         });
     }, [cloudMediaList, filterQuery, filterType, sortBy, sortDirection]);
+
+    // Filter dan sort untuk Live API Media
+    const filteredAndSortedLiveMedia = useMemo(() => {
+        return liveMediaList.filter((item) => {
+            const rawTmdb = item.tmdb_id ?? '';
+            const matchesQuery =
+                item.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+                item.folder_name.toLowerCase().includes(filterQuery.toLowerCase()) ||
+                (rawTmdb && String(rawTmdb).includes(filterQuery.trim()));
+            const matchesType =
+                filterType === 'all' ? true : item.type === filterType;
+            return matchesQuery && matchesType;
+        }).sort((a, b) => {
+            if (sortBy === 'tmdbId') {
+                const idA = Number(a.tmdb_id) || 0;
+                const idB = Number(b.tmdb_id) || 0;
+                return sortDirection === 'asc' ? idA - idB : idB - idA;
+            }
+            const valA = (a.title || '').toLowerCase();
+            const valB = (b.title || '').toLowerCase();
+            if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+    }, [liveMediaList, filterQuery, filterType, sortBy, sortDirection]);
 
     const handleInspectMedia = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -891,21 +964,54 @@ export default function CloudMediaPage({
 
                 {/* 4. Koleksi Media Cloud Terverifikasi (FluxTable bleed) */}
                 <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-zinc-900">
-                    <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <div className="flex items-center gap-2.5">
-                                <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-white">
-                                    <Cloud className="size-4 text-purple-600 dark:text-purple-400" />
-                                    <span>Koleksi Media Cloud Terverifikasi</span>
-                                </h2>
-                                <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:text-purple-300">
-                                    <Database className="size-3" />
-                                    Database Terhubung ({cloudMediaList.length} Judul)
-                                </span>
+                    <div className="flex flex-col gap-4 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                        {/* Tab Switcher: Live Cloud API vs Database */}
+                        <div className="flex items-center gap-2">
+                            <div className="flex rounded-lg border border-zinc-200 bg-zinc-100 p-1 dark:border-zinc-800 dark:bg-zinc-800/80">
+                                <button
+                                    type="button"
+                                    onClick={() => setViewTab('live_api')}
+                                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                                        viewTab === 'live_api'
+                                            ? 'bg-white text-purple-700 shadow-xs dark:bg-zinc-900 dark:text-purple-400'
+                                            : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                                    }`}
+                                >
+                                    <Cloud className="size-3.5" />
+                                    <span>Zetware Cloud API</span>
+                                    <span className="rounded-full bg-purple-100 px-1.5 py-0.2 text-[10px] text-purple-700 dark:bg-purple-900/40 dark:text-purple-300">
+                                        {liveMediaList.length}
+                                    </span>
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => setViewTab('database')}
+                                    className={`flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-semibold transition-all ${
+                                        viewTab === 'database'
+                                            ? 'bg-white text-purple-700 shadow-xs dark:bg-zinc-900 dark:text-purple-400'
+                                            : 'text-zinc-600 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-white'
+                                    }`}
+                                >
+                                    <Database className="size-3.5" />
+                                    <span>Database Media</span>
+                                    <span className="rounded-full bg-zinc-200 px-1.5 py-0.2 text-[10px] text-zinc-700 dark:bg-zinc-700 dark:text-zinc-300">
+                                        {cloudMediaList.length}
+                                    </span>
+                                </button>
                             </div>
-                            <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                                Seluruh film dan serial TV tersimpan di tabel database <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">zetware_cloud_media</code> berdasarkan TMDB ID.
-                            </p>
+
+                            {viewTab === 'live_api' && (
+                                <button
+                                    type="button"
+                                    onClick={fetchLiveApiMedia}
+                                    disabled={isFetchingLive}
+                                    className="inline-flex items-center gap-1.5 rounded-lg border border-purple-200 bg-purple-50/70 px-2.5 py-1.5 text-xs font-medium text-purple-700 shadow-2xs transition-colors hover:bg-purple-100 disabled:opacity-50 dark:border-purple-800/40 dark:bg-purple-950/30 dark:text-purple-300 dark:hover:bg-purple-900/40"
+                                    title="Refresh data dari API http://100.81.252.14:8000/check-tmdb sekaligus tambah atau update tabel database"
+                                >
+                                    <RefreshCw className={`size-3.5 ${isFetchingLive ? 'animate-spin text-purple-600 dark:text-purple-400' : ''}`} />
+                                    <span>{isFetchingLive ? 'Menyinkronkan...' : 'Refresh & Simpan ke DB'}</span>
+                                </button>
+                            )}
                         </div>
 
                         {/* Search and Filter Toolbar */}
@@ -965,7 +1071,7 @@ export default function CloudMediaPage({
                                 onClick={handleSyncCloudWithDatabase}
                                 disabled={isSyncing}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-purple-500/30 bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-700 shadow-2xs transition-colors hover:bg-purple-100 disabled:opacity-50 dark:border-purple-400/30 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/50"
-                                title="Cek direktori TMDB ID pada Zetware Cloud dan singkronkan judul yang belum ada ke database"
+                                title="Cek direktori TMDB ID pada Zetware Cloud via API dan singkronkan judul yang belum ada ke database"
                             >
                                 <RefreshCw className={`size-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
                                 <span>{isSyncing ? 'Menyingkronkan...' : 'Singkronkan Cloud'}</span>
@@ -973,134 +1079,297 @@ export default function CloudMediaPage({
                         </div>
                     </div>
 
-                    <FluxTable bleed containerClassName="mt-4">
-                        <FluxTable.Columns sticky>
-                            <FluxTable.Column
-                                sortable
-                                sorted={sortBy === 'title'}
-                                direction={sortDirection}
-                                onSort={() => handleSort('title')}
-                            >
-                                Judul Film / Serial
-                            </FluxTable.Column>
-                            
-                            <FluxTable.Column
-                                sortable
-                                sorted={sortBy === 'type'}
-                                direction={sortDirection}
-                                onSort={() => handleSort('type')}
-                            >
-                                Format
-                            </FluxTable.Column>
-                            <FluxTable.Column
-                                sortable
-                                sorted={sortBy === 'tag'}
-                                direction={sortDirection}
-                                onSort={() => handleSort('tag')}
-                            >
-                                Genre / Tag
-                            </FluxTable.Column>
-                            <FluxTable.Column>
-                                Kualitas Resolusi
-                            </FluxTable.Column>
-                            <FluxTable.Column align="end">
-                                Aksi
-                            </FluxTable.Column>
-                        </FluxTable.Columns>
+                    {/* Notification Feedback */}
+                    {actionFeedback && (
+                        <div
+                            className={`mb-4 flex items-center gap-2 rounded-lg p-3 text-xs font-medium transition-all ${
+                                actionFeedback.type === 'success'
+                                    ? 'border border-emerald-500/30 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                    : 'border border-red-500/30 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300'
+                            }`}
+                        >
+                            {actionFeedback.type === 'success' ? (
+                                <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                            ) : (
+                                <AlertCircle className="size-4 shrink-0 text-red-600 dark:text-red-400" />
+                            )}
+                            <span>{actionFeedback.message}</span>
+                        </div>
+                    )}
 
-                        <FluxTable.Rows>
-                            {filteredAndSortedCloudMedia.map((item) => {
-                                const currentTmdb = item.tmdb_id ?? item.tmdbId ?? '';
-                                return (
-                                    <FluxTable.Row key={item.id}>
-                                        <FluxTable.Cell variant="strong">
-                                            <div className="flex items-center gap-3">
-                                                <div className="rounded-lg bg-zinc-100 p-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                                                    {item.type === 'series' ? (
-                                                        <Tv className="size-4" />
-                                                    ) : (
-                                                        <Film className="size-4" />
-                                                    )}
-                                                </div>
-                                                <div>
-                                                    <div className="font-medium text-zinc-900 dark:text-white">
-                                                        {item.title}
+                    {/* TABLE: View Live Cloud Hostinger API */}
+                    {viewTab === 'live_api' ? (
+                        <FluxTable bleed containerClassName="mt-2">
+                            <FluxTable.Columns sticky>
+                                <FluxTable.Column
+                                    sortable
+                                    sorted={sortBy === 'title'}
+                                    direction={sortDirection}
+                                    onSort={() => handleSort('title')}
+                                >
+                                    Judul & Direktori Hostinger
+                                </FluxTable.Column>
+                                <FluxTable.Column
+                                    sortable
+                                    sorted={sortBy === 'type'}
+                                    direction={sortDirection}
+                                    onSort={() => handleSort('type')}
+                                >
+                                    Format
+                                </FluxTable.Column>
+                                <FluxTable.Column>
+                                    Resolusi Ditemukan di Cloud
+                                </FluxTable.Column>
+                                <FluxTable.Column>
+                                    Status Database
+                                </FluxTable.Column>
+                                <FluxTable.Column align="end">
+                                    Aksi
+                                </FluxTable.Column>
+                            </FluxTable.Columns>
+
+                            <FluxTable.Rows>
+                                {filteredAndSortedLiveMedia.length === 0 ? (
+                                    <FluxTable.Row>
+                                        <FluxTable.Cell colSpan={5} className="py-8 text-center text-xs text-zinc-500">
+                                            {isFetchingLive
+                                                ? 'Memeriksa direktori server cloud Hostinger...'
+                                                : 'Tidak ada media yang ditemukan pada API /check-tmdb.'}
+                                        </FluxTable.Cell>
+                                    </FluxTable.Row>
+                                ) : (
+                                    filteredAndSortedLiveMedia.map((item, idx) => {
+                                        const isAlreadyInDb = cloudMediaList.some(
+                                            (dbItem) => String(dbItem.tmdb_id ?? dbItem.tmdbId) === String(item.tmdb_id),
+                                        );
+
+                                        return (
+                                            <FluxTable.Row key={`${item.tmdb_id}-${idx}`}>
+                                                <FluxTable.Cell variant="strong">
+                                                    <div className="flex items-center gap-3">
+                                                        <div className="rounded-lg bg-zinc-100 p-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                                            {item.type === 'series' ? (
+                                                                <Tv className="size-4" />
+                                                            ) : (
+                                                                <Film className="size-4" />
+                                                            )}
+                                                        </div>
+                                                        <div>
+                                                            <div className="font-medium text-zinc-900 dark:text-white">
+                                                                {item.title}
+                                                            </div>
+                                                            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                                                                <span className="font-mono text-[11px] text-zinc-400">
+                                                                    /{item.folder_name}/{item.tmdb_id}/
+                                                                </span>
+                                                                <Link
+                                                                    href={`/watch/${item.tmdb_id}${item.type === 'series' ? '?type=series' : ''}`}
+                                                                    className="inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/5 px-2 py-0.5 font-mono text-xs font-medium text-purple-700 transition-colors hover:bg-purple-500/10 hover:text-purple-800 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-300 dark:hover:text-purple-200"
+                                                                    title={`Tonton /watch/${item.tmdb_id}`}
+                                                                >
+                                                                    <span>{item.tmdb_id}</span>
+                                                                </Link>
+                                                            </div>
+                                                        </div>
                                                     </div>
-                                                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-                                                        {currentTmdb ? (
-                                                            <a
-                                                                href={`https://www.themoviedb.org/${item.type === 'series' ? 'tv' : 'movie'}/${currentTmdb}`}
-                                                                target="_blank"
-                                                                rel="noopener noreferrer"
-                                                                className="inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/5 px-2 py-0.5 font-mono text-xs font-medium text-purple-700 transition-colors hover:bg-purple-500/10 hover:text-purple-800 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-300 dark:hover:text-purple-200"
-                                                                title="Buka di themoviedb.org"
-                                                            >
-                                                                <span>TMDB: {currentTmdb}</span>
-                                                                <ExternalLink className="size-2.5 opacity-60" />
-                                                            </a>
+                                                </FluxTable.Cell>
+
+                                                <FluxTable.Cell>
+                                                    <span className="inline-flex items-center rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 capitalize dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                                        {item.type === 'series' ? 'Serial' : 'Film'}
+                                                    </span>
+                                                </FluxTable.Cell>
+
+                                                <FluxTable.Cell>
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {item.resolutions && item.resolutions.length > 0 ? (
+                                                            item.resolutions.map((res, rIdx) => (
+                                                                <span
+                                                                    key={rIdx}
+                                                                    className="inline-flex items-center rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-[11px] font-semibold text-purple-700 dark:text-purple-300"
+                                                                >
+                                                                    {res}
+                                                                </span>
+                                                            ))
                                                         ) : (
-                                                            <span className="text-zinc-400">-</span>
-                                                        )}
-                                                        {item.folder_name && (
-                                                            <span className="hidden font-mono text-[11px] text-zinc-400 sm:inline">
-                                                                /{item.folder_name}/
-                                                            </span>
+                                                            <span className="text-xs text-zinc-400">Direct MP4</span>
                                                         )}
                                                     </div>
+                                                </FluxTable.Cell>
+
+                                                <FluxTable.Cell>
+                                                    {isAlreadyInDb ? (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                                            <CheckCircle2 className="size-3" />
+                                                            Tersimpan
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-500/20 bg-amber-500/10 px-2.5 py-0.5 text-xs font-medium text-amber-600 dark:text-amber-400">
+                                                            <AlertCircle className="size-3" />
+                                                            Belum Disinkron
+                                                        </span>
+                                                    )}
+                                                </FluxTable.Cell>
+
+                                                <FluxTable.Cell align="end">
+                                                    <div className="inline-flex items-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => {
+                                                                setSearchTitle(item.title);
+                                                                setSearchTmdbId(String(item.tmdb_id));
+                                                                setSearchType(item.type);
+                                                                handleQuickCheck({
+                                                                    id: item.tmdb_id,
+                                                                    tmdb_id: item.tmdb_id,
+                                                                    title: item.title,
+                                                                    type: item.type,
+                                                                    folder_name: item.folder_name,
+                                                                });
+                                                            }}
+                                                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-800 shadow-xs transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                                                            title="Uji resolusi streaming"
+                                                        >
+                                                            <Search className="size-3" />
+                                                            <span>Uji Resolusi</span>
+                                                        </button>
+                                                    </div>
+                                                </FluxTable.Cell>
+                                            </FluxTable.Row>
+                                        );
+                                    })
+                                )}
+                            </FluxTable.Rows>
+                        </FluxTable>
+                    ) : (
+                        /* TABLE: View Database MySQL */
+                        <FluxTable bleed containerClassName="mt-2">
+                            <FluxTable.Columns sticky>
+                                <FluxTable.Column
+                                    sortable
+                                    sorted={sortBy === 'title'}
+                                    direction={sortDirection}
+                                    onSort={() => handleSort('title')}
+                                >
+                                    Judul Film / Serial
+                                </FluxTable.Column>
+                                
+                                <FluxTable.Column
+                                    sortable
+                                    sorted={sortBy === 'type'}
+                                    direction={sortDirection}
+                                    onSort={() => handleSort('type')}
+                                >
+                                    Format
+                                </FluxTable.Column>
+                                <FluxTable.Column
+                                    sortable
+                                    sorted={sortBy === 'tag'}
+                                    direction={sortDirection}
+                                    onSort={() => handleSort('tag')}
+                                >
+                                    Genre / Tag
+                                </FluxTable.Column>
+                                <FluxTable.Column>
+                                    Kualitas Resolusi
+                                </FluxTable.Column>
+                                <FluxTable.Column align="end">
+                                    Aksi
+                                </FluxTable.Column>
+                            </FluxTable.Columns>
+
+                            <FluxTable.Rows>
+                                {filteredAndSortedCloudMedia.map((item) => {
+                                    const currentTmdb = item.tmdb_id ?? item.tmdbId ?? '';
+                                    return (
+                                        <FluxTable.Row key={item.id}>
+                                            <FluxTable.Cell variant="strong">
+                                                <div className="flex items-center gap-3">
+                                                    <div className="rounded-lg bg-zinc-100 p-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                                        {item.type === 'series' ? (
+                                                            <Tv className="size-4" />
+                                                        ) : (
+                                                            <Film className="size-4" />
+                                                        )}
+                                                    </div>
+                                                    <div>
+                                                        <div className="font-medium text-zinc-900 dark:text-white">
+                                                            {item.title}
+                                                        </div>
+                                                            <div className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                                                                {item.folder_name && (
+                                                                    <span className="font-mono text-[11px] text-zinc-400">
+                                                                        /{item.folder_name}/
+                                                                    </span>
+                                                                )}
+
+                                                                {currentTmdb ? (
+                                                                    <Link
+                                                                        href={`/watch/${currentTmdb}${item.type === 'series' ? '?type=series' : ''}`}
+                                                                        className="inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/5 px-2 py-0.5 font-mono text-xs font-medium text-purple-700 transition-colors hover:bg-purple-500/10 hover:text-purple-800 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-300 dark:hover:text-purple-200"
+                                                                        title={`Tonton /watch/${currentTmdb}`}
+                                                                    >
+                                                                        <span>{currentTmdb}</span>
+                                                                    </Link>
+                                                                ) : (
+                                                                    <span className="text-zinc-400">-</span>
+                                                                )}
+                                                            </div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        </FluxTable.Cell>
+                                            </FluxTable.Cell>
 
-                                        <FluxTable.Cell>
-                                            <span className="inline-flex items-center rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 capitalize dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                                {item.type === 'series'
-                                                    ? 'Serial'
-                                                    : 'Film'}
-                                            </span>
-                                        </FluxTable.Cell>
+                                            <FluxTable.Cell>
+                                                <span className="inline-flex items-center rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 capitalize dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                                    {item.type === 'series'
+                                                        ? 'Serial'
+                                                        : 'Film'}
+                                                </span>
+                                            </FluxTable.Cell>
 
-                                        <FluxTable.Cell className="text-xs text-zinc-600 dark:text-zinc-400">
-                                            {item.tag || '-'}
-                                        </FluxTable.Cell>
+                                            <FluxTable.Cell className="text-xs text-zinc-600 dark:text-zinc-400">
+                                                {item.tag || '-'}
+                                            </FluxTable.Cell>
 
-                                        <FluxTable.Cell>
-                                            <span className="inline-flex items-center rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-300">
-                                                {item.badge || 'Cloud Direct'}
-                                            </span>
-                                        </FluxTable.Cell>
+                                            <FluxTable.Cell>
+                                                <span className="inline-flex items-center rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-300">
+                                                    {item.badge || 'Cloud Direct'}
+                                                </span>
+                                            </FluxTable.Cell>
 
-                                        <FluxTable.Cell align="end">
-                                            <div className="inline-flex items-center gap-1.5">
-                                                <button
-                                                    type="button"
-                                                    onClick={() =>
-                                                        handleQuickCheck(item)
-                                                    }
-                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-800 shadow-xs transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                                                    title="Uji ketersediaan & resolusi streaming"
-                                                >
-                                                    <Search className="size-3" />
-                                                    <span>Uji Resolusi</span>
-                                                </button>
-                                                {typeof item.id === 'number' && (
+                                            <FluxTable.Cell align="end">
+                                                <div className="inline-flex items-center gap-1.5">
                                                     <button
                                                         type="button"
                                                         onClick={() =>
-                                                            handleDeleteFromDatabase(item)
+                                                            handleQuickCheck(item)
                                                         }
-                                                        className="inline-flex items-center rounded-lg border border-red-200 bg-white p-1.5 text-xs font-medium text-red-600 shadow-xs transition-colors hover:bg-red-50 dark:border-red-900/40 dark:bg-zinc-800 dark:text-red-400 dark:hover:bg-red-950/30"
-                                                        title="Hapus dari database"
+                                                        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-800 shadow-xs transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                                                        title="Uji ketersediaan & resolusi streaming"
                                                     >
-                                                        <Trash2 className="size-3.5" />
+                                                        <Search className="size-3" />
+                                                        <span>Uji Resolusi</span>
                                                     </button>
-                                                )}
-                                            </div>
-                                        </FluxTable.Cell>
-                                    </FluxTable.Row>
-                                );
-                            })}
-                        </FluxTable.Rows>
-                    </FluxTable>
+                                                    {typeof item.id === 'number' && (
+                                                        <button
+                                                            type="button"
+                                                            onClick={() =>
+                                                                handleDeleteFromDatabase(item)
+                                                            }
+                                                            className="inline-flex items-center rounded-lg border border-red-200 bg-white p-1.5 text-xs font-medium text-red-600 shadow-xs transition-colors hover:bg-red-50 dark:border-red-900/40 dark:bg-zinc-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                                                            title="Hapus dari database"
+                                                        >
+                                                            <Trash2 className="size-3.5" />
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </FluxTable.Cell>
+                                        </FluxTable.Row>
+                                    );
+                                })}
+                            </FluxTable.Rows>
+                        </FluxTable>
+                    )}
                 </div>
             </div>
 

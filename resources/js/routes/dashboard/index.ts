@@ -1,6 +1,6 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 /**
-* @see routes/web.php:956
+* @see routes/web.php:974
 * @route '/dashboard/cloud-media'
 */
 export const cloudMedia = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -14,7 +14,7 @@ cloudMedia.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see routes/web.php:956
+* @see routes/web.php:974
 * @route '/dashboard/cloud-media'
 */
 cloudMedia.url = (options?: RouteQueryOptions) => {
@@ -22,7 +22,7 @@ cloudMedia.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see routes/web.php:956
+* @see routes/web.php:974
 * @route '/dashboard/cloud-media'
 */
 cloudMedia.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -31,7 +31,7 @@ cloudMedia.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 
 /**
-* @see routes/web.php:956
+* @see routes/web.php:974
 * @route '/dashboard/cloud-media'
 */
 cloudMedia.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -40,7 +40,7 @@ cloudMedia.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 })
 
 /**
-* @see routes/web.php:956
+* @see routes/web.php:974
 * @route '/dashboard/cloud-media'
 */
 const cloudMediaForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -49,7 +49,7 @@ const cloudMediaForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 })
 
 /**
-* @see routes/web.php:956
+* @see routes/web.php:974
 * @route '/dashboard/cloud-media'
 */
 cloudMediaForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -58,7 +58,7 @@ cloudMediaForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 })
 
 /**
-* @see routes/web.php:956
+* @see routes/web.php:974
 * @route '/dashboard/cloud-media'
 */
 cloudMediaForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
