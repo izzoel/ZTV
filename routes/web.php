@@ -38,11 +38,38 @@ $checkZetwareMediaHandler = function (Request $request) {
         }
     }
 
-    // Auto-generate candidates if title is provided
+    // Auto-generate candidates if title or tmdb_id is provided
     $title = trim((string) ($request->input('title') ?? $request->query('title') ?? ''));
+    $tmdbId = trim((string) ($request->input('tmdb_id') ?? $request->query('tmdb_id') ?? ''));
+    $type = (string) ($request->input('type') ?? $request->query('type') ?? 'movie');
+
+    if (empty($title) && ! empty($tmdbId)) {
+        $endpoint = ($type === 'series') ? "tv/{$tmdbId}" : "movie/{$tmdbId}";
+        $token = (string) config('services.tmdb.read_token', 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhZjNiOGQ3ZTAyZGViZjMzMDJkZTkyNzM2M2Y5MDVhNSIsIm5iZiI6MTc5MTMxNjg4Ny40MjUsInN1YiI6IjZhYzU1Mzk3N2ZhZGRlYzkyZGJiYzM2ZiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.1QPNbFQVmR2xtf4vAh0Cb0I0XfuEM2uyQo0ksHE0NTs');
+        $cacheKey = "tmdb_title_{$type}_{$tmdbId}";
+        $title = Cache::remember($cacheKey, 86400, function () use ($endpoint, $token) {
+            $ch = curl_init("https://api.themoviedb.org/3/{$endpoint}?language=en-US");
+            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+            curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                "Authorization: Bearer {$token}",
+                'Accept: application/json',
+            ]);
+            $res = curl_exec($ch);
+            curl_close($ch);
+            if (is_string($res)) {
+                $d = json_decode($res, true);
+
+                return (string) ($d['title'] ?? $d['name'] ?? $d['original_title'] ?? '');
+            }
+
+            return '';
+        });
+    }
+
     $generatedCandidates = [];
     $folderVariants = [];
-    $type = (string) ($request->input('type') ?? $request->query('type') ?? 'movie');
     $epPatterns = [];
     if (! empty($title)) {
         $season = (int) ($request->input('season') ?? $request->query('season') ?? 1);
@@ -545,6 +572,8 @@ $checkZetwareMediaHandler = function (Request $request) {
         'exists' => ! empty($streams),
         'url' => ! empty($streams) ? $streams[0]['url'] : null,
         'streams' => $streams,
+        'title' => $title,
+        'tmdb_id' => $tmdbId,
     ]);
 };
 

@@ -157,11 +157,14 @@ export interface ZetwareMediaCheckResult {
     url: string | null;
     streams: ZetwareStreamOption[];
     source: 'zetware' | 'streambert';
+    title?: string;
+    tmdb_id?: string;
 }
 
 export interface ZetwareMediaCheckOptions {
-    title: string;
-    type: 'movie' | 'series';
+    title?: string;
+    tmdbId?: number | string;
+    type?: 'movie' | 'series';
     season?: number;
     episode?: number;
 }
@@ -432,12 +435,14 @@ export async function checkZetwareMediaExists(
     episode: number = 1,
 ): Promise<ZetwareMediaCheckResult> {
     let title: string;
+    let tmdbId: string | number | undefined;
     let mediaType: 'movie' | 'series';
     let s: number = 1;
     let ep: number = 1;
 
     if (typeof titleOrOptions === 'object' && titleOrOptions !== null) {
         title = titleOrOptions.title || '';
+        tmdbId = titleOrOptions.tmdbId;
         mediaType = titleOrOptions.type || 'movie';
         s = titleOrOptions.season ?? 1;
         ep = titleOrOptions.episode ?? 1;
@@ -448,14 +453,13 @@ export async function checkZetwareMediaExists(
         ep = episode;
     }
 
-    if (!title.trim()) {
+    if (!title.trim() && !tmdbId) {
         return { exists: false, url: null, streams: [], source: 'streambert' };
     }
 
-    const candidates = generateZetwareStorageUrls(title, mediaType, s, ep);
-    if (candidates.length === 0) {
-        return { exists: false, url: null, streams: [], source: 'streambert' };
-    }
+    const candidates = title.trim()
+        ? generateZetwareStorageUrls(title, mediaType, s, ep)
+        : [];
 
     try {
         const response = await fetch('/api/check-zetware-media', {
@@ -467,6 +471,7 @@ export async function checkZetwareMediaExists(
             },
             body: JSON.stringify({
                 title: title.trim(),
+                tmdb_id: tmdbId ? String(tmdbId).trim() : undefined,
                 type: mediaType,
                 season: s,
                 episode: ep,

@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { FluxTable } from '@/components/ui/flux-table';
+import { fetchFromTmdb } from '@/lib/tmdbService';
 import {
     checkZetwareMediaExists,
     type ZetwareStreamOption,
@@ -25,6 +26,7 @@ import { home } from '@/routes';
 
 interface KnownCloudMedia {
     id: string;
+    tmdbId?: number | string;
     title: string;
     type: 'movie' | 'series';
     season?: number;
@@ -37,6 +39,7 @@ interface KnownCloudMedia {
 const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     {
         id: 'the-odyssey',
+        tmdbId: 1368337,
         title: 'The Odyssey',
         type: 'movie',
         tag: 'Epic / Adventure',
@@ -45,6 +48,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     },
     {
         id: 'animals',
+        tmdbId: 1236045,
         title: 'Animals',
         type: 'movie',
         tag: 'Drama / Action',
@@ -53,6 +57,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     },
     {
         id: 'hope',
+        tmdbId: 1058424,
         title: 'Hope',
         type: 'movie',
         tag: 'Drama / Sci-Fi',
@@ -61,6 +66,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     },
     {
         id: 'lanterns',
+        tmdbId: 95350,
         title: 'Lanterns',
         type: 'series',
         season: 1,
@@ -71,6 +77,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     },
     {
         id: 'spider-man',
+        tmdbId: 969681,
         title: 'Spider-Man Brand New Day',
         type: 'movie',
         tag: 'Action / Sci-Fi',
@@ -79,6 +86,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     },
     {
         id: 'insidious',
+        tmdbId: 1291595,
         title: 'Insidious Out of the Further',
         type: 'movie',
         tag: 'Horror / Mystery',
@@ -87,6 +95,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     },
     {
         id: 'matchbox',
+        tmdbId: 1148365,
         title: 'Matchbox The Movie',
         type: 'movie',
         tag: 'Animation / Family',
@@ -95,6 +104,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     },
     {
         id: 'treasure-island',
+        tmdbId: 26612,
         title: 'Treasure Island',
         type: 'movie',
         tag: 'Classic / Adventure',
@@ -106,6 +116,7 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
 export default function CloudMediaPage() {
     // Media Inspector State
     const [searchTitle, setSearchTitle] = useState('The Odyssey');
+    const [searchTmdbId, setSearchTmdbId] = useState('1368337');
     const [searchType, setSearchType] = useState<'movie' | 'series'>('movie');
     const [searchSeason, setSearchSeason] = useState(1);
     const [searchEpisode, setSearchEpisode] = useState(1);
@@ -127,10 +138,10 @@ export default function CloudMediaPage() {
     const [filterType, setFilterType] = useState<'all' | 'movie' | 'series'>(
         'all',
     );
-    const [sortBy, setSortBy] = useState<'title' | 'tag' | 'type'>('title');
+    const [sortBy, setSortBy] = useState<'title' | 'tmdbId' | 'tag' | 'type'>('title');
     const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
-    const handleSort = (column: 'title' | 'tag' | 'type') => {
+    const handleSort = (column: 'title' | 'tmdbId' | 'tag' | 'type') => {
         if (sortBy === column) {
             setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
         } else {
@@ -143,13 +154,19 @@ export default function CloudMediaPage() {
         return KNOWN_CLOUD_MEDIA.filter((item) => {
             const matchesQuery =
                 item.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
-                item.tag.toLowerCase().includes(filterQuery.toLowerCase());
+                item.tag.toLowerCase().includes(filterQuery.toLowerCase()) ||
+                (item.tmdbId && String(item.tmdbId).includes(filterQuery.trim()));
             const matchesType =
                 filterType === 'all' ? true : item.type === filterType;
             return matchesQuery && matchesType;
         }).sort((a, b) => {
-            const valA = a[sortBy].toLowerCase();
-            const valB = b[sortBy].toLowerCase();
+            if (sortBy === 'tmdbId') {
+                const idA = Number(a.tmdbId) || 0;
+                const idB = Number(b.tmdbId) || 0;
+                return sortDirection === 'asc' ? idA - idB : idB - idA;
+            }
+            const valA = (a[sortBy] || '').toString().toLowerCase();
+            const valB = (b[sortBy] || '').toString().toLowerCase();
             if (valA < valB) return sortDirection === 'asc' ? -1 : 1;
             if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
             return 0;
@@ -158,16 +175,40 @@ export default function CloudMediaPage() {
 
     const handleInspectMedia = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
-        if (!searchTitle.trim()) return;
+        let targetTitle = searchTitle.trim();
+
+        // Jika judul belum diisi tapi TMDB ID ada, coba ambil judul dari TMDB
+        if (!targetTitle && searchTmdbId.trim()) {
+            setIsInspecting(true);
+            try {
+                const endpoint =
+                    searchType === 'series'
+                        ? `/tv/${searchTmdbId.trim()}`
+                        : `/movie/${searchTmdbId.trim()}`;
+                const data = await fetchFromTmdb(endpoint);
+                if (data && (data.title || data.name)) {
+                    targetTitle = data.title || data.name;
+                    setSearchTitle(targetTitle);
+                }
+            } catch {
+                // Lanjutkan
+            }
+        }
+
+        if (!targetTitle && !searchTmdbId.trim()) return;
 
         setIsInspecting(true);
         try {
-            const res = await checkZetwareMediaExists(
-                searchTitle.trim(),
-                searchType,
-                searchSeason,
-                searchEpisode,
-            );
+            const res = await checkZetwareMediaExists({
+                title: targetTitle,
+                tmdbId: searchTmdbId.trim() || undefined,
+                type: searchType,
+                season: searchSeason,
+                episode: searchEpisode,
+            });
+            if (res.title && !searchTitle.trim()) {
+                setSearchTitle(res.title);
+            }
             setInspectResult({
                 hasChecked: true,
                 exists: res.exists,
@@ -196,17 +237,19 @@ export default function CloudMediaPage() {
 
     const handleQuickCheck = (item: KnownCloudMedia) => {
         setSearchTitle(item.title);
+        setSearchTmdbId(item.tmdbId ? String(item.tmdbId) : '');
         setSearchType(item.type);
         if (item.season) setSearchSeason(item.season);
         if (item.episode) setSearchEpisode(item.episode);
 
         setIsInspecting(true);
-        void checkZetwareMediaExists(
-            item.title,
-            item.type,
-            item.season || 1,
-            item.episode || 1,
-        ).then((res) => {
+        void checkZetwareMediaExists({
+            title: item.title,
+            tmdbId: item.tmdbId,
+            type: item.type,
+            season: item.season || 1,
+            episode: item.episode || 1,
+        }).then((res) => {
             setIsInspecting(false);
             setInspectResult({
                 hasChecked: true,
@@ -342,9 +385,16 @@ export default function CloudMediaPage() {
                         className="mt-5 space-y-4"
                     >
                         <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
-                            <div className="sm:col-span-6">
+                            {/* Judul Film */}
+                            <div
+                                className={
+                                    searchType === 'series'
+                                        ? 'sm:col-span-4'
+                                        : 'sm:col-span-5'
+                                }
+                            >
                                 <label className="mb-1.5 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                                    Judul Media
+                                    Judul Film
                                 </label>
                                 <input
                                     type="text"
@@ -357,7 +407,54 @@ export default function CloudMediaPage() {
                                 />
                             </div>
 
-                            <div className="sm:col-span-3">
+                            {/* Field TMDB ID (disebelah judul film) */}
+                            <div
+                                className={
+                                    searchType === 'series'
+                                        ? 'sm:col-span-2'
+                                        : 'sm:col-span-3'
+                                }
+                            >
+                                <div className="mb-1.5 flex items-center justify-between">
+                                    <label className="block text-xs font-medium text-zinc-700 dark:text-zinc-300">
+                                        TMDB ID
+                                    </label>
+                                    <span className="text-[10px] text-zinc-400">
+                                        Opsional
+                                    </span>
+                                </div>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        value={searchTmdbId}
+                                        onChange={(e) =>
+                                            setSearchTmdbId(e.target.value)
+                                        }
+                                        placeholder="e.g. 1368337"
+                                        className="w-full rounded-lg border border-zinc-300 bg-white pr-7 pl-3 py-2 font-mono text-sm text-zinc-900 placeholder-zinc-400 shadow-xs focus:border-zinc-900 focus:outline-hidden dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:focus:border-white"
+                                    />
+                                    {searchTmdbId ? (
+                                        <a
+                                            href={`https://www.themoviedb.org/${searchType === 'series' ? 'tv' : 'movie'}/${searchTmdbId.trim()}`}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="absolute top-1/2 right-2 -translate-y-1/2 text-zinc-400 transition-colors hover:text-purple-600 dark:hover:text-purple-400"
+                                            title="Buka detail di TMDB"
+                                        >
+                                            <ExternalLink className="size-3.5" />
+                                        </a>
+                                    ) : null}
+                                </div>
+                            </div>
+
+                            {/* Tipe Konten */}
+                            <div
+                                className={
+                                    searchType === 'series'
+                                        ? 'sm:col-span-2'
+                                        : 'sm:col-span-2'
+                                }
+                            >
                                 <label className="mb-1.5 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
                                     Tipe Konten
                                 </label>
@@ -370,7 +467,7 @@ export default function CloudMediaPage() {
                                                 | 'series',
                                         )
                                     }
-                                    className="w-full rounded-lg border border-zinc-300 bg-white px-3.5 py-2 text-sm text-zinc-900 shadow-xs focus:border-zinc-900 focus:outline-hidden dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:focus:border-white"
+                                    className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-xs focus:border-zinc-900 focus:outline-hidden dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:focus:border-white"
                                 >
                                     <option value="movie">Film (Movie)</option>
                                     <option value="series">
@@ -379,12 +476,13 @@ export default function CloudMediaPage() {
                                 </select>
                             </div>
 
+                            {/* Season & Episode (Series) */}
                             {searchType === 'series' && (
-                                <div className="sm:col-span-3">
+                                <div className="sm:col-span-2">
                                     <label className="mb-1.5 block text-xs font-medium text-zinc-700 dark:text-zinc-300">
-                                        Season & Episode
+                                        S & E
                                     </label>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex items-center gap-1.5">
                                         <input
                                             type="number"
                                             min={1}
@@ -397,8 +495,9 @@ export default function CloudMediaPage() {
                                                     ) || 1,
                                                 )
                                             }
-                                            className="w-1/2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-xs dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                            className="w-1/2 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-xs dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                             placeholder="S"
+                                            title="Season"
                                         />
                                         <input
                                             type="number"
@@ -412,18 +511,27 @@ export default function CloudMediaPage() {
                                                     ) || 1,
                                                 )
                                             }
-                                            className="w-1/2 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-xs dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
+                                            className="w-1/2 rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-900 shadow-xs dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                             placeholder="E"
+                                            title="Episode"
                                         />
                                     </div>
                                 </div>
                             )}
 
-                            <div className="flex items-end sm:col-span-3">
+                            <div
+                                className={
+                                    searchType === 'series'
+                                        ? 'flex items-end sm:col-span-2'
+                                        : 'flex items-end sm:col-span-2'
+                                }
+                            >
                                 <button
                                     type="submit"
                                     disabled={
-                                        isInspecting || !searchTitle.trim()
+                                        isInspecting ||
+                                        (!searchTitle.trim() &&
+                                            !searchTmdbId.trim())
                                     }
                                     className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-900 px-4 py-2 text-sm font-medium text-white shadow-xs transition-colors hover:bg-zinc-800 disabled:opacity-50 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-100"
                                 >
@@ -636,8 +744,9 @@ export default function CloudMediaPage() {
                                 direction={sortDirection}
                                 onSort={() => handleSort('title')}
                             >
-                                Judul Media
+                                Judul Film
                             </FluxTable.Column>
+                            
                             <FluxTable.Column
                                 sortable
                                 sorted={sortBy === 'type'}
@@ -679,17 +788,19 @@ export default function CloudMediaPage() {
                                                     {item.title}
                                                 </div>
                                                 <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                    {item.desc}
+                                                    <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/5 px-2 py-0.5 font-mono text-xs font-medium text-purple-700 transition-colors hover:bg-purple-500/10 hover:text-purple-800 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-300 dark:hover:text-purple-200">{item.tmdbId}</span>
                                                 </div>
                                             </div>
                                         </div>
                                     </FluxTable.Cell>
 
+                                    
+
                                     <FluxTable.Cell>
                                         <span className="inline-flex items-center rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 capitalize dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                                             {item.type === 'series'
-                                                ? `Series S${item.season}E${item.episode}`
-                                                : 'Film Bioskop'}
+                                                ? 'Serial'
+                                                : 'Film'}
                                         </span>
                                     </FluxTable.Cell>
 
