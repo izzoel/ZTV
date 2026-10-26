@@ -1,7 +1,6 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
 /**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
+* @see routes/web.php:956
 * @route '/dashboard/cloud-media'
 */
 export const cloudMedia = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -15,8 +14,7 @@ cloudMedia.definition = {
 } satisfies RouteDefinition<["get","head"]>
 
 /**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
+* @see routes/web.php:956
 * @route '/dashboard/cloud-media'
 */
 cloudMedia.url = (options?: RouteQueryOptions) => {
@@ -24,8 +22,7 @@ cloudMedia.url = (options?: RouteQueryOptions) => {
 }
 
 /**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
+* @see routes/web.php:956
 * @route '/dashboard/cloud-media'
 */
 cloudMedia.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,8 +31,7 @@ cloudMedia.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 
 /**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
+* @see routes/web.php:956
 * @route '/dashboard/cloud-media'
 */
 cloudMedia.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,8 +40,7 @@ cloudMedia.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 })
 
 /**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
+* @see routes/web.php:956
 * @route '/dashboard/cloud-media'
 */
 const cloudMediaForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,8 +49,7 @@ const cloudMediaForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'>
 })
 
 /**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
+* @see routes/web.php:956
 * @route '/dashboard/cloud-media'
 */
 cloudMediaForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -64,8 +58,7 @@ cloudMediaForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> =
 })
 
 /**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
+* @see routes/web.php:956
 * @route '/dashboard/cloud-media'
 */
 cloudMediaForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

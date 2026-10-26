@@ -5,13 +5,16 @@ import {
     CheckCircle2,
     Cloud,
     Copy,
+    Database,
     ExternalLink,
     Film,
     HardDrive,
     Play,
+    Plus,
     RefreshCw,
     Search,
     Sparkles,
+    Trash2,
     Tv,
     X,
 } from 'lucide-react';
@@ -24,16 +27,25 @@ import {
 } from '@/lib/zetwareStorage';
 import { home } from '@/routes';
 
-interface KnownCloudMedia {
-    id: string;
+export interface KnownCloudMedia {
+    id: number | string;
+    tmdb_id?: number | string;
     tmdbId?: number | string;
     title: string;
     type: 'movie' | 'series';
     season?: number;
     episode?: number;
-    tag: string;
-    desc: string;
-    badge: string;
+    folder_name?: string;
+    tag?: string;
+    desc?: string;
+    description?: string;
+    badge?: string;
+    is_active?: boolean;
+    release_date?: string;
+}
+
+interface CloudMediaPageProps {
+    initialCloudMedia?: KnownCloudMedia[];
 }
 
 const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
@@ -113,7 +125,23 @@ const KNOWN_CLOUD_MEDIA: KnownCloudMedia[] = [
     },
 ];
 
-export default function CloudMediaPage() {
+export default function CloudMediaPage({
+    initialCloudMedia = [],
+}: CloudMediaPageProps) {
+    // Database Cloud Media State (prioritaskan data dari database MySQL)
+    const [cloudMediaList, setCloudMediaList] = useState<KnownCloudMedia[]>(() => {
+        if (initialCloudMedia && initialCloudMedia.length > 0) {
+            return initialCloudMedia;
+        }
+        return KNOWN_CLOUD_MEDIA;
+    });
+
+    const [isSavingDb, setIsSavingDb] = useState(false);
+    const [actionFeedback, setActionFeedback] = useState<{
+        type: 'success' | 'error';
+        message: string;
+    } | null>(null);
+
     // Media Inspector State
     const [searchTitle, setSearchTitle] = useState('The Odyssey');
     const [searchTmdbId, setSearchTmdbId] = useState('1368337');
@@ -151,18 +179,19 @@ export default function CloudMediaPage() {
     };
 
     const filteredAndSortedCloudMedia = useMemo(() => {
-        return KNOWN_CLOUD_MEDIA.filter((item) => {
+        return cloudMediaList.filter((item) => {
+            const rawTmdb = item.tmdb_id ?? item.tmdbId ?? '';
             const matchesQuery =
                 item.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
-                item.tag.toLowerCase().includes(filterQuery.toLowerCase()) ||
-                (item.tmdbId && String(item.tmdbId).includes(filterQuery.trim()));
+                (item.tag && item.tag.toLowerCase().includes(filterQuery.toLowerCase())) ||
+                (rawTmdb && String(rawTmdb).includes(filterQuery.trim()));
             const matchesType =
                 filterType === 'all' ? true : item.type === filterType;
             return matchesQuery && matchesType;
         }).sort((a, b) => {
             if (sortBy === 'tmdbId') {
-                const idA = Number(a.tmdbId) || 0;
-                const idB = Number(b.tmdbId) || 0;
+                const idA = Number(a.tmdb_id ?? a.tmdbId) || 0;
+                const idB = Number(b.tmdb_id ?? b.tmdbId) || 0;
                 return sortDirection === 'asc' ? idA - idB : idB - idA;
             }
             const valA = (a[sortBy] || '').toString().toLowerCase();
@@ -171,7 +200,7 @@ export default function CloudMediaPage() {
             if (valA > valB) return sortDirection === 'asc' ? 1 : -1;
             return 0;
         });
-    }, [filterQuery, filterType, sortBy, sortDirection]);
+    }, [cloudMediaList, filterQuery, filterType, sortBy, sortDirection]);
 
     const handleInspectMedia = async (e?: React.FormEvent) => {
         if (e) e.preventDefault();
@@ -236,8 +265,9 @@ export default function CloudMediaPage() {
     };
 
     const handleQuickCheck = (item: KnownCloudMedia) => {
+        const rawTmdb = item.tmdb_id ?? item.tmdbId ?? '';
         setSearchTitle(item.title);
-        setSearchTmdbId(item.tmdbId ? String(item.tmdbId) : '');
+        setSearchTmdbId(rawTmdb ? String(rawTmdb) : '');
         setSearchType(item.type);
         if (item.season) setSearchSeason(item.season);
         if (item.episode) setSearchEpisode(item.episode);
@@ -245,7 +275,7 @@ export default function CloudMediaPage() {
         setIsInspecting(true);
         void checkZetwareMediaExists({
             title: item.title,
-            tmdbId: item.tmdbId,
+            tmdbId: rawTmdb,
             type: item.type,
             season: item.season || 1,
             episode: item.episode || 1,
@@ -258,6 +288,159 @@ export default function CloudMediaPage() {
                 streams: res.streams || [],
             });
         });
+    };
+
+    // Simpan hasil inspeksi aktif ke Database MySQL
+    const handleSaveCurrentToDatabase = async () => {
+        if (!searchTitle.trim() || !searchTmdbId.trim()) {
+            setActionFeedback({
+                type: 'error',
+                message: 'Judul dan TMDB ID wajib diisi untuk disimpan ke database!',
+            });
+            setTimeout(() => setActionFeedback(null), 3500);
+            return;
+        }
+
+        setIsSavingDb(true);
+        setActionFeedback(null);
+        try {
+            const csrfToken =
+                (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+
+            const res = await fetch('/api/admin/cloud-media', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+                body: JSON.stringify({
+                    tmdb_id: searchTmdbId.trim(),
+                    title: searchTitle.trim(),
+                    type: searchType,
+                    season: searchType === 'series' ? searchSeason : null,
+                    episode: searchType === 'series' ? searchEpisode : null,
+                    folder_name: searchTitle.trim().toUpperCase(),
+                    tag: searchType === 'series' ? 'Serial TV' : 'Film Bioskop',
+                    badge: inspectResult?.streams?.[0]?.badge || 'Direct MP4',
+                    description: `Media Zetware Cloud dengan TMDB ID ${searchTmdbId.trim()}`,
+                }),
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                setActionFeedback({
+                    type: 'success',
+                    message: `Berhasil disimpan ke Database: ${searchTitle}`,
+                });
+                // Update local list
+                setCloudMediaList((prev) => {
+                    const existingIdx = prev.findIndex(
+                        (i) =>
+                            String(i.tmdb_id ?? i.tmdbId) === searchTmdbId.trim() &&
+                            i.type === searchType,
+                    );
+                    if (existingIdx >= 0) {
+                        const copy = [...prev];
+                        copy[existingIdx] = data.data;
+                        return copy;
+                    }
+                    return [data.data, ...prev];
+                });
+            } else {
+                setActionFeedback({
+                    type: 'error',
+                    message: data.message || 'Gagal menyimpan ke database.',
+                });
+            }
+        } catch (err: unknown) {
+            setActionFeedback({
+                type: 'error',
+                message: err instanceof Error ? err.message : 'Koneksi database gagal',
+            });
+        } finally {
+            setIsSavingDb(false);
+            setTimeout(() => setActionFeedback(null), 4000);
+        }
+    };
+
+    // Hapus media dari database
+    const handleDeleteFromDatabase = async (item: KnownCloudMedia) => {
+        if (!confirm(`Hapus "${item.title}" dari database Zetware Cloud?`)) {
+            return;
+        }
+
+        try {
+            const csrfToken =
+                (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+
+            const res = await fetch(`/api/admin/cloud-media/${item.id}`, {
+                method: 'DELETE',
+                headers: {
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+            });
+
+            if (res.ok) {
+                setCloudMediaList((prev) => prev.filter((i) => i.id !== item.id));
+                setActionFeedback({
+                    type: 'success',
+                    message: `Berhasil menghapus ${item.title} dari database.`,
+                });
+            }
+        } catch {
+            setActionFeedback({
+                type: 'error',
+                message: 'Gagal menghapus dari database.',
+            });
+        } finally {
+            setTimeout(() => setActionFeedback(null), 3000);
+        }
+    };
+
+    // Singkronkan direktori Zetware Cloud dengan database MySQL
+    const [isSyncing, setIsSyncing] = useState(false);
+    const handleSyncCloudWithDatabase = async () => {
+        setIsSyncing(true);
+        setActionFeedback(null);
+        try {
+            const csrfToken =
+                (document.querySelector('meta[name="csrf-token"]') as HTMLMetaElement)?.content || '';
+
+            const res = await fetch('/api/admin/cloud-media/sync', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    Accept: 'application/json',
+                    'X-CSRF-TOKEN': csrfToken,
+                },
+            });
+
+            const data = await res.json();
+            if (res.ok && data.success) {
+                if (Array.isArray(data.all_media) && data.all_media.length > 0) {
+                    setCloudMediaList(data.all_media);
+                }
+                setActionFeedback({
+                    type: 'success',
+                    message: data.message || 'Singkronisasi selesai.',
+                });
+            } else {
+                setActionFeedback({
+                    type: 'error',
+                    message: data.message || 'Gagal melakukan singkronisasi cloud.',
+                });
+            }
+        } catch (err: unknown) {
+            setActionFeedback({
+                type: 'error',
+                message: err instanceof Error ? err.message : 'Koneksi ke server gagal saat singkronisasi.',
+            });
+        } finally {
+            setIsSyncing(false);
+            setTimeout(() => setActionFeedback(null), 5000);
+        }
     };
 
     return (
@@ -554,7 +737,7 @@ export default function CloudMediaPage() {
                     {/* Inspect Result Table */}
                     {inspectResult?.hasChecked && (
                         <div className="mt-6 space-y-4 border-t border-zinc-100 pt-5 dark:border-white/5">
-                            <div className="flex items-center justify-between">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div className="flex items-center gap-2 text-sm">
                                     <span className="text-zinc-500 dark:text-zinc-400">
                                         Hasil:
@@ -562,24 +745,61 @@ export default function CloudMediaPage() {
                                     <span className="font-medium text-zinc-900 dark:text-white">
                                         "{searchTitle}"
                                     </span>
+                                    {searchTmdbId && (
+                                        <span className="inline-flex items-center rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 font-mono text-xs font-semibold text-purple-700 dark:text-purple-300">
+                                            TMDB ID: {searchTmdbId}
+                                        </span>
+                                    )}
                                 </div>
 
-                                {inspectResult.exists ? (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                                        <CheckCircle2 className="size-3.5" />
-                                        Tersedia ({
-                                            inspectResult.streams.length
-                                        }{' '}
-                                        Opsi Resolusi)
-                                    </span>
-                                ) : (
-                                    <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
-                                        <AlertCircle className="size-3.5" />
-                                        Belum Ada di Cloud (Fallback Embed
-                                        Aktif)
-                                    </span>
-                                )}
+                                <div className="flex items-center gap-2">
+                                    {inspectResult.exists ? (
+                                        <>
+                                            <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-2.5 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                                                <CheckCircle2 className="size-3.5" />
+                                                Tersedia ({inspectResult.streams.length} Opsi Resolusi)
+                                            </span>
+                                            <button
+                                                type="button"
+                                                onClick={handleSaveCurrentToDatabase}
+                                                disabled={isSavingDb}
+                                                className="inline-flex items-center gap-1.5 rounded-lg bg-purple-600 px-3 py-1.5 text-xs font-medium text-white shadow-xs transition-colors hover:bg-purple-700 disabled:opacity-50 dark:bg-purple-500 dark:hover:bg-purple-600"
+                                                title="Simpan media ini ke Database Zetware Cloud"
+                                            >
+                                                {isSavingDb ? (
+                                                    <RefreshCw className="size-3.5 animate-spin" />
+                                                ) : (
+                                                    <Database className="size-3.5" />
+                                                )}
+                                                <span>{isSavingDb ? 'Menyimpan...' : 'Simpan ke Database'}</span>
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <span className="inline-flex items-center gap-1.5 rounded-full border border-red-500/20 bg-red-500/10 px-2.5 py-0.5 text-xs font-medium text-red-600 dark:text-red-400">
+                                            <AlertCircle className="size-3.5" />
+                                            Belum Ada di Cloud (Fallback Embed Aktif)
+                                        </span>
+                                    )}
+                                </div>
                             </div>
+
+                            {/* Action Feedback Notification */}
+                            {actionFeedback && (
+                                <div
+                                    className={`flex items-center gap-2 rounded-lg p-3 text-xs font-medium transition-all ${
+                                        actionFeedback.type === 'success'
+                                            ? 'border border-emerald-500/30 bg-emerald-50 text-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300'
+                                            : 'border border-red-500/30 bg-red-50 text-red-800 dark:bg-red-950/40 dark:text-red-300'
+                                    }`}
+                                >
+                                    {actionFeedback.type === 'success' ? (
+                                        <CheckCircle2 className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                                    ) : (
+                                        <AlertCircle className="size-4 shrink-0 text-red-600 dark:text-red-400" />
+                                    )}
+                                    <span>{actionFeedback.message}</span>
+                                </div>
+                            )}
 
                             {inspectResult.exists &&
                                 inspectResult.streams.length > 0 && (
@@ -673,13 +893,18 @@ export default function CloudMediaPage() {
                 <div className="rounded-xl border border-zinc-200 bg-white p-6 shadow-xs dark:border-white/10 dark:bg-zinc-900">
                     <div className="flex flex-col gap-3 pb-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                            <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-white">
-                                <Cloud className="size-4 text-purple-600 dark:text-purple-400" />
-                                <span>Koleksi Media Cloud Terverifikasi</span>
-                            </h2>
+                            <div className="flex items-center gap-2.5">
+                                <h2 className="flex items-center gap-2 text-base font-semibold text-zinc-900 dark:text-white">
+                                    <Cloud className="size-4 text-purple-600 dark:text-purple-400" />
+                                    <span>Koleksi Media Cloud Terverifikasi</span>
+                                </h2>
+                                <span className="inline-flex items-center gap-1 rounded-full border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:text-purple-300">
+                                    <Database className="size-3" />
+                                    Database Terhubung ({cloudMediaList.length} Judul)
+                                </span>
+                            </div>
                             <p className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
-                                Seluruh judul media yang telah dikonfigurasi dan
-                                diverifikasi pada server cloud.
+                                Seluruh film dan serial TV tersimpan di tabel database <code className="rounded bg-zinc-100 px-1 py-0.5 font-mono text-[11px] text-zinc-800 dark:bg-zinc-800 dark:text-zinc-300">zetware_cloud_media</code> berdasarkan TMDB ID.
                             </p>
                         </div>
 
@@ -693,7 +918,7 @@ export default function CloudMediaPage() {
                                     onChange={(e) =>
                                         setFilterQuery(e.target.value)
                                     }
-                                    placeholder="Cari judul cloud..."
+                                    placeholder="Cari judul atau TMDB ID..."
                                     className="h-8 rounded-lg border border-zinc-300 bg-white pr-3 pl-8 text-xs text-zinc-900 placeholder-zinc-400 shadow-xs focus:outline-hidden dark:border-zinc-700 dark:bg-zinc-800 dark:text-white"
                                 />
                             </div>
@@ -733,6 +958,18 @@ export default function CloudMediaPage() {
                                     Serial
                                 </button>
                             </div>
+
+                            {/* Tombol Singkronkan Direktori Cloud ke Database */}
+                            <button
+                                type="button"
+                                onClick={handleSyncCloudWithDatabase}
+                                disabled={isSyncing}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-purple-500/30 bg-purple-50 px-3 py-1.5 text-xs font-medium text-purple-700 shadow-2xs transition-colors hover:bg-purple-100 disabled:opacity-50 dark:border-purple-400/30 dark:bg-purple-950/40 dark:text-purple-300 dark:hover:bg-purple-900/50"
+                                title="Cek direktori TMDB ID pada Zetware Cloud dan singkronkan judul yang belum ada ke database"
+                            >
+                                <RefreshCw className={`size-3.5 ${isSyncing ? 'animate-spin' : ''}`} />
+                                <span>{isSyncing ? 'Menyingkronkan...' : 'Singkronkan Cloud'}</span>
+                            </button>
                         </div>
                     </div>
 
@@ -744,7 +981,7 @@ export default function CloudMediaPage() {
                                 direction={sortDirection}
                                 onSort={() => handleSort('title')}
                             >
-                                Judul Film
+                                Judul Film / Serial
                             </FluxTable.Column>
                             
                             <FluxTable.Column
@@ -772,62 +1009,96 @@ export default function CloudMediaPage() {
                         </FluxTable.Columns>
 
                         <FluxTable.Rows>
-                            {filteredAndSortedCloudMedia.map((item) => (
-                                <FluxTable.Row key={item.id}>
-                                    <FluxTable.Cell variant="strong">
-                                        <div className="flex items-center gap-3">
-                                            <div className="rounded-lg bg-zinc-100 p-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
-                                                {item.type === 'series' ? (
-                                                    <Tv className="size-4" />
-                                                ) : (
-                                                    <Film className="size-4" />
+                            {filteredAndSortedCloudMedia.map((item) => {
+                                const currentTmdb = item.tmdb_id ?? item.tmdbId ?? '';
+                                return (
+                                    <FluxTable.Row key={item.id}>
+                                        <FluxTable.Cell variant="strong">
+                                            <div className="flex items-center gap-3">
+                                                <div className="rounded-lg bg-zinc-100 p-2 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-300">
+                                                    {item.type === 'series' ? (
+                                                        <Tv className="size-4" />
+                                                    ) : (
+                                                        <Film className="size-4" />
+                                                    )}
+                                                </div>
+                                                <div>
+                                                    <div className="font-medium text-zinc-900 dark:text-white">
+                                                        {item.title}
+                                                    </div>
+                                                    <div className="mt-0.5 flex items-center gap-1.5 text-xs text-zinc-500 dark:text-zinc-400">
+                                                        {currentTmdb ? (
+                                                            <a
+                                                                href={`https://www.themoviedb.org/${item.type === 'series' ? 'tv' : 'movie'}/${currentTmdb}`}
+                                                                target="_blank"
+                                                                rel="noopener noreferrer"
+                                                                className="inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/5 px-2 py-0.5 font-mono text-xs font-medium text-purple-700 transition-colors hover:bg-purple-500/10 hover:text-purple-800 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-300 dark:hover:text-purple-200"
+                                                                title="Buka di themoviedb.org"
+                                                            >
+                                                                <span>TMDB: {currentTmdb}</span>
+                                                                <ExternalLink className="size-2.5 opacity-60" />
+                                                            </a>
+                                                        ) : (
+                                                            <span className="text-zinc-400">-</span>
+                                                        )}
+                                                        {item.folder_name && (
+                                                            <span className="hidden font-mono text-[11px] text-zinc-400 sm:inline">
+                                                                /{item.folder_name}/
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </FluxTable.Cell>
+
+                                        <FluxTable.Cell>
+                                            <span className="inline-flex items-center rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 capitalize dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
+                                                {item.type === 'series'
+                                                    ? 'Serial'
+                                                    : 'Film'}
+                                            </span>
+                                        </FluxTable.Cell>
+
+                                        <FluxTable.Cell className="text-xs text-zinc-600 dark:text-zinc-400">
+                                            {item.tag || '-'}
+                                        </FluxTable.Cell>
+
+                                        <FluxTable.Cell>
+                                            <span className="inline-flex items-center rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-300">
+                                                {item.badge || 'Cloud Direct'}
+                                            </span>
+                                        </FluxTable.Cell>
+
+                                        <FluxTable.Cell align="end">
+                                            <div className="inline-flex items-center gap-1.5">
+                                                <button
+                                                    type="button"
+                                                    onClick={() =>
+                                                        handleQuickCheck(item)
+                                                    }
+                                                    className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-800 shadow-xs transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
+                                                    title="Uji ketersediaan & resolusi streaming"
+                                                >
+                                                    <Search className="size-3" />
+                                                    <span>Uji Resolusi</span>
+                                                </button>
+                                                {typeof item.id === 'number' && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() =>
+                                                            handleDeleteFromDatabase(item)
+                                                        }
+                                                        className="inline-flex items-center rounded-lg border border-red-200 bg-white p-1.5 text-xs font-medium text-red-600 shadow-xs transition-colors hover:bg-red-50 dark:border-red-900/40 dark:bg-zinc-800 dark:text-red-400 dark:hover:bg-red-950/30"
+                                                        title="Hapus dari database"
+                                                    >
+                                                        <Trash2 className="size-3.5" />
+                                                    </button>
                                                 )}
                                             </div>
-                                            <div>
-                                                <div className="font-medium text-zinc-900 dark:text-white">
-                                                    {item.title}
-                                                </div>
-                                                <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                                                    <span className="inline-flex items-center gap-1 rounded-md border border-purple-500/20 bg-purple-500/5 px-2 py-0.5 font-mono text-xs font-medium text-purple-700 transition-colors hover:bg-purple-500/10 hover:text-purple-800 dark:border-purple-400/20 dark:bg-purple-400/10 dark:text-purple-300 dark:hover:text-purple-200">{item.tmdbId}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </FluxTable.Cell>
-
-                                    
-
-                                    <FluxTable.Cell>
-                                        <span className="inline-flex items-center rounded-md border border-zinc-200 bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-700 capitalize dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
-                                            {item.type === 'series'
-                                                ? 'Serial'
-                                                : 'Film'}
-                                        </span>
-                                    </FluxTable.Cell>
-
-                                    <FluxTable.Cell className="text-xs text-zinc-600 dark:text-zinc-400">
-                                        {item.tag}
-                                    </FluxTable.Cell>
-
-                                    <FluxTable.Cell>
-                                        <span className="inline-flex items-center rounded-md border border-purple-500/20 bg-purple-500/10 px-2 py-0.5 text-xs font-semibold text-purple-700 dark:text-purple-300">
-                                            {item.badge}
-                                        </span>
-                                    </FluxTable.Cell>
-
-                                    <FluxTable.Cell align="end">
-                                        <button
-                                            type="button"
-                                            onClick={() =>
-                                                handleQuickCheck(item)
-                                            }
-                                            className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-medium text-zinc-800 shadow-xs transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:bg-zinc-800 dark:text-zinc-200 dark:hover:bg-zinc-700"
-                                        >
-                                            <Search className="size-3" />
-                                            <span>Uji Resolusi</span>
-                                        </button>
-                                    </FluxTable.Cell>
-                                </FluxTable.Row>
-                            ))}
+                                        </FluxTable.Cell>
+                                    </FluxTable.Row>
+                                );
+                            })}
                         </FluxTable.Rows>
                     </FluxTable>
                 </div>

@@ -402,86 +402,6 @@ Controller42a740574ecbfbac32f8cc353fc32db9.form = Controller42a740574ecbfbac32f8
 /**
 * @see \Inertia\Controller::__invoke
 * @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
-* @route '/dashboard/cloud-media'
-*/
-const Controllera583d75aec1fe1d5d9574e0b6c4c3137 = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: Controllera583d75aec1fe1d5d9574e0b6c4c3137.url(options),
-    method: 'get',
-})
-
-Controllera583d75aec1fe1d5d9574e0b6c4c3137.definition = {
-    methods: ["get","head"],
-    url: '/dashboard/cloud-media',
-} satisfies RouteDefinition<["get","head"]>
-
-/**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
-* @route '/dashboard/cloud-media'
-*/
-Controllera583d75aec1fe1d5d9574e0b6c4c3137.url = (options?: RouteQueryOptions) => {
-    return Controllera583d75aec1fe1d5d9574e0b6c4c3137.definition.url + queryParams(options)
-}
-
-/**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
-* @route '/dashboard/cloud-media'
-*/
-Controllera583d75aec1fe1d5d9574e0b6c4c3137.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: Controllera583d75aec1fe1d5d9574e0b6c4c3137.url(options),
-    method: 'get',
-})
-
-/**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
-* @route '/dashboard/cloud-media'
-*/
-Controllera583d75aec1fe1d5d9574e0b6c4c3137.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
-    url: Controllera583d75aec1fe1d5d9574e0b6c4c3137.url(options),
-    method: 'head',
-})
-
-/**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
-* @route '/dashboard/cloud-media'
-*/
-const Controllera583d75aec1fe1d5d9574e0b6c4c3137Form = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: Controllera583d75aec1fe1d5d9574e0b6c4c3137.url(options),
-    method: 'get',
-})
-
-/**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
-* @route '/dashboard/cloud-media'
-*/
-Controllera583d75aec1fe1d5d9574e0b6c4c3137Form.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: Controllera583d75aec1fe1d5d9574e0b6c4c3137.url(options),
-    method: 'get',
-})
-
-/**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
-* @route '/dashboard/cloud-media'
-*/
-Controllera583d75aec1fe1d5d9574e0b6c4c3137Form.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-    action: Controllera583d75aec1fe1d5d9574e0b6c4c3137.url({
-        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
-            _method: 'HEAD',
-            ...(options?.query ?? options?.mergeQuery ?? {}),
-        }
-    }),
-    method: 'get',
-})
-
-Controllera583d75aec1fe1d5d9574e0b6c4c3137.form = Controllera583d75aec1fe1d5d9574e0b6c4c3137Form
-/**
-* @see \Inertia\Controller::__invoke
-* @see vendor/inertiajs/inertia-laravel/src/Controller.php:13
 * @route '/dashboard/database-media'
 */
 const Controller5c341534bb43c5e3587fbbea4a03be97 = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -651,7 +571,6 @@ const Controller = {
     '/privacy': Controllera2c058616aeb0c9393ca03a98bc05c02,
     '/cookies': Controllera2054ddf4ed5c656396a4f4d9d64c843,
     '/dashboard': Controller42a740574ecbfbac32f8cc353fc32db9,
-    '/dashboard/cloud-media': Controllera583d75aec1fe1d5d9574e0b6c4c3137,
     '/dashboard/database-media': Controller5c341534bb43c5e3587fbbea4a03be97,
     '/settings/appearance': Controllere19ee86e9cf603ce1a59a1ec5d21dec5,
 }

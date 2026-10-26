@@ -953,8 +953,279 @@ Route::match(['get', 'post'], '/api/zmc/send', $zmcSendHandler);
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
-    Route::inertia('dashboard/cloud-media', 'cloud-media')->name('dashboard.cloud-media');
+    Route::get('dashboard/cloud-media', function () {
+        $dbMedia = \App\Models\ZetwareCloudMedia::orderBy('created_at', 'asc')->get();
+
+        return inertia('cloud-media', [
+            'initialCloudMedia' => $dbMedia,
+        ]);
+    })->name('dashboard.cloud-media');
     Route::inertia('dashboard/database-media', 'database-media')->name('dashboard.database-media');
+
+    // API manajemen media cloud (Create, Update, Delete)
+    Route::post('/api/admin/cloud-media', function (Request $request) {
+        $validated = $request->validate([
+            'tmdb_id' => 'required|numeric',
+            'title' => 'required|string|max:255',
+            'type' => 'required|in:movie,series',
+            'season' => 'nullable|integer',
+            'episode' => 'nullable|integer',
+            'folder_name' => 'nullable|string|max:255',
+            'tag' => 'nullable|string|max:255',
+            'badge' => 'nullable|string|max:255',
+            'description' => 'nullable|string',
+            'release_date' => 'nullable|string|max:50',
+        ]);
+
+        $media = \App\Models\ZetwareCloudMedia::updateOrCreate(
+            [
+                'tmdb_id' => $validated['tmdb_id'],
+                'type' => $validated['type'],
+                'season' => $validated['season'] ?? null,
+                'episode' => $validated['episode'] ?? null,
+            ],
+            $validated
+        );
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Media berhasil disimpan ke database!',
+            'data' => $media,
+        ]);
+    })->name('admin.cloud-media.store');
+
+    Route::delete('/api/admin/cloud-media/{id}', function ($id) {
+        $media = \App\Models\ZetwareCloudMedia::findOrFail($id);
+        $media->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Media berhasil dihapus dari database.',
+        ]);
+    })->name('admin.cloud-media.destroy');
+
+    // API Singkronisasi Direktori Zetware Cloud dengan Database MySQL
+    Route::post('/api/admin/cloud-media/sync', function (Request $request) {
+        $customTargets = $request->input('targets'); // Array opsional dari user: [{tmdb_id, title, folder, type, season, episode}]
+
+        // Daftar direktori & TMDB ID yang diketahui ada di Zetware Cloud
+        $cloudDirectories = [
+            [
+                'tmdb_id' => 1368337,
+                'title' => 'The Odyssey',
+                'folder_name' => 'THE ODYSSEY',
+                'type' => 'movie',
+                'tag' => 'Epic / Adventure',
+                'badge' => '4K / 1080p',
+                'description' => 'Film bioskop resolusi penuh 4K & Full HD di server cloud.',
+                'release_date' => '2026',
+            ],
+            [
+                'tmdb_id' => 1236045,
+                'title' => 'Animals',
+                'folder_name' => 'ANIMALS',
+                'type' => 'movie',
+                'tag' => 'Drama / Action',
+                'badge' => '1080p Scope',
+                'description' => 'Direct MP4 resolusi 1920 scope.',
+                'release_date' => '2026',
+            ],
+            [
+                'tmdb_id' => 1058424,
+                'title' => 'Hope',
+                'folder_name' => 'HOPE',
+                'type' => 'movie',
+                'tag' => 'Drama / Sci-Fi',
+                'badge' => '1080p FHD',
+                'description' => 'Direct MP4 high bitrate tanpa iklan.',
+                'release_date' => '2026',
+            ],
+            [
+                'tmdb_id' => 95350,
+                'title' => 'Lanterns',
+                'folder_name' => 'LANTERNS',
+                'type' => 'series',
+                'season' => 1,
+                'episode' => 2,
+                'tag' => 'Superhero / Mystery',
+                'badge' => 'S1E2 1080p',
+                'description' => 'Serial TV S1E2 resolusi 1920x960.',
+                'release_date' => '2026',
+            ],
+            [
+                'tmdb_id' => 969681,
+                'title' => 'Spider-Man Brand New Day',
+                'folder_name' => 'SPIDER-MAN BRAND NEW DAY',
+                'type' => 'movie',
+                'tag' => 'Action / Sci-Fi',
+                'badge' => '1080p FHD',
+                'description' => 'Koleksi superhero format MP4 langsung.',
+                'release_date' => '2026',
+            ],
+            [
+                'tmdb_id' => 1291595,
+                'title' => 'Insidious Out of the Further',
+                'folder_name' => 'INSIDIOUS OUT OF THE FURTHER',
+                'type' => 'movie',
+                'tag' => 'Horror / Mystery',
+                'badge' => '1080p FHD',
+                'description' => 'Audio surround definisi tinggi.',
+                'release_date' => '2026',
+            ],
+            [
+                'tmdb_id' => 1148365,
+                'title' => 'Matchbox The Movie',
+                'folder_name' => 'MATCHBOX THE MOVIE',
+                'type' => 'movie',
+                'tag' => 'Animation / Family',
+                'badge' => '1080p FHD',
+                'description' => 'Animasi jernih kualitas tinggi.',
+                'release_date' => '2026',
+            ],
+            [
+                'tmdb_id' => 26612,
+                'title' => 'Treasure Island',
+                'folder_name' => 'TREASURE ISLAND',
+                'type' => 'movie',
+                'tag' => 'Classic / Adventure',
+                'badge' => '1080p FHD',
+                'description' => 'Koleksi petualangan klasik.',
+                'release_date' => '1950',
+            ],
+        ];
+
+        // Jika user mengirimkan target tambahan, gabungkan
+        if (is_array($customTargets) && ! empty($customTargets)) {
+            foreach ($customTargets as $ct) {
+                if (! empty($ct['tmdb_id'])) {
+                    $cloudDirectories[] = [
+                        'tmdb_id' => (int) $ct['tmdb_id'],
+                        'title' => (string) ($ct['title'] ?? ('TMDB ' . $ct['tmdb_id'])),
+                        'folder_name' => (string) ($ct['folder_name'] ?? strtoupper($ct['title'] ?? '')),
+                        'type' => ($ct['type'] ?? 'movie') === 'series' ? 'series' : 'movie',
+                        'season' => isset($ct['season']) ? (int) $ct['season'] : null,
+                        'episode' => isset($ct['episode']) ? (int) $ct['episode'] : null,
+                        'tag' => $ct['tag'] ?? null,
+                        'badge' => $ct['badge'] ?? 'Cloud Direct',
+                        'description' => $ct['description'] ?? null,
+                        'release_date' => $ct['release_date'] ?? null,
+                    ];
+                }
+            }
+        }
+
+        $token = (string) config('services.tmdb.read_token', 'eyJhbGciOiJIUzI1NiJ9.eyJhdWQiOiJhZjNiOGQ3ZTAyZGViZjMzMDJkZTkyNzM2M2Y5MDVhNSIsIm5iZiI6MTc5MTMxNjg4Ny40MjUsInN1YiI6IjZhYzU1Mzk3N2ZhZGRlYzkyZGJiYzM2ZiIsInNjb3BlcyI6WyJhcGlfcmVhZCJdLCJ2ZXJzaW9uIjoxfQ.1QPNbFQVmR2xtf4vAh0Cb0I0XfuEM2uyQo0ksHE0NTs');
+
+        $addedItems = [];
+        $existingCount = 0;
+        $totalChecked = count($cloudDirectories);
+
+        foreach ($cloudDirectories as $dirItem) {
+            $tmdbId = (int) $dirItem['tmdb_id'];
+            $type = $dirItem['type'] ?? 'movie';
+            $season = $dirItem['season'] ?? null;
+            $episode = $dirItem['episode'] ?? null;
+
+            // Cek apakah TMDB ID sudah ada di tabel database
+            $existsInDb = \App\Models\ZetwareCloudMedia::where('tmdb_id', $tmdbId)
+                ->where('type', $type)
+                ->when($season !== null, fn ($q) => $q->where('season', $season))
+                ->when($episode !== null, fn ($q) => $q->where('episode', $episode))
+                ->exists();
+
+            if ($existsInDb) {
+                $existingCount++;
+                continue;
+            }
+
+            // Jika belum ada di database, lengkapi metadata dari TMDB API jika perlu
+            $title = $dirItem['title'] ?? '';
+            $desc = $dirItem['description'] ?? '';
+            $tag = $dirItem['tag'] ?? '';
+            $poster = $dirItem['poster_path'] ?? null;
+            $backdrop = $dirItem['backdrop_path'] ?? null;
+            $voteAverage = $dirItem['vote_average'] ?? null;
+            $releaseDate = $dirItem['release_date'] ?? null;
+
+            if (empty($title) || empty($desc) || ! $poster) {
+                try {
+                    $endpoint = ($type === 'series' || $type === 'tv') ? "tv/{$tmdbId}" : "movie/{$tmdbId}";
+                    $ch = curl_init("https://api.themoviedb.org/3/{$endpoint}?language=id-ID");
+                    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                    curl_setopt($ch, CURLOPT_HTTPHEADER, ["Authorization: Bearer {$token}"]);
+                    curl_setopt($ch, CURLOPT_TIMEOUT, 4);
+                    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+                    $res = curl_exec($ch);
+                    curl_close($ch);
+
+                    if (is_string($res)) {
+                        $tmdbData = json_decode($res, true);
+                        if (is_array($tmdbData)) {
+                            if (empty($title)) {
+                                $title = $tmdbData['title'] ?? $tmdbData['name'] ?? "TMDB {$tmdbId}";
+                            }
+                            if (empty($desc) && ! empty($tmdbData['overview'])) {
+                                $desc = $tmdbData['overview'];
+                            }
+                            if (empty($releaseDate)) {
+                                $releaseDate = $tmdbData['release_date'] ?? $tmdbData['first_air_date'] ?? null;
+                            }
+                            if (! $poster && ! empty($tmdbData['poster_path'])) {
+                                $poster = $tmdbData['poster_path'];
+                            }
+                            if (! $backdrop && ! empty($tmdbData['backdrop_path'])) {
+                                $backdrop = $tmdbData['backdrop_path'];
+                            }
+                            if (! $voteAverage && isset($tmdbData['vote_average'])) {
+                                $voteAverage = $tmdbData['vote_average'];
+                            }
+                            if (empty($tag) && ! empty($tmdbData['genres'])) {
+                                $genreNames = array_slice(array_column($tmdbData['genres'], 'name'), 0, 2);
+                                $tag = implode(' / ', $genreNames);
+                            }
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // Fallback to initial values
+                }
+            }
+
+            // Simpan media baru ke database
+            $created = \App\Models\ZetwareCloudMedia::create([
+                'tmdb_id' => $tmdbId,
+                'title' => $title ?: "TMDB {$tmdbId}",
+                'type' => $type,
+                'season' => $season,
+                'episode' => $episode,
+                'folder_name' => $dirItem['folder_name'] ?? strtoupper($title),
+                'tag' => $tag ?: ($type === 'series' ? 'Serial TV' : 'Film Bioskop'),
+                'badge' => $dirItem['badge'] ?? '1080p FHD',
+                'description' => $desc ?: "Media dari Zetware Cloud TMDB ID {$tmdbId}",
+                'poster_path' => $poster,
+                'backdrop_path' => $backdrop,
+                'vote_average' => $voteAverage,
+                'release_date' => $releaseDate,
+                'is_active' => true,
+            ]);
+
+            $addedItems[] = $created;
+        }
+
+        // Ambil data terbaru untuk frontend
+        $allMedia = \App\Models\ZetwareCloudMedia::orderBy('created_at', 'asc')->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => count($addedItems) > 0
+                ? 'Singkronisasi selesai: ' . count($addedItems) . ' media cloud baru berhasil ditambahkan ke database!'
+                : 'Singkronisasi selesai: Semua direktori TMDB ID cloud sudah ada di database.',
+            'added_count' => count($addedItems),
+            'existing_count' => $existingCount,
+            'total_checked' => $totalChecked,
+            'added_items' => $addedItems,
+            'all_media' => $allMedia,
+        ]);
+    })->name('admin.cloud-media.sync');
 });
 
 require __DIR__.'/settings.php';
