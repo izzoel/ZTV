@@ -160,6 +160,7 @@ export default function ZetwareGlowingBadge({
     const activeStream = streams.find((s) => s.url === currentStreamUrl);
     const activeResInfo = formatZetwareResolution(
         activeStream?.resolution || qualityText,
+        currentStreamUrl,
     );
 
     // Header variant: clean and informative button showing current resolution with dropdown
@@ -299,6 +300,7 @@ export default function ZetwareGlowingBadge({
                                                 const resInfo =
                                                     formatZetwareResolution(
                                                         st.resolution,
+                                                        st.url,
                                                     );
                                                 return (
                                                     <button

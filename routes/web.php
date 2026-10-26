@@ -161,29 +161,35 @@ $checkZetwareMediaHandler = function (Request $request) {
             foreach ($bases as $base) {
                 foreach ($folderVariants as $folder) {
                     $encFolder = rawurlencode($folder);
-                    foreach ($epPatterns as $ep) {
-                        // Pattern 1: {folder} - {ep}{res}.mp4 (matches LANTERNS - S1E2_1920x960.mp4)
-                        foreach ($resolutions as $res) {
-                            $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$folder} - {$ep}{$res}.mp4");
-                        }
-                        // Pattern 2: {titleVariant} - {ep}{res}.mp4
-                        foreach ($titleVariants as $tv) {
-                            if ($tv !== $folder) {
-                                foreach ($resolutions as $res) {
-                                    $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$tv} - {$ep}{$res}.mp4");
-                                }
+                    // 1. TMDB ID subfolder pattern (e.g. LANTERNS/95350/)
+                    if (! empty($tmdbId)) {
+                        $prefix = "$base/$encFolder/{$tmdbId}";
+                        foreach ($epPatterns as $ep) {
+                            foreach ($resolutions as $res) {
+                                $generatedCandidates[] = "$prefix/".rawurlencode("{$folder} - {$ep}{$res}.mp4");
+                            }
+                            foreach ($resolutions as $res) {
+                                $generatedCandidates[] = "$prefix/".rawurlencode("{$ep}{$res}.mp4");
                             }
                         }
-                        // Pattern 3: {ep}{res}.mp4
-                        foreach ($resolutions as $res) {
-                            $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$ep}{$res}.mp4");
+                    } else {
+                        // 2. Folder pattern HANYA jika tmdb_id tidak dioperasikan
+                        foreach ($epPatterns as $ep) {
+                            foreach ($resolutions as $res) {
+                                $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$folder} - {$ep}{$res}.mp4");
+                            }
+                            foreach ($resolutions as $res) {
+                                $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$ep}{$res}.mp4");
+                            }
                         }
                     }
                 }
-                foreach ($titleVariants as $tv) {
+
+                if (! empty($tmdbId)) {
+                    $prefixDirect = "$base/{$tmdbId}";
                     foreach ($epPatterns as $ep) {
                         foreach ($resolutions as $res) {
-                            $generatedCandidates[] = "$base/".rawurlencode("{$tv} - {$ep}{$res}.mp4");
+                            $generatedCandidates[] = "$prefixDirect/".rawurlencode("{$ep}{$res}.mp4");
                         }
                     }
                 }
@@ -192,31 +198,51 @@ $checkZetwareMediaHandler = function (Request $request) {
             foreach ($bases as $base) {
                 foreach ($folderVariants as $folder) {
                     $encFolder = rawurlencode($folder);
-                    // Primary pattern: {folder}/{folder}{res}.mp4 (e.g. HOPE/HOPE_1920x800.mp4)
-                    foreach ($resolutions as $res) {
-                        $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$folder}{$res}.mp4");
-                    }
-                    // Secondary pattern: {folder}/{tv}{res}.mp4
-                    foreach ($titleVariants as $tv) {
-                        if ($tv !== $folder) {
-                            foreach ($resolutions as $res) {
-                                $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$tv}{$res}.mp4");
+                    // 1. TMDB ID subfolder pattern (e.g. HOPE/1058424/)
+                    if (! empty($tmdbId)) {
+                        $prefix = "$base/$encFolder/{$tmdbId}";
+                        foreach ($resolutions as $res) {
+                            $generatedCandidates[] = "$prefix/".rawurlencode("{$folder}{$res}.mp4");
+                        }
+                        foreach ($resolutions as $res) {
+                            if ($res) {
+                                $cleanRes = ltrim($res, '_');
+                                $generatedCandidates[] = "$prefix/".rawurlencode("{$cleanRes}.mp4");
                             }
                         }
+                        $generatedCandidates[] = "$prefix/".rawurlencode("{$tmdbId}.mp4");
+                        $generatedCandidates[] = "$prefix/movie.mp4";
+                        $generatedCandidates[] = "$prefix/video.mp4";
+                    } else {
+                        // 2. Folder pattern HANYA jika tmdb_id tidak dioperasikan
+                        foreach ($resolutions as $res) {
+                            $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$folder}{$res}.mp4");
+                        }
+                        foreach ($resolutions as $res) {
+                            if ($res) {
+                                $cleanRes = ltrim($res, '_');
+                                $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$cleanRes}.mp4");
+                            }
+                        }
+                        $generatedCandidates[] = "$base/$encFolder/movie.mp4";
+                        $generatedCandidates[] = "$base/$encFolder/video.mp4";
+                    }
+                }
+
+                if (! empty($tmdbId)) {
+                    $prefixDirect = "$base/{$tmdbId}";
+                    foreach ($resolutions as $res) {
+                        $generatedCandidates[] = "$prefixDirect/".rawurlencode("{$upperTitle}{$res}.mp4");
                     }
                     foreach ($resolutions as $res) {
                         if ($res) {
                             $cleanRes = ltrim($res, '_');
-                            $generatedCandidates[] = "$base/$encFolder/".rawurlencode("{$cleanRes}.mp4");
+                            $generatedCandidates[] = "$prefixDirect/".rawurlencode("{$cleanRes}.mp4");
                         }
                     }
-                    $generatedCandidates[] = "$base/$encFolder/movie.mp4";
-                    $generatedCandidates[] = "$base/$encFolder/video.mp4";
-                }
-                foreach ($titleVariants as $tv) {
-                    foreach ($resolutions as $res) {
-                        $generatedCandidates[] = "$base/".rawurlencode("{$tv}{$res}.mp4");
-                    }
+                    $generatedCandidates[] = "$prefixDirect/".rawurlencode("{$tmdbId}.mp4");
+                    $generatedCandidates[] = "$prefixDirect/movie.mp4";
+                    $generatedCandidates[] = "$prefixDirect/video.mp4";
                 }
             }
         }
@@ -246,7 +272,7 @@ $checkZetwareMediaHandler = function (Request $request) {
 
     // 0. PRIMARY LOCAL STORAGE SCAN (HOSTINGER / CPANEL):
     // Jika aplikasi berjalan di server Hostinger yang sama dengan zetware.id (u834748983),
-    // langsung baca direktori storage lokal agar 100% mendeteksi semua resolusi (seperti ANIMALS_1920x802.mp4)
+    // langsung baca direktori storage lokal agar 100% mendeteksi semua resolusi (seperti /storage/movies/HOPE/1058424/...)
     $possibleStorageDirs = [
         '/home/u834748983/domains/zetware.id/public_html/storage/movies',
         '/home/u834748983/domains/zetware.id/public_html/storage/movie',
@@ -266,48 +292,108 @@ $checkZetwareMediaHandler = function (Request $request) {
         }
     }
 
-    if ($localBaseDir && ! empty($folderVariants)) {
-        foreach ($folderVariants as $folder) {
-            $targetDirPath = "$localBaseDir/$folder";
-            if (is_dir($targetDirPath)) {
-                $scanned = scandir($targetDirPath);
-                if ($scanned !== false) {
-                    foreach ($scanned as $fn) {
-                        if (! str_ends_with(strtolower($fn), '.mp4')) {
-                            continue;
-                        }
+    if ($localBaseDir && (! empty($folderVariants) || ! empty($tmdbId))) {
+        // Susun daftar direktori target yang akan diperiksa berdasarkan tmdb_id & nama folder
+        $directoriesToScan = [];
 
-                        if ($type === 'series') {
-                            $matchEp = false;
-                            foreach ($epPatterns as $ep) {
-                                if (stripos($fn, $ep) !== false) {
-                                    $matchEp = true;
-                                    break;
-                                }
-                            }
-                            if (! $matchEp) {
-                                continue;
-                            }
-                        }
+        // 1. Jika tmdb_id ada, HANYA periksa direktori yang memiliki tmdb_id (contoh: /storage/movies/HOPE/1058424/ atau /storage/movies/1058424/)
+        // Jika di direktori tidak ada folder tmdb_id nya, jangan fallback ke folder judul biasa agar badge tidak muncul
+        if (! empty($tmdbId)) {
+            foreach ($folderVariants as $folder) {
+                $directoriesToScan[] = [
+                    'path' => "$localBaseDir/$folder/$tmdbId",
+                    'urlPrefix' => "https://zetware.id/storage/movies/".rawurlencode($folder)."/{$tmdbId}",
+                ];
+            }
+            // Juga periksa langsung berdasarkan tmdb_id (contoh: /storage/movies/1058424/)
+            $directoriesToScan[] = [
+                'path' => "$localBaseDir/$tmdbId",
+                'urlPrefix' => "https://zetware.id/storage/movies/{$tmdbId}",
+            ];
+        } else {
+            // 2. Fallback HANYA jika tmdb_id memang tidak dioperasikan: Direktori folder judul biasa (contoh: /storage/movies/HOPE/)
+            foreach ($folderVariants as $folder) {
+                $directoriesToScan[] = [
+                    'path' => "$localBaseDir/$folder",
+                    'urlPrefix' => "https://zetware.id/storage/movies/".rawurlencode($folder),
+                ];
+            }
+        }
 
-                        $res = 'Direct MP4';
-                        if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $fn, $m)) {
-                            $res = $m[1];
-                        }
+        foreach ($directoriesToScan as $dirEntry) {
+            $targetDirPath = $dirEntry['path'];
+            $urlPrefix = $dirEntry['urlPrefix'];
 
-                        $encF = rawurlencode($folder);
-                        $encFn = rawurlencode($fn);
-                        $streams[] = [
-                            'url' => "https://zetware.id/storage/movies/{$encF}/{$encFn}",
-                            'resolution' => $res,
-                            'label' => $res,
-                            'http_code' => 200,
+            if (! is_dir($targetDirPath)) {
+                continue;
+            }
+
+            $subPathsToScan = [
+                ['fsPath' => $targetDirPath, 'urlPrefix' => $urlPrefix],
+            ];
+
+            // Jika series, periksa juga subfolder season (S1, Season 1, dll.)
+            if ($type === 'series') {
+                $seasonFolderNames = [
+                    "S{$season}",
+                    sprintf('S%02d', $season),
+                    "Season {$season}",
+                    sprintf('Season %02d', $season),
+                ];
+                foreach ($seasonFolderNames as $sfn) {
+                    $sfsPath = "$targetDirPath/$sfn";
+                    if (is_dir($sfsPath)) {
+                        $subPathsToScan[] = [
+                            'fsPath' => $sfsPath,
+                            'urlPrefix' => "{$urlPrefix}/".rawurlencode($sfn),
                         ];
                     }
                 }
-                if (! empty($streams)) {
-                    break;
+            }
+
+            foreach ($subPathsToScan as $subPath) {
+                $curFsPath = $subPath['fsPath'];
+                $curUrlPrefix = $subPath['urlPrefix'];
+                $scanned = scandir($curFsPath);
+                if ($scanned === false) {
+                    continue;
                 }
+
+                foreach ($scanned as $fn) {
+                    if (! str_ends_with(strtolower($fn), '.mp4')) {
+                        continue;
+                    }
+
+                    if ($type === 'series') {
+                        $matchEp = false;
+                        foreach ($epPatterns as $ep) {
+                            if (stripos($fn, $ep) !== false) {
+                                $matchEp = true;
+                                break;
+                            }
+                        }
+                        if (! $matchEp) {
+                            continue;
+                        }
+                    }
+
+                    $res = 'Direct MP4';
+                    if (preg_match('/_(\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', $fn, $m)) {
+                        $res = $m[1];
+                    }
+
+                    $encFn = rawurlencode($fn);
+                    $streams[] = [
+                        'url' => "{$curUrlPrefix}/{$encFn}",
+                        'resolution' => $res,
+                        'label' => $res,
+                        'http_code' => 200,
+                    ];
+                }
+            }
+
+            if (! empty($streams)) {
+                break;
             }
         }
     }
@@ -353,7 +439,8 @@ $checkZetwareMediaHandler = function (Request $request) {
 
                 if ($httpCode >= 200 && $httpCode < 400) {
                     $res = 'Direct MP4';
-                    if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $url, $m)) {
+                    $urlFn = basename(rawurldecode($url));
+                    if (preg_match('/_(\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', $urlFn, $m)) {
                         $res = $m[1];
                     }
 
@@ -375,7 +462,7 @@ $checkZetwareMediaHandler = function (Request $request) {
                 $dirPath = dirname($firstUrl);
                 $rawFileName = basename($decodedFirstUrl);
                 // Ekstrak nama dasar file sebelum resolusi (misal: "THE ODYSSEY" dari "THE ODYSSEY_1280x666.mp4")
-                $rawBaseName = preg_replace('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', '', $rawFileName);
+                $rawBaseName = preg_replace('/_(\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', '', $rawFileName);
                 $rawBaseName = preg_replace('/\.mp4$/i', '', $rawBaseName);
 
                 if (! empty($rawBaseName)) {
@@ -437,7 +524,8 @@ $checkZetwareMediaHandler = function (Request $request) {
 
                             if ($pCode >= 200 && $pCode < 400) {
                                 $pRes = 'Direct MP4';
-                                if (preg_match('/[_\/](\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i', $pUrl, $pm)) {
+                                $pFn = basename(rawurldecode($pUrl));
+                                if (preg_match('/_(\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i', $pFn, $pm)) {
                                     $pRes = $pm[1];
                                 }
                                 $streams[] = [
@@ -455,8 +543,8 @@ $checkZetwareMediaHandler = function (Request $request) {
                 break;
             }
 
-            // Check up to 4 batches (64 prioritized URLs)
-            if ($batchIndex >= 3) {
+            // Check up to 8 batches (128 prioritized URLs)
+            if ($batchIndex >= 7) {
                 break;
             }
         }

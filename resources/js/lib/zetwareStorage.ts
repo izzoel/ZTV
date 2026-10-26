@@ -12,13 +12,27 @@ export interface ZetwareStreamOption {
     http_code?: number;
 }
 
-export function formatZetwareResolution(res?: string | null): {
+export function formatZetwareResolution(
+    res?: string | null,
+    fallbackUrl?: string | null,
+): {
     badge: string;
     label: string;
     detail: string;
     raw: string;
 } {
-    if (!res) {
+    // Cari resolusi dari parameter res, jika tidak ada atau 'Direct MP4', coba ekstrak dari fallbackUrl/nama file
+    let clean = (res || '').trim();
+    if ((!clean || clean.toLowerCase() === 'direct mp4') && fallbackUrl) {
+        const decodedUrl = decodeURIComponent(fallbackUrl);
+        const fileName = decodedUrl.split('/').pop() || decodedUrl;
+        const matched = fileName.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?/i);
+        if (matched) {
+            clean = matched[1];
+        }
+    }
+
+    if (!clean || clean.toLowerCase() === 'direct mp4') {
         return {
             badge: 'MP4',
             label: 'Direct MP4',
@@ -26,7 +40,6 @@ export function formatZetwareResolution(res?: string | null): {
             raw: '',
         };
     }
-    const clean = res.trim();
 
     // Hanya mencek angka resolusi pertama (misal: 640x268 -> hanya mencek 640 saja)
     // agar semua varian resolusi dapat terdeteksi dengan tepat
@@ -229,9 +242,11 @@ export function generateZetwareStorageUrls(
     type: 'movie' | 'series',
     season: number = 1,
     episode: number = 1,
+    tmdbId?: string | number,
 ): string[] {
     const cleanTitle = title.trim();
-    if (!cleanTitle) return [];
+    const cleanTmdbId = tmdbId ? String(tmdbId).trim() : '';
+    if (!cleanTitle && !cleanTmdbId) return [];
 
     const candidates: string[] = [];
     const bases = [
@@ -320,25 +335,174 @@ export function generateZetwareStorageUrls(
             ]),
         );
 
-        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file
-        for (const base of bases) {
-            for (const folder of folderVariants) {
-                const encFolder = encodeURIComponent(folder);
+        // 1. PRIORITAS TMDB ID: {folder}/{tmdb_id}/ dan {tmdb_id}/
+        if (cleanTmdbId) {
+            for (const base of bases) {
+                for (const folder of folderVariants) {
+                    const encFolder = encodeURIComponent(folder);
+                    const prefix = `${base}/${encFolder}/${cleanTmdbId}`;
 
+                    for (const ep of epPatterns) {
+                        for (const res of COMMON_RESOLUTIONS) {
+                            const filename = `${folder} - ${ep}${res}.mp4`;
+                            candidates.push(
+                                `${prefix}/${encodeURI(filename)}`,
+                            );
+                        }
+                        for (const res of COMMON_RESOLUTIONS) {
+                            const filename = `${ep}${res}.mp4`;
+                            candidates.push(
+                                `${prefix}/${encodeURI(filename)}`,
+                            );
+                        }
+                    }
+                }
+
+                // Direct {tmdb_id}/
+                const directPrefix = `${base}/${cleanTmdbId}`;
                 for (const ep of epPatterns) {
-                    // Pattern A: {folder}/{folder} - {ep}{res}.mp4 (e.g. LANTERNS/LANTERNS - S1E2_1920x960.mp4)
                     for (const res of COMMON_RESOLUTIONS) {
-                        const filename = `${folder} - ${ep}${res}.mp4`;
+                        const filename = `${ep}${res}.mp4`;
+                        candidates.push(
+                            `${directPrefix}/${encodeURI(filename)}`,
+                        );
+                    }
+                }
+            }
+        } else {
+            // 2. Subfolder target HANYA jika tmdb_id tidak disediakan
+            for (const base of bases) {
+                for (const folder of folderVariants) {
+                    const encFolder = encodeURIComponent(folder);
+
+                    for (const ep of epPatterns) {
+                        // Pattern A: {folder}/{folder} - {ep}{res}.mp4 (e.g. LANTERNS/LANTERNS - S1E2_1920x960.mp4)
+                        for (const res of COMMON_RESOLUTIONS) {
+                            const filename = `${folder} - ${ep}${res}.mp4`;
+                            candidates.push(
+                                `${base}/${encFolder}/${encodeURI(filename)}`,
+                            );
+                        }
+
+                        // Pattern B: {folder}/{tv} - {ep}{res}.mp4
+                        for (const titleVar of titleVariants) {
+                            if (titleVar !== folder) {
+                                for (const res of COMMON_RESOLUTIONS) {
+                                    const filename = `${titleVar} - ${ep}${res}.mp4`;
+                                    candidates.push(
+                                        `${base}/${encFolder}/${encodeURI(filename)}`,
+                                    );
+                                }
+                            }
+                        }
+
+                        // Pattern C: {folder}/{ep}{res}.mp4 (e.g. LANTERNS/S1E2_1920x960.mp4)
+                        for (const res of COMMON_RESOLUTIONS) {
+                            const filename = `${ep}${res}.mp4`;
+                            candidates.push(
+                                `${base}/${encFolder}/${encodeURI(filename)}`,
+                            );
+                        }
+                    }
+                }
+            }
+
+            // 3. FALLBACK: Flat root target https://zetware.id/storage/movies/file
+            for (const base of bases) {
+                for (const titleVar of titleVariants) {
+                    for (const ep of epPatterns) {
+                        for (const res of COMMON_RESOLUTIONS) {
+                            const filename = `${titleVar} - ${ep}${res}.mp4`;
+                            candidates.push(`${base}/${encodeURI(filename)}`);
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // 1. PRIORITAS TMDB ID: {folder}/{tmdb_id}/ (contoh: HOPE/1058424/) dan {tmdb_id}/
+        if (cleanTmdbId) {
+            for (const base of bases) {
+                for (const folder of folderVariants) {
+                    const encFolder = encodeURIComponent(folder);
+                    const prefix = `${base}/${encFolder}/${cleanTmdbId}`;
+
+                    // Pattern {folder}/{tmdb_id}/{folder}{res}.mp4 (contoh: HOPE/1058424/HOPE_1920x800.mp4)
+                    for (const res of COMMON_RESOLUTIONS) {
+                        const filename = `${folder}${res}.mp4`;
+                        candidates.push(
+                            `${prefix}/${encodeURI(filename)}`,
+                        );
+                    }
+
+                    for (const titleVar of titleVariants) {
+                        if (titleVar !== folder) {
+                            for (const res of COMMON_RESOLUTIONS) {
+                                const filename = `${titleVar}${res}.mp4`;
+                                candidates.push(
+                                    `${prefix}/${encodeURI(filename)}`,
+                                );
+                            }
+                        }
+                    }
+
+                    for (const res of COMMON_RESOLUTIONS) {
+                        if (res) {
+                            const cleanRes = res.replace(/^_/, '');
+                            candidates.push(
+                                `${prefix}/${encodeURI(cleanRes)}.mp4`,
+                            );
+                            candidates.push(
+                                `${prefix}/${encodeURI(res)}.mp4`,
+                            );
+                        }
+                    }
+
+                    candidates.push(`${prefix}/${encodeURI(cleanTmdbId)}.mp4`);
+                    candidates.push(`${prefix}/movie.mp4`);
+                    candidates.push(`${prefix}/video.mp4`);
+                }
+
+                // Direct {tmdb_id}/
+                const directPrefix = `${base}/${cleanTmdbId}`;
+                const primaryFolder = folderVariants[0] || 'movie';
+                for (const res of COMMON_RESOLUTIONS) {
+                    const filename = `${primaryFolder}${res}.mp4`;
+                    candidates.push(
+                        `${directPrefix}/${encodeURI(filename)}`,
+                    );
+                }
+                for (const res of COMMON_RESOLUTIONS) {
+                    if (res) {
+                        const cleanRes = res.replace(/^_/, '');
+                        candidates.push(
+                            `${directPrefix}/${encodeURI(cleanRes)}.mp4`,
+                        );
+                    }
+                }
+                candidates.push(`${directPrefix}/${encodeURI(cleanTmdbId)}.mp4`);
+                candidates.push(`${directPrefix}/movie.mp4`);
+                candidates.push(`${directPrefix}/video.mp4`);
+            }
+        } else {
+            // 2. Subfolder target HANYA jika tmdb_id tidak disediakan
+            for (const base of bases) {
+                for (const folder of folderVariants) {
+                    const encFolder = encodeURIComponent(folder);
+
+                    // Pattern A: {folder}/{folder}{res}.mp4 (e.g. HOPE/HOPE_1920x800.mp4)
+                    for (const res of COMMON_RESOLUTIONS) {
+                        const filename = `${folder}${res}.mp4`;
                         candidates.push(
                             `${base}/${encFolder}/${encodeURI(filename)}`,
                         );
                     }
 
-                    // Pattern B: {folder}/{tv} - {ep}{res}.mp4
+                    // Pattern B: {folder}/{tv}{res}.mp4
                     for (const titleVar of titleVariants) {
                         if (titleVar !== folder) {
                             for (const res of COMMON_RESOLUTIONS) {
-                                const filename = `${titleVar} - ${ep}${res}.mp4`;
+                                const filename = `${titleVar}${res}.mp4`;
                                 candidates.push(
                                     `${base}/${encFolder}/${encodeURI(filename)}`,
                                 );
@@ -346,79 +510,32 @@ export function generateZetwareStorageUrls(
                         }
                     }
 
-                    // Pattern C: {folder}/{ep}{res}.mp4 (e.g. LANTERNS/S1E2_1920x960.mp4)
+                    // Pattern C: {folder}/{res}.mp4
                     for (const res of COMMON_RESOLUTIONS) {
-                        const filename = `${ep}${res}.mp4`;
-                        candidates.push(
-                            `${base}/${encFolder}/${encodeURI(filename)}`,
-                        );
-                    }
-                }
-            }
-        }
-
-        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file
-        for (const base of bases) {
-            for (const titleVar of titleVariants) {
-                for (const ep of epPatterns) {
-                    for (const res of COMMON_RESOLUTIONS) {
-                        const filename = `${titleVar} - ${ep}${res}.mp4`;
-                        candidates.push(`${base}/${encodeURI(filename)}`);
-                    }
-                }
-            }
-        }
-    } else {
-        // 1. PRIMARY: Subfolder target https://zetware.id/storage/movies/{title}/file
-        for (const base of bases) {
-            for (const folder of folderVariants) {
-                const encFolder = encodeURIComponent(folder);
-
-                // Pattern A: {folder}/{folder}{res}.mp4 (e.g. HOPE/HOPE_1920x800.mp4)
-                for (const res of COMMON_RESOLUTIONS) {
-                    const filename = `${folder}${res}.mp4`;
-                    candidates.push(
-                        `${base}/${encFolder}/${encodeURI(filename)}`,
-                    );
-                }
-
-                // Pattern B: {folder}/{tv}{res}.mp4
-                for (const titleVar of titleVariants) {
-                    if (titleVar !== folder) {
-                        for (const res of COMMON_RESOLUTIONS) {
-                            const filename = `${titleVar}${res}.mp4`;
+                        if (res) {
+                            const cleanRes = res.replace(/^_/, '');
                             candidates.push(
-                                `${base}/${encFolder}/${encodeURI(filename)}`,
+                                `${base}/${encFolder}/${encodeURI(cleanRes)}.mp4`,
+                            );
+                            candidates.push(
+                                `${base}/${encFolder}/${encodeURI(res)}.mp4`,
                             );
                         }
                     }
-                }
 
-                // Pattern C: {folder}/{res}.mp4
-                for (const res of COMMON_RESOLUTIONS) {
-                    if (res) {
-                        const cleanRes = res.replace(/^_/, '');
-                        candidates.push(
-                            `${base}/${encFolder}/${encodeURI(cleanRes)}.mp4`,
-                        );
-                        candidates.push(
-                            `${base}/${encFolder}/${encodeURI(res)}.mp4`,
-                        );
-                    }
+                    // Pattern D: {folder}/movie.mp4 or video.mp4
+                    candidates.push(`${base}/${encFolder}/movie.mp4`);
+                    candidates.push(`${base}/${encFolder}/video.mp4`);
                 }
-
-                // Pattern D: {folder}/movie.mp4 or video.mp4
-                candidates.push(`${base}/${encFolder}/movie.mp4`);
-                candidates.push(`${base}/${encFolder}/video.mp4`);
             }
-        }
 
-        // 2. FALLBACK: Flat root target https://zetware.id/storage/movies/file
-        for (const base of bases) {
-            for (const titleVar of titleVariants) {
-                for (const res of COMMON_RESOLUTIONS) {
-                    const filename = `${titleVar}${res}.mp4`;
-                    candidates.push(`${base}/${encodeURI(filename)}`);
+            // 3. FALLBACK: Flat root target https://zetware.id/storage/movies/file
+            for (const base of bases) {
+                for (const titleVar of titleVariants) {
+                    for (const res of COMMON_RESOLUTIONS) {
+                        const filename = `${titleVar}${res}.mp4`;
+                        candidates.push(`${base}/${encodeURI(filename)}`);
+                    }
                 }
             }
         }
@@ -433,6 +550,7 @@ export async function checkZetwareMediaExists(
     type?: 'movie' | 'series',
     season: number = 1,
     episode: number = 1,
+    tmdbIdArg?: string | number,
 ): Promise<ZetwareMediaCheckResult> {
     let title: string;
     let tmdbId: string | number | undefined;
@@ -451,15 +569,17 @@ export async function checkZetwareMediaExists(
         mediaType = type || 'movie';
         s = season;
         ep = episode;
+        tmdbId = tmdbIdArg;
     }
 
     if (!title.trim() && !tmdbId) {
         return { exists: false, url: null, streams: [], source: 'streambert' };
     }
 
-    const candidates = title.trim()
-        ? generateZetwareStorageUrls(title, mediaType, s, ep)
-        : [];
+    const candidates =
+        title.trim() || tmdbId
+            ? generateZetwareStorageUrls(title, mediaType, s, ep, tmdbId)
+            : [];
 
     try {
         const response = await fetch('/api/check-zetware-media', {

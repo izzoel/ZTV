@@ -286,6 +286,7 @@ export default function DetailPage({ id }: DetailPageProps) {
 
         checkZetwareMediaExists({
             title: media.title,
+            tmdbId: media.tmdbId,
             type: media.type,
             season: selectedSeasonNumber,
             episode: 1,

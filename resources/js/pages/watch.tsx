@@ -362,12 +362,13 @@ export default function WatchPage({
         if (!media) return;
 
         setIsCheckingZetware(true);
-        checkZetwareMediaExists(
-            media.title,
-            media.type,
-            selectedSeason,
-            selectedEpisode,
-        ).then((res) => {
+        checkZetwareMediaExists({
+            title: media.title,
+            tmdbId: media.tmdbId || currentTmdbId,
+            type: media.type,
+            season: selectedSeason,
+            episode: selectedEpisode,
+        }).then((res) => {
             if (!isMounted) return;
             setIsCheckingZetware(false);
             if (res.exists && res.url) {
@@ -596,10 +597,13 @@ export default function WatchPage({
             : media.title.toUpperCase()
         : '';
 
-    const detectedResolution = zetwareDirectUrl?.match(
-        /_(\d+x\d+|\d+p|\d{3,4}|4k)/i,
+    const zetwareDirectFileName = zetwareDirectUrl
+        ? decodeURIComponent(zetwareDirectUrl).split('/').pop() || ''
+        : '';
+    const detectedResolution = zetwareDirectFileName.match(
+        /_(\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i,
     )?.[1]
-        ? `${zetwareDirectUrl.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1]} MP4`
+        ? `${zetwareDirectFileName.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)(?:\.mp4)?$/i)?.[1]} MP4`
         : 'Direct MP4';
 
     const formatTime = (seconds: number) => {
@@ -628,8 +632,8 @@ export default function WatchPage({
 
         const targetStream = zetwareStreams.find((s) => s.url === newUrl);
         const resInfo = formatZetwareResolution(
-            targetStream?.resolution ||
-                newUrl.match(/_(\d+x\d+|\d+p|\d{3,4}|4k)/i)?.[1],
+            targetStream?.resolution,
+            newUrl,
         );
         const timeFormatted = formatTime(curTime);
         setResolutionNotice(
@@ -1044,6 +1048,7 @@ export default function WatchPage({
                                                                                 const resInfo =
                                                                                     formatZetwareResolution(
                                                                                         st.resolution,
+                                                                                        st.url,
                                                                                     );
                                                                                 return (
                                                                                     <button
